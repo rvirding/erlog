@@ -1,0 +1,335 @@
+MODULE
+	erlog
+
+MODULE SUMMARY
+	Interpreter for sub-set of Prolog
+
+DESCRIPTION
+
+	Erlog is a Prolog interpreter implemented in Erlang and
+	integrated with the Erlang runtime system. It follows the
+	Prolog standard and the following subset of the built-ins have
+	been implemented:
+
+	Logic and control
+	call/1, ','/2, '!', ';'/2, fail, '->'/2 (if-then),
+	( -> ; )(if-then-else), '\\+'/1, once/1, repeat, true
+
+	Term creation and decomposition
+	arg/3, copy_term/2, functor/3, '=..'/2
+
+	Clause creation and destruction
+	abolish/1, assert/1, asserta/1, assertz/1, retract/1,
+	retractall/1.
+
+	Clause retrieval and information
+	clause/2, current_predicate/1, predicate_property/2
+
+	Term unification and comparison
+	'@>'/2, '@>='/2, '=='/2, '\\=='/2, '@>'/2, '@=<'/2,
+	'='/2, '\\='/2
+
+	Arithmetic evaluation and comparison
+	'>'/2, '>='/2, '=:='/2, '=\\='/2, '>'/2, '=<'/2, is/2
+
+	Type testing
+	atom/1, atomic/1, compound/1, integer/1, float/1, number/1,
+	nonvar/1, var/1
+
+	Erlang interface
+	ecall/2
+
+	Useful but non-standard
+	expand_term/2, sort/2, 'C'/3, phrase/2, phrase/3
+
+	Common library
+	append/3, insert/3, member/2
+
+	The following arithmetic operators are implemented:
+
+	+/1, -/1, +/2, -/2, */2, //2, **/2, ///2, mod/2, abs/1,
+	float/1, truncate/1
+
+	Prolog terms in Erlog have a very direct representation in
+	Erlang:
+
+	Prolog			Erlang
+	------			------
+	Structures		Tuples where the first element
+			        is the functor name (an atom)
+	Lists			Lists
+	Variables		Tuple {VariableName} where VariableName
+				is an atom
+	Atomic			Atomic
+
+	Note there is no problem with this representation of variables
+	as structures without arguments, a(), are illegal in
+	Prolog. For example the Prolog term:
+
+	Goal = insert([1,2,3], atom, Es), call(Goal)
+
+	is represeted in Erlang by:
+
+	{',',{'=',{'Goal'},{insert,[1,2,3],atom,{'Es'}}},{call,{'Goal'}}}
+
+	The clauses of the standard append/3 defined by
+
+	append([], L, L).
+	append([H|T], L, [H|T1]) :-
+	    append(T, L, T1).
+
+	are represented in Erlang by the terms:
+
+	{append,[],{'L'},{'L'}}.
+	{':-',{append,[{'H'}|{'T'}],{'L'},[{'H'}|{'T1'}]},
+	      {append,{'T'},{'L'},{'T1'}}}.
+
+	Limited checking is done at run-time, basically only of input
+	terms. Currently this is done for the top level when clauses
+	are added to the database and a goal is entered.
+
+EXPORTS
+
+erlog:new() -> Erlog()
+
+	Start a new Erlog interpreter. The intrepreter is a function
+	which can be called with the following valid arguments:
+
+	Erlog({prove,Goal}) -> {ProveRet,Erlog()}.
+	Erlog(next_solution) -> {ProveRet,Erlog()}.
+
+	where ProveRet = {succeed,VarBindings} | fail | Error.
+
+	Goal can also be a list of goals here to simplify writing
+	conjunctions.
+
+	Erlog({consult,FileName} -> {ok,Erlog()} | {Error,Erlog()}.
+	Erlog({reconsult,FileName} -> {ok,Erlog()} | {Error,Erlog()}.
+
+	Erlog(get_db) -> {{ok,Database},Erlog()}.
+	Erlog({set_db,Database}) -> {ok,Erlog()}.
+
+	Get/set the database used by the interpreter to Database.
+	These functions can be used to save and quickly restore the
+	database to a predefined state.
+
+	Erlog(halt) -> ok.
+	
+
+erlog:start() -> Eint.
+erlog:start_link() -> Eint.
+erlog:prove(Eint, Goal) -> {succeed,VarBindings} | fail | Error.
+erlog:next_solution(Eint) -> {succeed,VarBindings} | fail | Error.
+erlog:consult(Eint, FileName) -> ok | Error.
+erlog:reconsult(Eint, FileName) -> ok | Error.
+erlog:get_db(Eint) -> {ok,Database}.
+erlog:set_db(Eint, Database) -> ok.
+erlog:halt(Eint) -> ok.
+
+	These functions run the Erlog interpreter as a separate
+	process, the interface functions correspond to the valid
+	arguments to the Erlog interpeter function above.
+
+erlog:shell() -> ok.
+
+	Start a simple Erlog shell. Goals can be entered at the "?-"
+	prompt. When the goal succeeds the variables and their values
+	will be printed and the user prompted. If a line containing a
+	";" is entered the system will attempt to find the next
+	solution, otherwise the system will return to the "?-" prompt.
+
+erlog:is_legal_term(Term) -> bool().
+
+	Test if Term is a well-formed (legal) Erlog structure.
+
+erlog:vars_in(Term) -> [{VarName,Variable}].
+
+	Returns a list of {VariableName,Variable} pairs.
+
+erlog_parse:term([Token]) -> {ok,Term} | {error,ErrorDescriptor}.
+erlog_parse:term([Token], LineNo) -> {ok,Term} | {error,ErrorDescriptor}.
+
+	Parse a list of Erlang tokens as a Prolog term. The line
+	number (default 1) is used when returning errors.
+	ErrorDescriptor has the format:
+
+	{LineNo,ModuleName,Error}
+
+erlog_scan:string(String) -> {ok,[Token],Line} | {error,Error,LineNo}.
+erlog_scan:string(String, Line) -> {ok,[Token],Line} | {error,Error,Line}.
+
+	Scan String and return a list of tokens.
+
+erlog_scan:token(Continuation, Chars, Line) ->
+	{more,Continuation} | {done,ReturnVal,RestChars}.
+
+	Re-entrant scanner to scan one token. Compatible with io system.
+
+erlog_scan:tokens(Continuation, Chars, Line) ->
+	{more,Continuation} | {done,ReturnVal,RestChars}.
+
+	Re-entrant scanner to scan tokens upto an end token.
+	Compatible with io system.
+
+ERLANG INTERFACE
+
+	The interface to Erlang is through the ecall/2 predicate,
+	which provides a back-trackable interface to Erlang. It has
+	the form:
+
+	ecall(ErlangFunctionCall, ReturnValue)
+
+	It calls the Erlang function and unifies the result with
+	ReturnValue. For example
+
+	ecall(mymod:onefunc(A1, A2), Ret)
+	ecall(mymod:otherfunc, Ret)
+
+	where the second form calls a function of no arguments
+	(funcname() is illegal syntax in Prolog).
+
+	The Erlang function must return:
+
+	{succeed,Value,Continuation}
+
+		The function hass succeeded and returns Value which is
+		unified with the output argument of ecall/2.
+		Continuation will be called on backtracking to
+		generate the next value.
+
+	{succeed_last,Value}
+
+		This is the last time the function will succeed so no
+		continuation is returned. It is an opimisation of
+		returning a continuation which will fail the next
+		time.
+
+	fail
+
+		The function cannot generate more solutions and fails.
+
+	The first example is a simple function which calls an Erlang
+	function and returns the value:
+
+	efunc(Fcall) ->
+	    %% This is what the operators will generate.
+	    Val = case Fcall of
+		      {':',M,F} when is_atom(M), is_atom(F) -> M:F();
+		      {':',M,{F,A}} when is_atom(M), is_atom(F) -> M:F(A);
+		      {':',M,T} when is_atom(M), is_tuple(T), size(T) >= 2,
+				     is_atom(element(1, T)) ->
+			  apply(M,element(1, T),tl(tuple_to_list(T)))
+		   end,
+	    {succeed_last,Val}.			%Optimisation
+
+	The second example is a function which returns the keys in an
+	Ets table on backtracking:
+
+	ets_keys(Tab) ->
+	    %% Solution with no look-ahead, get keys when requested.
+	    %% This fun returns next key and itself for continuation.
+	    F = fun (F1, Tab1, Last1) ->
+			case ets:next(Tab1, Last1) of
+			    '$end_of_table' -> fail;	%No more elements
+			    Key1 -> {succeed,Key1,
+				     fun () -> F1(F1, Tab1, Key1) end}
+			end
+		end,
+	    case ets:first(Tab) of
+		'$end_of_table' -> fail;	%No elements
+		Key -> {succeed,Key, fun () -> F(F, Tab, Key) end}
+	    end.
+
+	The third example calls a function which returns a list and
+	retuns elements from this list on backtracking. I KNOW we
+	could just return the whole list and use member/2 to generate
+	elements from it, but this is more fun.
+
+	get_list(ListGen) ->
+	    %% This is what the operators will generate.
+	    Vals = case ListGen of
+		       {':',M,F} when is_atom(M), is_atom(F) -> M:F();
+		       {':',M,{F,A}} when is_atom(M), is_atom(F) -> M:F(A);
+		       {':',M,T} when is_atom(M), is_tuple(T), size(T) >= 2,
+				      is_atom(element(1, T)) ->
+			   apply(M,element(1, T),tl(tuple_to_list(T)))
+		   end,
+	    %% This fun will return head and itself for continuation.
+	    Fun = fun (F1, Es0) ->
+			  case Es0 of
+			      [E] -> {succeed_last,E};	%Optimisation
+			      [E|Es] -> {succeed,E,fun () -> F1(F1, Es) end};
+			      [] -> fail		%No more elements
+			  end
+		  end,
+	    %Call with list of values to return first element.
+	    Fun(Fun, Vals).
+
+
+	For example the Erlog goal:
+
+	    ecall(erlog_demo:get_list(ets:all),Tab),
+	    ecall(erlog_demo:ets_keys(Tab),Key).
+
+	will on backtracking generate the names of all ETS tables
+	which have keys and their keys.
+
+	It is a great pity that the implementation of ETS loses
+	greatly if you want to do more complex selection of elements
+	that just simple matching.
+
+DEFINTE CLAUSE GRAMMERS (DCGs)
+
+	Erlog supports DCGs. Expansion of -->/2 terms is done through
+	the procedure expand_term/2 which can be called explicitly and
+	is called automatically when consulting files. At present
+	there is no support for a user defined term_expansion/2
+	procedure. The expansion uses 'C'/3 to match tokens and
+	phrase/3 to handle variable terms. These are defined by:
+
+	    'C'([Token|Tokens], Token, Tokens).
+
+	    phrase(Term, S0, S1) :-
+		Term =.. L, append(L, [S0,S1], L1), Call =.. L1, Call.
+
+	Both are interpreted procedures and can be redefined as
+	needed.
+
+PROLOG SYNTAX
+
+	There is a simple Prolog parser, based on a Leex scanner and a
+	Standard Prolog parser, which will parse most Prolog terms. It
+	recognises all the standard operators, which have the default
+	priorites, but does not allow adding new operators.
+
+	Files containing Prolog predicates can be consulted, however
+	directives and queries in the file are ignored.
+
+NOTES
+
+	This is only a simple interpreter without a true garbage
+	collector so for larger evaluations you should adopt a failure
+	driven style.
+
+	There is no smart clause indexing on the first argument in a
+	procedure in Erlog.
+
+	Yes, there are no I/O predicates provided.
+
+	There is partial support for the equivalence of list notation
+	and '.'/2 terms, but it might go away later.
+
+	We use the standard Erlang ordering of terms which means that
+ 	variables do not have the lowest ordering as they should.
+
+	We use the Erlang definition of arithmetic operators, not
+	standard Prolog.
+
+	Sometimes the description of the error returned from the
+	parser can be a little "cryptic".
+
+AUTHOR
+
+	Robert Virding - robert.virding@telia.com
+	(with thanks to Richard O'Keefe for explaining some finer
+	points of the Prolog standard)
