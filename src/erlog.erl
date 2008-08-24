@@ -41,12 +41,10 @@
 
 %% Basic evaluator interface.
 -export([new/0]).
-%% Shell functions.
--export([shell/0]).
 %% Interface to server.
+-export([start/0,start_link/0]).
 -export([prove/2,next_solution/1,
 	 consult/2,reconsult/2,get_db/1,set_db/2,halt/1]).
--export([start/0,start_link/0]).
 %% User utilities.
 -export([is_legal_term/1,vars_in/1]).
 
@@ -180,84 +178,6 @@ send_reply(To, Rep) -> To ! {erlog_reply,Rep}.
 wait_reply() ->
     receive
 	{erlog_reply,Rep} -> Rep
-    end.
-
-%% shell()
-%% A simple Erlog shell similar to a "normal" Prolog shell. It allows
-%% user to enter goals, see resulting bindings and request next
-%% solution.
-
-shell() ->
-    shell_loop(new()).
-
-shell_loop(P0) ->
-    case erlog_io:read('| ?- ') of
-	{ok,halt} -> ok;
-	{ok,Files} when is_list(Files) ->
-	    {{ok,Db0},P1} = P0(get_db),
-	    case reconsult_files(Files, Db0) of
-		{ok,Db1} ->
-		    io:fwrite("Yes\n"),
-		    {ok,P2} = P1({set_db,Db1}),
-		    shell_loop(P2);
-		{erlog_error,Error} ->
-		    io:fwrite("Error: ~p\n", [Error]),
-		    shell_loop(P0);
-		{error,{L,Pm,Pe}} ->
-		    io:fwrite("Error: ~w: ~s\n",
-			      [L,Pm:format_error(Pe)]),
-		    shell_loop(P0);
-		{error,Error} ->
-		    io:fwrite("Error: ~p\n", [Error]),
-		    shell_loop(P0)
-	    end;
-	{ok,Goal} ->
-	    shell_prove_result(P0({prove,Goal}));
-	{error,{_,Em,E}} ->
-	    io:fwrite("Error: ~s\n", [Em:format_error(E)]),
-	    shell_loop(P0)
-    end.
-
-reconsult_files([F|Fs], Db0) ->
-    case reconsult_file(F, Db0) of
-	{ok,Db1} -> reconsult_files(Fs, Db1);
-	{erlog_error,Error} -> {erlog_error,Error};
-	{error,Error} -> {error,Error}
-    end;
-reconsult_files([], Db) -> {ok,Db};
-reconsult_files(Other, _Db) -> {error,{type_error,list,Other}}.
-
-shell_prove_result({{succeed,Vs},P}) -> show_bindings(Vs, P);
-shell_prove_result({fail,P}) ->
-	    io:fwrite("No\n"),
-	    shell_loop(P);
-	%% Errors from the Erlog interpreters.
-shell_prove_result({{error,Error},P}) ->
-	    io:fwrite("Error: ~p\n", [Error]),
-	    shell_loop(P);
-	%% Errors and exits from user code.
-shell_prove_result({{'EXIT',Error},P}) ->	%No new database here
-	    io:fwrite("EXIT: ~p\n", [Error]),
-	    shell_loop(P).
-
-%% show_bindings(VarList, Prolog())
-%% Show the bindings and query user for next solution.
-
-show_bindings([], P) ->
-    io:fwrite("Yes\n"),
-    shell_loop(P);
-show_bindings(Vs, P) ->
-    foreach(fun ({Name,Val}) ->
-		    Out = erlog_io:write1(Val),	%Write Erlog term
-		    io:fwrite("~s = ~s\n", [Name,Out])
-	    end, Vs),
-    Line = io:get_line(': '),
-    case string:chr(Line, $;) of
-	0 ->
-	    io:fwrite("Yes\n"),
-	    shell_loop(P);
-	_ ->
-	    shell_prove_result(P(next_solution))
     end.
 
 %% vars_in(Term) -> [{Name,Var}].
