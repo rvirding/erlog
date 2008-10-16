@@ -1,4 +1,4 @@
-2008-08-22    <rvirding@DOUGLAS>
+2008-08-22    <rv@DOUGLAS>
 
 	* erlog_parse.erl (term): Better line numbers on errors.
 
@@ -6,12 +6,12 @@
 
 	* All files: Added new copyright.
 
-2008-08-02    <rvirding@DOUGLAS>
+2008-08-02    <rv@DOUGLAS>
 
 	* erlog_parse.erl (term): Does better job of reporting the right
 	error and giving good line number. Back-tracking still means that
 	best error is not always reported.
 
-2006-09-01    <rvirding@DOUGLAS>
+2006-09-01    <rv@DOUGLAS>
 
 	* All files: Released erlog v5.
