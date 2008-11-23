@@ -47,6 +47,7 @@
 	 consult/2,reconsult/2,get_db/1,set_db/2,halt/1]).
 %% User utilities.
 -export([is_legal_term/1,vars_in/1]).
+-export([consult_file/2,reconsult_file/2]).
 
 -import(lists, [foldl/3,foreach/2]).
 
