@@ -1,3 +1,11 @@
+2009-08-22  Robert Virding  <rv@stanislaw.local>
+
+	* erlog.erl, erlog_int.erl: Define IS_CONSTANT macro to replace
+	now defunct type test.
+
+	* erlog.erl, erlog_int.erl: Upgraded old style type tests in
+	guards.
+
 2008-08-22    <rv@DOUGLAS>
 
 	* erlog_parse.erl (term): Better line numbers on errors.

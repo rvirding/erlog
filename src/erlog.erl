@@ -188,11 +188,11 @@ vars_in(Term) -> vars_in(Term, orddict:new()).
 
 vars_in({'_'}, Vs) -> Vs;			%Never in!
 vars_in({Name}=Var, Vs) -> orddict:store(Name, Var, Vs);
-vars_in(Struct, Vs) when tuple(Struct) ->
+vars_in(Struct, Vs) when is_tuple(Struct) ->
     vars_in_struct(Struct, 2, size(Struct), Vs);
 vars_in([H|T], Vs) ->
     vars_in(T, vars_in(H, Vs));
-vars_in(_Atomic, Vs) -> Vs.
+vars_in(_, Vs) -> Vs.
 
 vars_in_struct(_Str, I, S, Vs) when I > S -> Vs;
 vars_in_struct(Str, I, S, Vs) ->
@@ -257,6 +257,9 @@ consult_terms(_Ifun, Db, []) -> {ok,Db}.
 functor({':-',H,_B}) -> erlog_int:functor(H);
 functor(T) -> erlog_int:functor(T).
 
+%% The old is_constant/1 ?
+-define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
+
 %% is_legal_term(Goal) -> true | false.
 %% Test if a goal is a legal Erlog term. Basically just check if
 %% tuples are used correctly as structures and variables.
@@ -269,7 +272,7 @@ is_legal_term(T) when is_tuple(T) ->
 	    are_legal_args(T, 2, size(T));	%The right tuples.
 	true -> false
     end;
-is_legal_term(T) when is_constant(T) -> true;	%All constants, including []
+is_legal_term(T) when ?IS_CONSTANT(T) -> true;	%All constants, including []
 is_legal_term(_T) -> false.
 
 are_legal_args(_T, I, S) when I > S -> true;

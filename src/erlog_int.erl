@@ -148,7 +148,16 @@
 
 -import(lists, [map/2,foldl/3]).
 
+%% Some standard type macros.
+
+%% The old is_constant/1 ?
+-define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
+
+%% -define(IS_ATOMIC(T), (is_atom(T) orelse is_number(T) orelse (T == []))).
+%% -define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
+
 %% Define the database to use. ONE of the follwing must be defined.
+
 %%-define(ETS,true).
 %%-define(DB, orddict).
 -define(DB, dict).
@@ -364,14 +373,12 @@ prove_goal({atom,T0}, Next, Cps, Bs, Vn, Db) ->
     end;
 prove_goal({atomic,T0}, Next, Cps, Bs, Vn, Db) ->
     case deref(T0, Bs) of
-	[] -> prove_body(Next, Cps, Bs, Vn, Db);
-	T when is_constant(T) -> prove_body(Next, Cps, Bs, Vn, Db);
+	T when ?IS_CONSTANT(T) ; T == [] -> prove_body(Next, Cps, Bs, Vn, Db);
 	_Other -> ?FAIL(Bs, Cps, Db)
     end;
 prove_goal({compound,T0}, Next, Cps, Bs, Vn, Db) ->
     case deref(T0, Bs) of
-	[] -> ?FAIL(Bs, Cps, Db);
-	T when is_constant(T) -> ?FAIL(Bs, Cps, Db);
+	T when ?IS_CONSTANT(T) ; T == [] -> ?FAIL(Bs, Cps, Db);
 	_Other -> prove_body(Next, Cps, Bs, Vn, Db)
     end;
 prove_goal({integer,T0}, Next, Cps, Bs, Vn, Db) ->
@@ -429,8 +436,8 @@ prove_goal({arg,I0,Ct0,A0}, Next, Cps, Bs0, Vn, Db) ->
 		true -> {fail,Db}
 	    end;
 	%%Type failure just generates an error.
-	{I,Ct} when not(is_integer(I)) -> type_error(integer, I, Db);
-	{I,Ct} -> type_error(compound, Ct, Db)
+	{I,_} when not(is_integer(I)) -> type_error(integer, I, Db);
+	{_,Ct} -> type_error(compound, Ct, Db)
     end;
 prove_goal({copy_term,T0,C}, Next, Cps, Bs, Vn0, Db) ->
     %% Use term_instance to create the copy, can ignore orddict it creates.
@@ -441,7 +448,7 @@ prove_goal({functor,T0,F0,A0}, Next, Cps, Bs0, Vn0, Db) ->
 	T when is_tuple(T), size(T) >= 2 ->
 	    unify_prove_body(F0, element(1, T),
 			     A0, size(T)-1, Next, Cps, Bs0, Vn0, Db);
-	T when is_constant(T) ; T == [] ->
+	T when ?IS_CONSTANT(T) ; T == [] ->
 	    unify_prove_body(F0, T, A0, 0, Next, Cps, Bs0, Vn0, Db);
 	[_|_] ->				%He, he, he!
 	    unify_prove_body(F0, '.', A0, 2, Next, Cps, Bs0, Vn0, Db);
@@ -450,7 +457,7 @@ prove_goal({functor,T0,F0,A0}, Next, Cps, Bs0, Vn0, Db) ->
 		{'.',2} ->			%He, he, he!
 		    Bs1 = add_binding(Var, [{Vn0}|{Vn0+1}], Bs0),
 		    prove_body(Next, Cps, Bs1, Vn0+2, Db);
-		{F,0} when is_constant(F) ->
+		{F,0} when ?IS_CONSTANT(F) ->
 		    Bs1 = add_binding(Var, F, Bs0),
 		    prove_body(Next, Cps, Bs1, Vn0, Db);
 		{F,A} when is_atom(F), is_integer(A), A > 0 ->
@@ -468,7 +475,7 @@ prove_goal({'=..',T0,L0}, Next, Cps, Bs0, Vn0, Db) ->
 	T when is_tuple(T), size(T) >= 2 ->
 	    Es = tuple_to_list(T),
 	    unify_prove_body(L0, Es, Next, Cps, Bs0, Vn0, Db);
-	T when is_constant(T) ; T == [] ->
+	T when ?IS_CONSTANT(T) ; T == [] ->
 	    unify_prove_body(L0, [T], Next, Cps, Bs0, Vn0, Db);
 	[Lh|Lt] ->				%He, he, he!
 	    unify_prove_body(L0, ['.',Lh,Lt], Next, Cps, Bs0, Vn0, Db);
@@ -477,7 +484,7 @@ prove_goal({'=..',T0,L0}, Next, Cps, Bs0, Vn0, Db) ->
 		['.',Lh,Lt] ->			%He, he, he!
 		    Bs1 = add_binding(Var, [Lh|Lt], Bs0),
 		    prove_body(Next, Cps, Bs1, Vn0, Db);
-		[A] when is_constant(A) ->
+		[A] when ?IS_CONSTANT(A) ->
 		    Bs1 = add_binding(Var, A, Bs0),
 		    prove_body(Next, Cps, Bs1, Vn0, Db);
 		[F|As] when is_atom(F), length(As) > 0 ->
@@ -491,7 +498,7 @@ prove_goal({'=..',T0,L0}, Next, Cps, Bs0, Vn0, Db) ->
 %% Clause creation and destruction.
 prove_goal({abolish,Pi0}, Next, Cps, Bs, Vn, Db) ->
     case dderef(Pi0, Bs) of
-	{'/',N,A} when atom(N), integer(A), A > 0 ->
+	{'/',N,A} when is_atom(N), is_integer(A), A > 0 ->
 	    prove_body(Next, Cps, Bs, Vn, abolish_clauses({N,A}, Db));
 	Pi -> type_error(predicate_indicator, Pi, Db)
     end;
@@ -638,7 +645,7 @@ cut(Label, Last, Next, [_Cp|Cps], Bs, Vn, Db) ->
 
 check_goal(G0, Next, Bs, Db, Cut, Label) ->
     case dderef(G0, Bs) of
-	{V} -> instantiation_error(Db);		%Must have something to call
+	{_} -> instantiation_error(Db);		%Must have something to call
 	G1 ->
 	    case catch {ok,well_form_goal(G1, Next, Cut, Label)} of
 		{erlog_error,E} -> erlog_error(E, Db);
@@ -758,7 +765,7 @@ fail_clause(#cp{data={Ch,Cb,Cs},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
 
 prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db) ->
     case Pi of
-	{'/',F,A} -> ok;
+	{'/',_,_} -> ok;
 	{_} -> ok;
 	Other -> type_error(predicate_indicator, Other)
     end,
@@ -810,7 +817,7 @@ fail_goal_clauses(#cp{data={G,Cs},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
 
 %% cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db).
 
-cut_goal_clauses(true, Next, #cp{label=L}, Cps, Bs, Vn, Db) ->
+cut_goal_clauses(true, Next, #cp{label=_}, Cps, Bs, Vn, Db) ->
     %% Just remove the choice point completely and continue.
     prove_body(Next, Cps, Bs, Vn, Db);
 cut_goal_clauses(false, Next, #cp{label=L}, Cps, Bs, Vn, Db) ->
@@ -876,7 +883,7 @@ prove_body([], Cps, Bs, Vn, Db) ->
 
 unify(T10, T20, Bs0) ->
     case {deref(T10, Bs0),deref(T20, Bs0)} of
-	{T1,T2} when is_constant(T1), is_constant(T2), T1 == T2 ->
+	{T1,T2} when ?IS_CONSTANT(T1), T1 == T2 ->
 	    {succeed,Bs0};
 	{{V},{V}} -> {succeed,Bs0};
 	{{_}=Var,T2} -> {succeed,add_binding(Var, T2, Bs0)};
@@ -893,7 +900,7 @@ unify(T10, T20, Bs0) ->
 	_Other -> fail
     end.
 
-unify_args(S1, S2, Bs, I, S) when I > S -> {succeed,Bs};
+unify_args(_, _, Bs, I, S) when I > S -> {succeed,Bs};
 unify_args(S1, S2, Bs0, I, S) ->
     case unify(element(I, S1), element(I, S2), Bs0) of
 	{succeed,Bs1} -> unify_args(S1, S2, Bs1, I+1, S);
@@ -940,7 +947,7 @@ eval_arith({'float',A}, Bs, Db) ->
     float(eval_arith(deref(A, Bs), Bs, Db));
 eval_arith({'truncate',A}, Bs, Db) ->
     trunc(eval_arith(deref(A, Bs), Bs, Db));
-eval_arith(N, _Bs, _Db) when number(N) -> N;	%Just a number
+eval_arith(N, _Bs, _Db) when is_number(N) -> N;	%Just a number
 %% Error cases.
 eval_arith({_}, _Bs, Db) -> instantiation_error(Db);
 eval_arith(N, _Bs, Db) when is_tuple(N) ->
@@ -953,14 +960,14 @@ eval_arith(O, _Bs, Db) -> type_error(evaluable, O, Db).
 
 eval_int(E0, Bs, Db) ->
     E = eval_arith(E0, Bs, Db),
-    if  integer(E) -> E;
+    if  is_integer(E) -> E;
 	true -> type_error(integer, E, Db)
     end.
 
 %% make_vars(Count, VarNum) -> [Var].
 %% Make a list of new variables starting at VarNum.
 
-make_vars(0, Vn) -> [];
+make_vars(0, _) -> [];
 make_vars(I, Vn) ->
     [{Vn}|make_vars(I-1, Vn+1)].
 
@@ -1258,9 +1265,9 @@ get_interp_functors(Db) ->
 
 %% functor(Goal) -> {Name,Arity}.
 
-functor(T) when is_tuple(T), size(T) > 1, atom(element(1, T)) ->
+functor(T) when is_tuple(T), size(T) > 1, is_atom(element(1, T)) ->
     {element(1, T),size(T)-1};
-functor(T) when atom(T) -> {T,0};
+functor(T) when is_atom(T) -> {T,0};
 functor(T) -> type_error(callable, T).
 
 %% well_form_body(Body, HasCutAfter, CutLabel) -> {Body,HasCut}.
@@ -1277,7 +1284,7 @@ well_form_body({';',{'->',C0,T0},E0}, Tail, Cut0, Label) ->
     {T1,Tc} = well_form_body(T0, Cut0, Label),
     {E1,Ec} = well_form_body(E0, Cut0, Label),
     %% N.B. an extra cut will be added at run-time!
-    {C1,Cc} = well_form_body(C0, true, Label),
+    {C1,_} = well_form_body(C0, true, Label),
     {[{{if_then_else},C1,T1,E1,Label}|Tail],Tc or Ec};
 well_form_body({';',L0,R0}, Tail, Cut0, Label) ->
     {L1,Lc} = well_form_body(L0, Cut0, Label),
@@ -1382,7 +1389,7 @@ term_instance(A, Rs, Vn) -> {A,Rs,Vn}.		%Constant
 unify_head(Goal, Head, Bs, Vn) ->
     unify_head(deref(Goal, Bs), Head, orddict:new(), Bs, Vn).
 
-unify_head(G, H, Rs, Bs, Vn) when is_constant(G), is_constant(H), G == H ->
+unify_head(G, H, Rs, Bs, Vn) when ?IS_CONSTANT(G), G == H ->
     {succeed,Rs,Bs,Vn};
 unify_head(_T, {'_'}, Rs, Bs, Vn) -> {succeed,Rs,Bs,Vn};
 unify_head(T, {V0}, Rs, Bs0, Vn) ->
@@ -1524,14 +1531,14 @@ deref({V}=T0, Bs) ->
 	{ok,T1} -> deref(T1, Bs);
 	error -> T0
     end;
-deref(T, Bs) -> T.				%Not a variable, return it.
+deref(T, _) -> T.				%Not a variable, return it.
 
 %% dderef(Term, Bindings) -> Term.
 %% Do a deep dereference. Completely dereference all the variables
 %% occuring in a term, even those occuring in a variables value.
 
-dderef(A, Bs) when is_constant(A) -> A;
-dderef([], Bs) -> [];
+dderef(A, _) when ?IS_CONSTANT(A) -> A;
+dderef([], _) -> [];
 dderef([H0|T0], Bs) ->
     [dderef(H0, Bs)|dderef(T0, Bs)];
 dderef({V}=Var, Bs) ->
@@ -1551,7 +1558,7 @@ dderef(T, Bs) when is_tuple(T) ->
 dderef_list([], _Bs) -> [];
 dderef_list([H|T], Bs) ->
     [dderef(H, Bs)|dderef_list(T, Bs)];
-dderef_list({V}=Var, Bs) ->
+dderef_list({V}, Bs) ->
     case ?BIND:find(V, Bs) of
 	{ok,L} -> dderef_list(L, Bs);
 	error -> instantiation_error()
@@ -1584,7 +1591,7 @@ initial_goal(S, Bs0, Vn0)
     As0 = tl(tuple_to_list(S)),
     {As1,Bs1,Vn1} = initial_goal(As0, Bs0, Vn0),
     {list_to_tuple([element(1, S)|As1]),Bs1,Vn1};
-initial_goal(T, Bs, Vn) when is_constant(T) -> {T,Bs,Vn};
+initial_goal(T, Bs, Vn) when ?IS_CONSTANT(T) -> {T,Bs,Vn};
 initial_goal(T, _Bs, _Vn) -> type_error(callable, T).
 
 %% expand_term(Term) -> {ExpTerm}.
@@ -1604,8 +1611,8 @@ expand_term({'-->',H0,B0}, Vn0) ->
     {{':-',H1,B1},Vn1+1};
 expand_term(T, Vn) -> {T,Vn}.			%Do nothing
 
-expand_head(A, V1, V2) when atom(A) -> {A,V1,V2};
-expand_head(T, V1, V2) when is_tuple(T), size(T) >= 2, atom(element(1, T)) ->
+expand_head(A, V1, V2) when is_atom(A) -> {A,V1,V2};
+expand_head(T, V1, V2) when is_tuple(T), size(T) >= 2, is_atom(element(1, T)) ->
     list_to_tuple(tuple_to_list(T) ++ [V1,V2]);
 expand_head(Other, _V1, _V2) -> type_error(callable, Other).
 
@@ -1630,7 +1637,7 @@ expand_body({';',L0,R0}, V1, Vn0) ->
 expand_body([], V1, Vn) ->			%Chain but do nothing
     V2 = {Vn},
     {{'=',V1,V2},V2,Vn+1};
-expand_body(Lits, V1, Vn) when list(Lits) ->
+expand_body(Lits, V1, Vn) when is_list(Lits) ->
     expand_lits(Lits, V1, Vn);
 expand_body(Goal, V1, Vn) ->
     V2 = {Vn},
