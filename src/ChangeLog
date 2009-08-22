@@ -1,4 +1,13 @@
+2009-08-23  Robert Virding  <rv@stanislaw.local>
+
+	* erlog_io.erl (write1): Fixed missing '|' in improper lists.
+
+	* erlog_int.erl (prove_arg, prove_functor, prove_univ): Broke code
+	out of prove_goal.
+
 2009-08-22  Robert Virding  <rv@stanislaw.local>
+
+	* erlog_int.erl (check_goal): Cleaned up doc and args in calls.
 
 	* erlog.erl, erlog_int.erl: Define IS_CONSTANT macro to replace
 	now defunct type test.

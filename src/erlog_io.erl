@@ -1,4 +1,4 @@
-%% Copyright (c) 2008 Robert Virding. All rights reserved.
+%% Copyright (c) 2009 Robert Virding. All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
@@ -192,7 +192,7 @@ write1(T, _, _) ->			     %Else use default Erlang.
 write1_tail([T|Ts], Ops) ->
     [$,,write1(T, 999, Ops)|write1_tail(Ts, Ops)];
 write1_tail([], _) -> [];
-write1_tail(T, Ops) -> write1(T, 999, Ops).
+write1_tail(T, Ops) -> [$|,write1(T, 999, Ops)].
 
 write1_atom(A, Prec, _) ->
     Out = atom_to_list(A),

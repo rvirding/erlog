@@ -1,4 +1,4 @@
-%% Copyright (c) 2008 Robert Virding. All rights reserved.
+%% Copyright (c) 2009 Robert Virding. All rights reserved.
 %%
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
@@ -295,15 +295,15 @@ prove_goal(Goal0, Db) ->
 
 %% Logic and control. Conjunctions are handled in prove_body and true
 %% has been compiled away.
-prove_goal({call,G0}, Next, Cps, Bs, Vn, Db) ->
+prove_goal({call,G}, Next0, Cps, Bs, Vn, Db) ->
     %% Only add cut CP to Cps if goal contains a cut.
     Label = Vn,
-    case check_goal(G0, Next, Bs, Db, false, Label) of
-	{G1,true} ->
+    case check_goal(G, Next0, Bs, Db, false, Label) of
+	{Next1,true} ->
 	    %% Must increment Vn to avoid clashes!!!
 	    Cut = #cut{label=Label},
-	    prove_body(G1, [Cut|Cps], Bs, Vn+1, Db);
-	{G1,false} -> prove_body(G1, Cps, Bs, Vn+1, Db)
+	    prove_body(Next1, [Cut|Cps], Bs, Vn+1, Db);
+	{Next1,false} -> prove_body(Next1, Cps, Bs, Vn+1, Db)
     end;
 prove_goal({{cut},Label,Last}, Next, Cps, Bs, Vn, Db) ->
     %% Cut succeeds and trims back to cut ancestor.
@@ -328,14 +328,14 @@ prove_goal({{if_then_else},Else,Label}, Next, Cps, Bs, Vn, Db) ->
     Cp = #cp{type=if_then_else,label=Label,next=Else,bs=Bs,vn=Vn},
     %%io:fwrite("PG(->;): ~p\n", [{Next,Else,[Cp|Cps]}]),
     prove_body(Next, [Cp|Cps], Bs, Vn, Db);
-prove_goal({'\\+',G0}, Next, Cps, Bs, Vn, Db) ->
+prove_goal({'\\+',G}, Next0, Cps, Bs, Vn, Db) ->
     %% We effectively implementing \+ G with ( G -> fail ; true ).
     Label = Vn,
-    {G1,_} = check_goal(G0, [{{cut},Label,true},fail], Bs, Db, true, Label),
-    Cp = #cp{type=if_then_else,label=Label,next=Next,bs=Bs,vn=Vn},
+    {Next1,_} = check_goal(G, [{{cut},Label,true},fail], Bs, Db, true, Label),
+    Cp = #cp{type=if_then_else,label=Label,next=Next0,bs=Bs,vn=Vn},
     %%io:fwrite("PG(\\+): ~p\n", [{G1,[Cp|Cps]]),
     %% Must increment Vn to avoid clashes!!!
-    prove_body(G1, [Cp|Cps], Bs, Vn+1, Db);
+    prove_body(Next1, [Cp|Cps], Bs, Vn+1, Db);
 prove_goal({{once},Label}, Next, Cps, Bs, Vn, Db) ->
     %% We effetively implement once(G) with ( G, ! ) but cuts in
     %% G are local to G.
@@ -423,78 +423,16 @@ prove_goal({is,N,E0}, Next, Cps, Bs, Vn, Db) ->
     E = eval_arith(deref(E0, Bs), Bs, Db),
     unify_prove_body(N, E, Next, Cps, Bs, Vn, Db);
 %% Term creation and decomposition.
-prove_goal({arg,I0,Ct0,A0}, Next, Cps, Bs0, Vn, Db) ->
-    case {deref(I0, Bs0),deref(Ct0, Bs0)} of
-	{I,[H|T]} ->				%He, he, he!
-	    if  I == 1 -> unify_prove_body(H, A0, Next, Cps, Bs0, Vn, Db);
-		I == 2 -> unify_prove_body(T, A0, Next, Cps, Bs0, Vn, Db);
-		true -> {fail,Db}
-	    end;
-	{I,Ct} when is_integer(I), is_tuple(Ct), size(Ct) >= 2 ->
-	    if  I > 1, I + 1 =< size(Ct) ->
-		    unify_prove_body(element(I+1, Ct), A0, Next, Cps, Bs0, Vn, Db);
-		true -> {fail,Db}
-	    end;
-	%%Type failure just generates an error.
-	{I,_} when not(is_integer(I)) -> type_error(integer, I, Db);
-	{_,Ct} -> type_error(compound, Ct, Db)
-    end;
 prove_goal({copy_term,T0,C}, Next, Cps, Bs, Vn0, Db) ->
     %% Use term_instance to create the copy, can ignore orddict it creates.
     {T,_Nbs,Vn1} = term_instance(dderef(T0, Bs), Vn0),
     unify_prove_body(T, C, Next, Cps, Bs, Vn1, Db);
-prove_goal({functor,T0,F0,A0}, Next, Cps, Bs0, Vn0, Db) ->
-    case dderef(T0, Bs0) of
-	T when is_tuple(T), size(T) >= 2 ->
-	    unify_prove_body(F0, element(1, T),
-			     A0, size(T)-1, Next, Cps, Bs0, Vn0, Db);
-	T when ?IS_CONSTANT(T) ; T == [] ->
-	    unify_prove_body(F0, T, A0, 0, Next, Cps, Bs0, Vn0, Db);
-	[_|_] ->				%He, he, he!
-	    unify_prove_body(F0, '.', A0, 2, Next, Cps, Bs0, Vn0, Db);
-	{_}=Var ->
-	    case {dderef(F0, Bs0),dderef(A0, Bs0)} of
-		{'.',2} ->			%He, he, he!
-		    Bs1 = add_binding(Var, [{Vn0}|{Vn0+1}], Bs0),
-		    prove_body(Next, Cps, Bs1, Vn0+2, Db);
-		{F,0} when ?IS_CONSTANT(F) ->
-		    Bs1 = add_binding(Var, F, Bs0),
-		    prove_body(Next, Cps, Bs1, Vn0, Db);
-		{F,A} when is_atom(F), is_integer(A), A > 0 ->
-		    As = make_vars(A, Vn0),
-		    Bs1 = add_binding(Var, list_to_tuple([F|As]), Bs0),
-		    prove_body(Next, Cps, Bs1, Vn0+A, Db); %!!!
-		%% Now the error cases.
-		{{_},_A} -> instantiation_error(Db);
-		{F,A} when is_atom(F) -> type_error(integer, A, Db);
-		{F,_A} -> type_error(atom, F, Db)
-	    end
-    end;
-prove_goal({'=..',T0,L0}, Next, Cps, Bs0, Vn0, Db) ->
-    case dderef(T0, Bs0) of
-	T when is_tuple(T), size(T) >= 2 ->
-	    Es = tuple_to_list(T),
-	    unify_prove_body(L0, Es, Next, Cps, Bs0, Vn0, Db);
-	T when ?IS_CONSTANT(T) ; T == [] ->
-	    unify_prove_body(L0, [T], Next, Cps, Bs0, Vn0, Db);
-	[Lh|Lt] ->				%He, he, he!
-	    unify_prove_body(L0, ['.',Lh,Lt], Next, Cps, Bs0, Vn0, Db);
-	{_}=Var ->
-	    case dderef(L0, Bs0) of
-		['.',Lh,Lt] ->			%He, he, he!
-		    Bs1 = add_binding(Var, [Lh|Lt], Bs0),
-		    prove_body(Next, Cps, Bs1, Vn0, Db);
-		[A] when ?IS_CONSTANT(A) ->
-		    Bs1 = add_binding(Var, A, Bs0),
-		    prove_body(Next, Cps, Bs1, Vn0, Db);
-		[F|As] when is_atom(F), length(As) > 0 ->
-		    Bs1 = add_binding(Var, list_to_tuple([F|As]), Bs0),
-		    prove_body(Next, Cps, Bs1, Vn0, Db);
-		%% Now the error cases.
-		[{_}|_] -> instantiation_error(Db);
-		Other -> type_error(list, Other, Db)
-	    end
-    end;
+prove_goal({arg,I,Ct,A}, Next, Cps, Bs, Vn, Db) ->
+    prove_arg(deref(I, Bs), deref(Ct, Bs), A, Next, Cps, Bs, Vn, Db);
+prove_goal({functor,T,F,A}, Next, Cps, Bs, Vn, Db) ->
+    prove_functor(dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
+prove_goal({'=..',T,L}, Next, Cps, Bs, Vn, Db) ->
+    prove_univ(dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
 %% Clause creation and destruction.
 prove_goal({abolish,Pi0}, Next, Cps, Bs, Vn, Db) ->
     case dderef(Pi0, Bs) of
@@ -640,7 +578,7 @@ cut(Label, Last, Next, [_Cp|Cps], Bs, Vn, Db) ->
 %%     cut(Label, Last, Next, Cps, Bs, Vn, Db, Cn+1).
 
 %% check_goal(Goal, Next, Bindings, Database, CutAfter, CutLabel) -> 
-%%      {WellFormedGoal,HasCut}.
+%%      {WellFormedBody,HasCut}.
 %% Check to see that Goal is bound and ensure that it is well-formed.
 
 check_goal(G0, Next, Bs, Db, Cut, Label) ->
@@ -649,7 +587,7 @@ check_goal(G0, Next, Bs, Db, Cut, Label) ->
 	G1 ->
 	    case catch {ok,well_form_goal(G1, Next, Cut, Label)} of
 		{erlog_error,E} -> erlog_error(E, Db);
-		{ok,GC} -> GC			%Goal and cut
+		{ok,GC} -> GC			%Body and cut
 	    end
     end.
 
@@ -691,6 +629,84 @@ arith_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
 	true -> prove_body(Next, Cps, Bs, Vn, Db);
 	false -> ?FAIL(Bs, Cps, Db)
     end.
+
+%% prove_arg(Index, Term, Arg, Next, ChoicePoints, VarNum, Database) -> void.
+%%  Prove the goal arg(I, Ct, Arg), Index and Term have been dereferenced.
+
+prove_arg(I, [H|T], A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
+    %% He, he, he!
+    if  I == 1 -> unify_prove_body(H, A, Next, Cps, Bs, Vn, Db);
+	I == 2 -> unify_prove_body(T, A, Next, Cps, Bs, Vn, Db);
+	true -> {fail,Db}
+    end;
+prove_arg(I, Ct, A, Next, Cps, Bs, Vn, Db)
+  when is_integer(I), is_tuple(Ct), size(Ct) >= 2 ->
+    if  I > 1, I + 1 =< size(Ct) ->
+	    unify_prove_body(element(I+1, Ct), A, Next, Cps, Bs, Vn, Db);
+	true -> {fail,Db}
+    end;
+prove_arg(I, Ct, _, _, _, _, _, Db) ->
+    %%Type failure just generates an error.
+    if  not(is_integer(I)) -> type_error(integer, I, Db);
+	true -> type_error(compound, Ct, Db)
+    end.
+
+%% prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
+%%  Prove the call functor(T, F, A), Term has been dereferenced.
+
+prove_functor(T, F, A, Next, Cps, Bs, Vn, Db)
+  when is_tuple(T), size(T) >= 2 ->
+    unify_prove_body(F, element(1, T), A, size(T)-1, Next, Cps, Bs, Vn, Db);
+prove_functor(T, F, A, Next, Cps, Bs, Vn, Db)
+  when ?IS_CONSTANT(T) ; T == [] ->
+    unify_prove_body(F, T, A, 0, Next, Cps, Bs, Vn, Db);
+prove_functor([_|_], F, A, Next, Cps, Bs, Vn, Db) ->
+    %% Just the top level here.
+    unify_prove_body(F, '.', A, 2, Next, Cps, Bs, Vn, Db);
+prove_functor({_}=Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
+    case {dderef(F0, Bs0),dderef(A0, Bs0)} of
+	{'.',2} ->				%He, he, he!
+	    Bs1 = add_binding(Var, [{Vn0}|{Vn0+1}], Bs0),
+	    prove_body(Next, Cps, Bs1, Vn0+2, Db);
+	{F1,0} when ?IS_CONSTANT(F1) ->
+	    Bs1 = add_binding(Var, F1, Bs0),
+	    prove_body(Next, Cps, Bs1, Vn0, Db);
+	{F1,A1} when is_atom(F1), is_integer(A1), A1 > 0 ->
+	    As = make_vars(A1, Vn0),
+	    Bs1 = add_binding(Var, list_to_tuple([F1|As]), Bs0),
+	    prove_body(Next, Cps, Bs1, Vn0+A1, Db); %!!!
+	%% Now the error cases.
+	{{_},_} -> instantiation_error(Db);
+	{F1,A1} when is_atom(F1) -> type_error(integer, A1, Db);
+	{F1,_} -> type_error(atom, F1, Db)
+    end.
+
+%% prove_univ(Term, List, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
+%%  Prove the goal Term =.. List, Term has already been dereferenced.
+
+prove_univ(T, L, Next, Cps, Bs, Vn, Db) when is_tuple(T), size(T) >= 2 ->
+    Es = tuple_to_list(T),
+    unify_prove_body(Es, L, Next, Cps, Bs, Vn, Db);
+prove_univ(T, L, Next, Cps, Bs, Vn, Db) when ?IS_CONSTANT(T) ; T == [] ->
+    unify_prove_body([T], L, Next, Cps, Bs, Vn, Db);
+prove_univ([Lh|Lt], L, Next, Cps, Bs, Vn, Db) ->
+    %% He, he, he!
+    unify_prove_body(['.',Lh,Lt], L, Next, Cps, Bs, Vn, Db);
+prove_univ({_}=Var, L, Next, Cps, Bs0, Vn, Db) ->
+    case dderef(L, Bs0) of
+	['.',Lh,Lt] ->				%He, he, he!
+	    Bs1 = add_binding(Var, [Lh|Lt], Bs0),
+	    prove_body(Next, Cps, Bs1, Vn, Db);
+	[A] when ?IS_CONSTANT(A) ->
+	    Bs1 = add_binding(Var, A, Bs0),
+	    prove_body(Next, Cps, Bs1, Vn, Db);
+	[F|As] when is_atom(F), length(As) > 0 ->
+	    Bs1 = add_binding(Var, list_to_tuple([F|As]), Bs0),
+	    prove_body(Next, Cps, Bs1, Vn, Db);
+	%% Now the error cases.
+	[{_}|_] -> instantiation_error(Db);
+	Other -> type_error(list, Other, Db)
+end.
 
 %% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
