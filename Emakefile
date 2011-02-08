@@ -1,0 +1,3 @@
+%% -*- erlang -*-
+
+{'src/*',[{outdir,ebin}]}.
