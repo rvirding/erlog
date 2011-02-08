@@ -1,6 +1,6 @@
 2009-08-23  Robert Virding  <rv@stanislaw.local>
 
-	* erlog_io.erl (write1): Fixed missing '|' in improper lists.
+	* erlog_io.erl (write1_tail): Fixed missing '|' in improper lists.
 
 	* erlog_int.erl (prove_arg, prove_functor, prove_univ): Broke code
 	out of prove_goal.
