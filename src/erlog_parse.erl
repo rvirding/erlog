@@ -84,8 +84,8 @@ term([{'{',_}|Toks0], Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, '}', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, {'{}',Term}, 0, Prec, Next)
+			fun (Toks2, Term0) ->
+				rest_term(Toks2, {'{}',Term0}, 0, Prec, Next)
 			end)
 	 end);
 term([{'[',_},{']',_}|Toks], Prec, Next) ->
@@ -151,8 +151,8 @@ bracket_term(Toks0, Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, ')', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, Term, 0, Prec, Next)
+			fun (Toks2, Term0) ->
+				rest_term(Toks2, Term0, 0, Prec, Next)
 			end)
 	 end).
 
@@ -265,7 +265,6 @@ cp([], Fail) -> Fail.
 
 type(Tok) -> element(1, Tok).
 line(Tok) -> element(2, Tok).
-val(Tok) -> element(3, Tok).
 
 %% prefix_op(Op) -> {yes,Prec,ArgPrec} | no.
 

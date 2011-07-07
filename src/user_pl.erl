@@ -21,7 +21,7 @@
 
 %% Define the choice point record
 -record(cp, {type,label,data,next,bs,vn}).
--record(cut, {label,next}).
+%-record(cut, {label,next}).
 
 assert(Db) ->
     foldl(fun ({Head,M,F}, LDb) -> 

@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Module erlog_int</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module erlog_int</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#abolish_clauses-2">abolish_clauses/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#add_binding-3">add_binding/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#add_compiled_proc-4">add_compiled_proc/4</a></td><td></td></tr>
+<tr><td valign="top"><a href="#asserta_clause-2">asserta_clause/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#assertz_clause-2">assertz_clause/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#built_in_db-0">built_in_db/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#dderef-2">dderef/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#dderef_list-2">dderef_list/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#deref-2">deref/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#expand_term-1">expand_term/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#fail-2">fail/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#functor-1">functor/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#new_bindings-0">new_bindings/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#prove_body-5">prove_body/5</a></td><td></td></tr>
+<tr><td valign="top"><a href="#prove_goal-2">prove_goal/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#unify-3">unify/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#unify_prove_body-7">unify_prove_body/7</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="abolish_clauses-2">abolish_clauses/2</a></h3>
+<div class="spec">
+<p><tt>abolish_clauses(Func, Db) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="add_binding-3">add_binding/3</a></h3>
+<div class="spec">
+<p><tt>add_binding(X1, Val, Bs0) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="add_compiled_proc-4">add_compiled_proc/4</a></h3>
+<div class="spec">
+<p><tt>add_compiled_proc(H, M, F, Db) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="asserta_clause-2">asserta_clause/2</a></h3>
+<div class="spec">
+<p><tt>asserta_clause(H, Db) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="assertz_clause-2">assertz_clause/2</a></h3>
+<div class="spec">
+<p><tt>assertz_clause(H, Db) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="built_in_db-0">built_in_db/0</a></h3>
+<div class="spec">
+<p><tt>built_in_db() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="dderef-2">dderef/2</a></h3>
+<div class="spec">
+<p><tt>dderef(A, Bs) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="dderef_list-2">dderef_list/2</a></h3>
+<div class="spec">
+<p><tt>dderef_list(T, Bs) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="deref-2">deref/2</a></h3>
+<div class="spec">
+<p><tt>deref(T0, Bs) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="expand_term-1">expand_term/1</a></h3>
+<div class="spec">
+<p><tt>expand_term(Term) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="fail-2">fail/2</a></h3>
+<div class="spec">
+<p><tt>fail(Cps, Db) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="functor-1">functor/1</a></h3>
+<div class="spec">
+<p><tt>functor(T) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="new_bindings-0">new_bindings/0</a></h3>
+<div class="spec">
+<p><tt>new_bindings() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="prove_body-5">prove_body/5</a></h3>
+<div class="spec">
+<p><tt>prove_body(Gs, Cps, Bs0, Vn0, Db0) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="prove_goal-2">prove_goal/2</a></h3>
+<div class="spec">
+<p><tt>prove_goal(Goal0, Db) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="unify-3">unify/3</a></h3>
+<div class="spec">
+<p><tt>unify(T10, T20, Bs0) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="unify_prove_body-7">unify_prove_body/7</a></h3>
+<div class="spec">
+<p><tt>unify_prove_body(T1, T2, Next, Cps, Bs0, Vn, Db) -&gt; any()</tt></p>
+</div>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, Jul 7 2011, 20:48:37.</i></p>
+</body>
+</html>
