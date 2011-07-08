@@ -1,5 +1,5 @@
-%% Copyright (c) 2009 Robert Virding. All rights reserved.
-%%
+%% @copyright (c) 2009 Robert Virding. All rights reserved.
+%%@end
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
 %% are met:
@@ -24,34 +24,40 @@
 %% POSSIBILITY OF SUCH DAMAGE.
 
 %%% File    : erlog.erl
-%%% Author  : Robert Virding
-%%% Purpose : Main interface to the Erlog interpreter.
-%%%
-%%% Structures	- {Functor,arg1, Arg2,...} where Functor is an atom
-%%% Variables	- {Name} where Name is an atom or integer
-%%% Lists	- Erlang lists
-%%% Atomic	- Erlang constants
-%%%
-%%% There is no problem with the representation of variables as Prolog
-%%% functors of arity 0 are atoms. This representation is much easier
-%%% to test for, and create new variables with than using funny atom
-%%% names like '$1' (yuch!), and we need LOTS of variables.
+%%% @author Robert Virding
+%%% @doc
+%%    Main interface to the Erlog interpreter.
+%%
+%%<p>
+%%<ul>
+%% <li>Structures	- {Functor,arg1, Arg2,...} where Functor is an atom</li>
+%% <li>Variables	- {Name} where Name is an atom or integer</li>
+%% <li>Lists	- Erlang lists</li>
+%% <li>Atomic	- Erlang constants</li>
+%%</ul>
+%%</p>
+%%
+%% <p>
+%% There is no problem with the representation of variables as Prolog
+%% functors of arity 0 are atoms. This representation is much easier
+%% to test for, and create new variables with than using funny atom
+%% names like '$1' (yuch!), and we need LOTS of variables.
+%% </p>
+%%% @end
 
 -module(erlog).
 
 %% Basic evaluator interface.
 -export([new/0]).
+
 %% Interface to server.
 -export([start/0,start_link/0]).
 -export([prove/2,next_solution/1,
 	 consult/2,reconsult/2,get_db/1,set_db/2,halt/1]).
+
 %% User utilities.
 -export([is_legal_term/1,vars_in/1]).
 -export([consult_file/2,reconsult_file/2]).
-
--import(lists, [foldl/3,foreach/2]).
-
-%% -compile(export_all).
 
 new() ->
     Db = erlog_int:built_in_db(),
@@ -113,52 +119,53 @@ prove_cmd(next_solution, Vs, Cps, _Bs, _Vn, Db) ->
 prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
     top_cmd(Cmd, Db).
 
-%% prove(Erlog, Goal) -> {succeed,Bindings} | fail.
-%% next_solution(Erlog) -> {succeed,Bindings} | fail.
-%% consult(Erlog, File) -> ok | {error,Error}.
-%% reconsult(Erlog, File) -> ok | {error,Error}.
-%% get_db(Erlog) -> {ok,Database}.
-%% set_db(Erlog, Database) -> ok.
-%% halt(Erlog) -> ok.
-%% Interface functions to server.
 
+%% Interface functions to server.
+%%@spec prove(Erlog, Goal) -> {succeed,Bindings} | fail
 prove(Erl, Goal) ->
     send_request(Erl, {prove,Goal}),
     wait_reply().
 
+%%spec next_solution(Erlog) -> {succeed,Bindings} | fail
 next_solution(Erl) ->
     send_request(Erl, next_solution),
     wait_reply().
 
+%%@spec consult(Erlog, File) -> ok | {error,Error}
 consult(Erl, File) ->
     send_request(Erl, {consult,File}),
     wait_reply().
 
+%%@spec reconsult(Erlog, File) -> ok | {error,Error}
 reconsult(Erl, File) ->
     send_request(Erl, {reconsult,File}),
     wait_reply().
 
+%%@spec get_db(Erlog) -> {ok,Database}
 get_db(Erl) ->
     send_request(Erl, get_db),
     wait_reply().
 
+%%@spec set_db(Erlog, Database) -> ok
 set_db(Erl, Db) ->
     send_request(Erl, {set_db,Db}),
     wait_reply().
 
+%%@spec halt(Erlog) -> ok
 halt(Erl) ->
     send_request(Erl, halt),
     wait_reply().
 
-%% start()
-%% start_link()
-%% Start an Erlog server.
 
+%%@doc  Start an Erlog server.
+%%@spec start() -> pid()
 start() ->
     spawn(fun () -> server_loop(new()) end).
 
+%%@doc Starts a linked Erlog server
+%% @spec start_link() -> pid()
 start_link() ->
-    spawn_link(fun () -> server_loop(new()) end).
+    spawn_link(fun() -> server_loop(new()) end).
 
 server_loop(P0) ->
     receive
@@ -168,22 +175,21 @@ server_loop(P0) ->
 	    server_loop(P1)
     end.
 
-%% send_request(Erlog, Request)
-%% send_reply(To, Reply)
-%% wait_reply() -> Reply.
-
+%% @spec send_request(Erlog, Request) -> no_return()
 send_request(Erl, Req) -> Erl ! {erlog_request,self(),Req}.
-    
+
+%% @spec send_reply(To, Reply) -> no_return()
 send_reply(To, Rep) -> To ! {erlog_reply,Rep}.
 
+%%@spec wait_reply() -> Reply
 wait_reply() ->
     receive
 	{erlog_reply,Rep} -> Rep
     end.
 
-%% vars_in(Term) -> [{Name,Var}].
-%% Returns an ordered list of {VarName,Variable} pairs.
 
+%% @doc Returns an ordered list of {VarName,Variable} pairs.
+%% @spec vars_in(Term) -> [{Name,Var}]
 vars_in(Term) -> vars_in(Term, orddict:new()).
 
 vars_in({'_'}, Vs) -> Vs;			%Never in!
@@ -198,13 +204,11 @@ vars_in_struct(_Str, I, S, Vs) when I > S -> Vs;
 vars_in_struct(Str, I, S, Vs) ->
     vars_in_struct(Str, I+1, S, vars_in(element(I, Str), Vs)).
 
-%% consult_file(File, Database) ->
-%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
-%% reconsult_file(File, Database) ->
-%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
-%% Load/reload an Erlog file into the interpreter. Reloading will
-%% abolish old definitons of clauses.
 
+%%@doc Load/reload an Erlog file into the interpreter. Reloading will
+%% abolish old definitons of clauses.
+%% @spec consult_file(File, Database) ->
+%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}
 consult_file(File, Db0) ->
     case erlog_io:read_file(File) of
 	{ok,Terms} ->
@@ -216,6 +220,7 @@ consult_assert(Term0, Db) ->
     Term1 = erlog_int:expand_term(Term0),
     {ok,erlog_int:assertz_clause(Term1, Db)}.
 
+%% @spec reconsult_file(File, Database) -> {ok,NewDatabase} | {error,Error} | {erlog_error,Error}
 reconsult_file(File, Db0) ->
     case erlog_io:read_file(File) of
 	{ok,Terms} ->
@@ -237,11 +242,11 @@ reconsult_assert(Term0, {Db0,Seen}) ->
 	    {ok,{erlog_int:assertz_clause(Term1, Db1), [Func|Seen]}}
     end.
 
-%% consult_terms(InsertFun, Database, Terms) ->
-%%      {ok,NewDatabase} | {erlog_error,Error}.
-%% Add terms to the database using InsertFun. Ignore directives and
+%%@doc Add terms to the database using InsertFun. Ignore directives and
 %% queries.
-
+%%@end
+%%@spec consult_terms(InsertFun, Database, Terms) ->
+%%      {ok,NewDatabase} | {erlog_error,Error}
 consult_terms(Ifun, Db, [{':-',_}|Ts]) ->
     consult_terms(Ifun, Db, Ts);
 consult_terms(Ifun, Db, [{'?-',_}|Ts]) ->
@@ -260,10 +265,10 @@ functor(T) -> erlog_int:functor(T).
 %% The old is_constant/1 ?
 -define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
 
-%% is_legal_term(Goal) -> true | false.
-%% Test if a goal is a legal Erlog term. Basically just check if
+%%@doc Test if a goal is a legal Erlog term. Basically just check if
 %% tuples are used correctly as structures and variables.
-
+%% @end
+%% @spec is_legal_term(Goal) -> true | false
 is_legal_term({V}) -> is_atom(V);
 is_legal_term([H|T]) ->
     is_legal_term(H) andalso is_legal_term(T);

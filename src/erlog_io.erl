@@ -1,5 +1,5 @@
-%% Copyright (c) 2009 Robert Virding. All rights reserved.
-%%
+%% @copyright (c) 2009 Robert Virding. All rights reserved.
+%%@end
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
 %% are met:
@@ -24,18 +24,23 @@
 %% POSSIBILITY OF SUCH DAMAGE.
 
 %%% File    : erlog_io.erl
-%%% Author  : Robert Virding
-%%% Purpose : Some basic i/o functions for Erlog.
+%%% @author Robert Virding
 %%%
-%%% Structures	- {Functor,arg1, Arg2,...} where Functor is an atom
-%%% Variables	- {Name} where Name is an atom or integer
-%%% Lists	- Erlang lists
-%%% Atomic	- Erlang constants
+%%% @doc Some basic i/o functions for Erlog.
+%%%
+%%%<ul>
+%%% <li>Structures	- {Functor,arg1, Arg2,...} where Functor is an atom</li>
+%%% <li>Variables	- {Name} where Name is an atom or integer</li>
+%%% <li>Lists	- Erlang lists</li>
+%%% <li>Atomic	- Erlang constants</li>
+%%%</ul>
+%%%
 %%%
 %%% There is no problem with the representation of variables as Prolog
 %%% functors of arity 0 are atoms. This representation is much easier
 %%% to test for, and create new variables with than using funny atom
 %%% names like '$1' (yuch!), and we need LOTS of variables.
+%%%@end
 
 -module(erlog_io).
 
@@ -65,10 +70,9 @@ scan_stream(Fd, L0) ->
 	{eof,_}=Eof -> Eof
     end.
 
-%% read_file(FileName) -> {ok,[Term]} | {error,Error}.
-%% Read a file containing Prolog terms. This has been taken from 'io'
+%%@doc Read a file containing Prolog terms. This has been taken from 'io'
 %% but cleaned up using try.
-
+%%@spec read_file(FileName) -> {ok,[Term]} | {error,Error}
 read_file(File) ->
     case file:open(File, [read]) of
 	{ok,Fd} ->
@@ -97,12 +101,11 @@ read_stream(Fd, L0) ->
 	{eof,_} -> []
     end.
 
-%% read([IoDevice], Prompt) -> Term.
-%%  A very simple read function. Returns the direct representation of
-%%  the term without variable processing.
-
 read(P) -> read(standard_io, P).
 
+%%@doc  A very simple read function. Returns the direct representation of
+%%  the term without variable processing.
+%%@spec read([IoDevice], Prompt) -> Term
 read(Io, P) ->
     case scan_erlog_term(Io, P, 1) of
 	{ok,Ts,_} ->
@@ -119,19 +122,19 @@ scan_erlog_term(Io, Prompt, Line) ->
 
 -record(ops, {op=false,q=true}).
 
-%% write([IoDevice], Term) -> ok.
-%% writeq([IoDevice], Term) -> ok.
-%% write_canonical([IoDevice], Term) -> ok.
-%%  A very simple write function. Does not pretty-print but can handle
-%%  operators.
-
 write(T) -> write(standard_io, T).
 
+%%@doc A very simple write function. Does not pretty-print but can handle operators.
+%%@spec write([IoDevice], Term) -> ok
 write(Io, T) ->
     io:put_chars(Io, write1(T, 1200, #ops{op=true,q=false})).
 
 writeq(T) -> writeq(standard_io, T).
 
+%%@doc write_canonical([IoDevice], Term) -> ok.
+%%  A very simple write function. Does not pretty-print but can handle
+%%  operators.
+%%@spec writeq([IoDevice], Term) -> ok
 writeq(Io, T) ->
     io:put_chars(Io, write1(T, 1200, #ops{op=true,q=true})).
 
@@ -140,12 +143,12 @@ write_canonical(T) -> write_canonical(standard_io, T).
 write_canonical(Io, T) ->
     io:put_chars(Io, write1(T, 1200, #ops{op=false,q=true})).
 
-%% write1(Term) -> iolist().
-%% write1(Term, Precedence, Ops) -> iolist().
-%%  The function which does the actual writing.
-
+%%@doc  The function which does the actual writing.
+%%@spec write1(Term) -> iolist()
 write1(T) -> write1(T, 1200, #ops{op=true,q=false}).
 
+%%@doc  The function which does the actual writing.
+%%@spec write1(Term, Precedence, Ops) -> iolist()
 write1(T, Prec, Ops) when is_atom(T) -> write1_atom(T, Prec, Ops);
 write1(T, _, _) when is_number(T) -> io_lib:write(T);
 write1({V}, _, _) when is_integer(V) -> "_" ++ integer_to_list(V);

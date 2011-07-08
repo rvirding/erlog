@@ -1,5 +1,5 @@
-%% Copyright (c) 2008 Robert Virding. All rights reserved.
-%%
+%% @copyright (c) 2008 Robert Virding. All rights reserved.
+%%@end
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
 %% are met:
@@ -24,9 +24,10 @@
 %% POSSIBILITY OF SUCH DAMAGE.
 
 %%% File    : erlog_boot.erl
-%%% Author  : Robert Virding
+%%% @author  : Robert Virding
+%%%@end
 %%% Purpose : Erlog boot module.
-
+%%% @doc
 %%% This little beauty allows you to start Erlang with the Erlog shell
 %%% running and still has ^G and user_drv enabled. Use it as follows:
 %%%
@@ -36,7 +37,7 @@
 %%% -pa to find modules if necessary.
 %%%
 %%% Thanks to Attila Babo for showing me how to do this.
-
+%%%@end
 -module(erlog_boot).
 
 -export([start/0]).

@@ -1,10 +1,12 @@
 %%% File    : erlog_ets.erl
-%%% Author  : Robert Virding
-%%% Purpose : ETS interface for Erlog.
+%%% @author  : Robert Virding
 %%%
-%%% (C)Robert Virding. This stuff is mine, distributed without
+%%% @doc ETS interface for Erlog.
+%%%
+%%% @copyright Robert Virding. This stuff is mine, distributed without
 %%% warranty "as is" and may not be used commercially without written
 %%% permission.
+%%% @end
 
 -module(erlog_ets).
 
@@ -28,18 +30,18 @@ assert(Db) ->
 	  ]).
 
 
-%% all(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
-%%      Goal = {ets_all,Tables}.
-%% Return all the ETS databases.
-
+%%@doc Return all the ETS databases.
+%%@spec all(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void()
+%%      Goal = {ets_all,Tables}
 all({ets_all,Var}, Next, Cps, Bs, Vn, Db) ->
     Tabs = ets:all(),
     unify_prove_body(Var, Tabs, Next, Cps, Bs, Vn, Db).
 
-%% keys(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
-%%      Goal = {ets_keys,Table,Key}.
-%% Return the keys in an ETS database one at a time over backtracking.
-
+%%@doc Return the keys in an ETS database one at a time over backtracking.
+%%
+%%      Goal = {ets_keys,Table,Key}
+%%@end
+%%@spec keys(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void()
 keys({ets_keys,Tab0,KeyVar}, Next, Cps, Bs, Vn, Db) ->
     Tab1 = dderef(Tab0, Bs),
     case ets:first(Tab1) of
@@ -60,12 +62,14 @@ keys_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, Tab, PrevKey, KeyVar) ->
 	Key -> keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db)
     end.
 
-%% match(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
-%%      Goal = {ets_match,Table,Pattern}.
+%%@doc
 %% Match objects in an ETS database one at a time over backtracking
 %% using Pattern in goal. Variables in Pattern are bound for each
 %% object matched.
-
+%%
+%% Goal = {ets_match,Table,Pattern}.
+%%@end
+%%@spec match(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void()
 match({ets_match,Tab0,Pat0}, Next, Cps, Bs, Vn, Db) ->
     Tab1 = dderef(Tab0, Bs),
     Pat1 = dderef(Pat0, Bs),
@@ -86,13 +90,13 @@ match_loop('$end_of_table', _Next, Cps, _Bs, _Vn, Db, _Epat, _Vs) ->
 match_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, Epat, Vs, Ms) ->
     match_loop(Ms, Next, Cps, Bs, Vn, Db, Epat, Vs).
 
-%% ets_pat(Term) -> {EtsPattern,VarList}.
-%% Convert a term into an ETS pattern replacing variables with the ETS
+%%@doc Convert a term into an ETS pattern replacing variables with the ETS
 %% pattern variables. Also return a list of variables in the same
 %% order as ETS will return the list of values. This is slightly
 %% tricky as the order they are in ETS which is not the same as term
 %% order so they can not be easily sorted. Sigh!
-
+%%@end
+%%@spec ets_pat(Term) -> {EtsPattern,VarList}
 ets_pat(Pat) ->
     {Epat,_Vn,Vs0} = ets_pat(Pat, 11, []),
     Vs1 = [ V || {V,_Ev} <- Vs0 ],

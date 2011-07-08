@@ -9,52 +9,75 @@
 <hr>
 
 <h1>Module erlog</h1>
-<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>     
+Main interface to the Erlog interpreter.
+<p>Copyright © (c) 2009 Robert Virding. All rights reserved.</p>
 
+<p><b>Authors:</b> Robert Virding.</p>
 
+<h2><a name="description">Description</a></h2><p>     
+Main interface to the Erlog interpreter.</p>
+ 
+ <p>
+ <ul>
+  <li>Structures	- {Functor,arg1, Arg2,...} where Functor is an atom</li>
+  <li>Variables	- {Name} where Name is an atom or integer</li>
+  <li>Lists	- Erlang lists</li>
+  <li>Atomic	- Erlang constants</li>
+ </ul>
+ </p>
+ 
+  <p>
+  There is no problem with the representation of variables as Prolog
+  functors of arity 0 are atoms. This representation is much easier
+  to test for, and create new variables with than using funny atom
+  names like '$1' (yuch!), and we need LOTS of variables.
+  </p>
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#consult-2">consult/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#consult_file-2">consult_file/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#consult_file-2">consult_file/2</a></td><td>Load/reload an Erlog file into the interpreter.</td></tr>
 <tr><td valign="top"><a href="#get_db-1">get_db/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#halt-1">halt/1</a></td><td></td></tr>
-<tr><td valign="top"><a href="#is_legal_term-1">is_legal_term/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#is_legal_term-1">is_legal_term/1</a></td><td>Test if a goal is a legal Erlog term.</td></tr>
 <tr><td valign="top"><a href="#new-0">new/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#next_solution-1">next_solution/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#prove-2">prove/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#reconsult-2">reconsult/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#reconsult_file-2">reconsult_file/2</a></td><td></td></tr>
 <tr><td valign="top"><a href="#set_db-2">set_db/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#start-0">start/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr>
-<tr><td valign="top"><a href="#vars_in-1">vars_in/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#start-0">start/0</a></td><td> Start an Erlog server.</td></tr>
+<tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts a linked Erlog server.</td></tr>
+<tr><td valign="top"><a href="#vars_in-1">vars_in/1</a></td><td>Returns an ordered list of {VarName,Variable} pairs.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
 <h3 class="function"><a name="consult-2">consult/2</a></h3>
 <div class="spec">
-<p><tt>consult(Erl, File) -&gt; any()</tt></p>
+<p><tt>consult(Erl::Erlog, File) -&gt; ok | {error, Error}</tt></p>
 </div>
 
 <h3 class="function"><a name="consult_file-2">consult_file/2</a></h3>
 <div class="spec">
-<p><tt>consult_file(File, Db0) -&gt; any()</tt></p>
-</div>
+<p><tt>consult_file(File, Db0::Database) -&gt; {ok, NewDatabase} | {error, Error} | {erlog_error, Error}</tt></p>
+</div><p>Load/reload an Erlog file into the interpreter. Reloading will
+  abolish old definitons of clauses.</p>
 
 <h3 class="function"><a name="get_db-1">get_db/1</a></h3>
 <div class="spec">
-<p><tt>get_db(Erl) -&gt; any()</tt></p>
+<p><tt>get_db(Erl::Erlog) -&gt; {ok, Database}</tt></p>
 </div>
 
 <h3 class="function"><a name="halt-1">halt/1</a></h3>
 <div class="spec">
-<p><tt>halt(Erl) -&gt; any()</tt></p>
+<p><tt>halt(Erl::Erlog) -&gt; ok</tt></p>
 </div>
 
 <h3 class="function"><a name="is_legal_term-1">is_legal_term/1</a></h3>
 <div class="spec">
-<p><tt>is_legal_term(T) -&gt; any()</tt></p>
-</div>
+<p><tt>is_legal_term(T::Goal) -&gt; true | false</tt></p>
+</div><p>Test if a goal is a legal Erlog term. Basically just check if
+  tuples are used correctly as structures and variables.</p>
 
 <h3 class="function"><a name="new-0">new/0</a></h3>
 <div class="spec">
@@ -68,41 +91,41 @@
 
 <h3 class="function"><a name="prove-2">prove/2</a></h3>
 <div class="spec">
-<p><tt>prove(Erl, Goal) -&gt; any()</tt></p>
+<p><tt>prove(Erl::Erlog, Goal) -&gt; {succeed, Bindings} | fail</tt></p>
 </div>
 
 <h3 class="function"><a name="reconsult-2">reconsult/2</a></h3>
 <div class="spec">
-<p><tt>reconsult(Erl, File) -&gt; any()</tt></p>
+<p><tt>reconsult(Erl::Erlog, File) -&gt; ok | {error, Error}</tt></p>
 </div>
 
 <h3 class="function"><a name="reconsult_file-2">reconsult_file/2</a></h3>
 <div class="spec">
-<p><tt>reconsult_file(File, Db0) -&gt; any()</tt></p>
+<p><tt>reconsult_file(File, Db0::Database) -&gt; {ok, NewDatabase} | {error, Error} | {erlog_error, Error}</tt></p>
 </div>
 
 <h3 class="function"><a name="set_db-2">set_db/2</a></h3>
 <div class="spec">
-<p><tt>set_db(Erl, Db) -&gt; any()</tt></p>
+<p><tt>set_db(Erl::Erlog, Db::Database) -&gt; ok</tt></p>
 </div>
 
 <h3 class="function"><a name="start-0">start/0</a></h3>
 <div class="spec">
-<p><tt>start() -&gt; any()</tt></p>
-</div>
+<p><tt>start() -&gt; pid()</tt></p>
+</div><p> Start an Erlog server.</p>
 
 <h3 class="function"><a name="start_link-0">start_link/0</a></h3>
 <div class="spec">
-<p><tt>start_link() -&gt; any()</tt></p>
-</div>
+<p><tt>start_link() -&gt; pid()</tt></p>
+</div><p>Starts a linked Erlog server</p>
 
 <h3 class="function"><a name="vars_in-1">vars_in/1</a></h3>
 <div class="spec">
-<p><tt>vars_in(Term) -&gt; any()</tt></p>
-</div>
+<p><tt>vars_in(Term) -&gt; [{Name, Var}]</tt></p>
+</div><p>Returns an ordered list of {VarName,Variable} pairs.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Jul 7 2011, 21:36:02.</i></p>
+<p><i>Generated by EDoc, Jul 8 2011, 00:31:35.</i></p>
 </body>
 </html>

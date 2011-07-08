@@ -1,5 +1,5 @@
-%% Copyright (c) 2009 Robert Virding. All rights reserved.
-%%
+%% @copyright (c) 2009 Robert Virding. All rights reserved.
+%%@end
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
 %% are met:
@@ -24,24 +24,30 @@
 %% POSSIBILITY OF SUCH DAMAGE.
 
 %%% File    : erlog_int.erl
-%%% Author  : Robert Virding
-%%% Purpose : Basic interpreter of a Prolog sub-set.
+%%% @author Robert Virding
+%%% @doc Basic interpreter of a Prolog sub-set.
 %%% 
 %%% This is the basic Prolog interpreter. 
 %%% The internal data structures used are very direct and basic:
 %%%
-%%% Structures	- {Functor,arg1, Arg2,...} where Functor is an atom
-%%% Variables	- {Name} where Name is an atom or integer
-%%% Lists	- Erlang lists
-%%% Atomic	- Erlang constants
+%%% <ul>
+%%% <li>Structures	- {Functor,arg1, Arg2,...} where Functor is an atom</li>
+%%% <li>Variables	- {Name} where Name is an atom or integer</li>
+%%% <li>Lists	- Erlang lists</li>
+%%% <li>Atomic	- Erlang constants</li>
+%%%</ul>
 %%%
+%%%<p>
 %%% There is no problem with the representation of variables as Prolog
 %%% functors of arity 0 are atoms. This representation is much easier
 %%% to test for, and create new variables with than using funny atom
 %%% names like '$1' (yuch!), and we need LOTS of variables.
+%%%</p>
 %%%
+%%%<p>
 %%% All information about the state of an evaluation is held in the
 %%% variables:
+%%%</p>
 %%%
 %%% [CurrentGoal,] NextGoal, ChoicePoints, Bindings, VarNum, Database
 %%%
@@ -74,7 +80,7 @@
 %%%
 %%% and throws it. The ErrorDescriptor is a valid Erlog term.
 %%%
-%%% Database
+%%%=== Database ===
 %%%
 %%% We use a dictionary for the database. All data for a procedure are
 %%% kept in the database with the functor as key. Interpreted clauses
@@ -87,7 +93,7 @@
 %%% the logical database view makes it difficult to directly use ETS
 %%% efficiently.
 %%%
-%%% Interpreted Code
+%%%=== Interpreted Code ===
 %%%
 %%% Code, interpreted clause bodies, are not stored directly as Erlog
 %%% terms. Before being added to the database they are checked that
@@ -99,18 +105,19 @@
 %%%
 %%% The following functions convert code:
 %%%
-%%% well_form_body/4 - converts an Erlog term to database code body
-%%%     format checking that it is well formed.
-%%% well_form_goal/4 - converts an Erlog term directly to a code body
-%%%     checking that it is well formed.
-%%% unify_head/4 - unify a goal directly with head without creating a
+%%%<ul>
+%%% <li>well_form_body/4 - converts an Erlog term to database code body
+%%%     format checking that it is well formed.</li>
+%%% <li>well_form_goal/4 - converts an Erlog term directly to a code body
+%%%     checking that it is well formed.</li>
+%%% <li>unify_head/4 - unify a goal directly with head without creating a
 %%%     new instance of the head. Saves creating local variables and
-%%%     MANY bindings. This is a BIG WIN!
-%%% body_instance/5 - creates a new code body instance from the
-%%%     database format.
-%%% body_term/3 - creates a copy of a body as a legal Erlog term.
-%%%
-%%% Choicepoints/Cuts
+%%%     MANY bindings. This is a BIG WIN!</li>
+%%% <li>body_instance/5 - creates a new code body instance from the
+%%%     database format.</li>
+%%% <li>body_term/3 - creates a copy of a body as a legal Erlog term.</li>
+%%%</ul>
+%%% === Choicepoints/Cuts ===
 %%%
 %%% Choicepoints and cuts are kept on the same stack/list. There are
 %%% different types of cps depending on their context. Failure pops
@@ -131,7 +138,7 @@
 %%% It would be better if the cut marker was the actual cps/cut stack
 %%% to go back to but this would entail a more interactive
 %%% body_instance.
-
+%%% @end
 -module(erlog_int).
 
 %% Main interface functions.
@@ -162,10 +169,10 @@
 %%-define(DB, orddict).
 -define(DB, dict).
 
-%% built_in_db() -> Database.
-%% Create an initial clause database containing the built-in
-%% predicates and predefined library predicates.
 
+%%@doc Create an initial clause database containing the built-in
+%% predicates and predefined library predicates.
+%%@spec built_in_db() -> Database
 built_in_db() ->
     Db0 = new_db(),
     %% First add the Erlang built-ins.
@@ -264,10 +271,10 @@ built_in_db() ->
 -record(cp, {type,label,data,next,bs,vn}).
 -record(cut, {label,next}).
 
-%% prove_goal(Goal, Database) -> Succeed | Fail.
-%% This is the main entry point into the interpreter. Check that
-%% everything is consistent then prove the goal as a call.
 
+%%@doc This is the main entry point into the interpreter. Check that
+%% everything is consistent then prove the goal as a call.
+%%@spec prove_goal(Goal, Database) -> Succeed | Fail
 prove_goal(Goal0, Db) ->
     %% put(erlog_cut, orddict:new()),
     %% put(erlog_cps, orddict:new()),
@@ -285,16 +292,17 @@ prove_goal(Goal0, Db) ->
 -undef(FAIL).
 -define(FAIL(Bs, Cps, Db), fail(Cps, Db)).
 
-%% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
-%%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
-%%      {fail,NewDatabase}.
-%% Prove one goal. We seldom return succeed here but usually go directly to
+%%@doc Prove one goal. We seldom return succeed here but usually go directly to
 %% to NextGoal.
+%%
 %% Handle built-in predicates here. RTFM for a description of the
 %% built-ins. Hopefully we do the same.
-
+%%@end
 %% Logic and control. Conjunctions are handled in prove_body and true
 %% has been compiled away.
+%%@spec prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
+%%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
+%%      {fail,NewDatabase}
 prove_goal({call,G}, Next0, Cps, Bs, Vn, Db) ->
     %% Only add cut CP to Cps if goal contains a cut.
     Label = Vn,
@@ -518,13 +526,12 @@ fail_disjunction(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
 fail_if_then_else(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
     prove_body(Next, Cps, Bs, Vn, Db).
 
-%% fail(ChoicePoints, Database) -> {fail,Database}.
-%% cut(Label, Last, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
+
 %%
 %% The functions which manipulate the choice point stack.
 %% fail backtracks to next choicepoint skipping cut labels
 %% cut steps backwards over choice points until matching cut.
-
+%%@spec fail(ChoicePoints, Database) -> {fail,Database}
 fail([#cp{type=goal_clauses}=Cp|Cps], Db) ->
     fail_goal_clauses(Cp, Cps, Db);
 fail([#cp{type=disjunction}=Cp|Cps], Db) ->
@@ -545,6 +552,7 @@ fail([#cut{}|Cps], Db) ->
     fail(Cps, Db);				%Fail over cut points.
 fail([], Db) -> {fail,Db}.    
 
+%%@spec cut(Label, Last, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 cut(Label, Last, Next, [#cut{label=Label}|Cps]=Cps0, Bs, Vn, Db) ->
     if  Last -> prove_body(Next, Cps, Bs, Vn, Db);
 	true -> prove_body(Next, Cps0, Bs, Vn, Db)
@@ -591,38 +599,30 @@ check_goal(G0, Next, Bs, Db, Cut, Label) ->
 	    end
     end.
 
-%% unify_prove_body(Term1, Term2, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-%% Unify Term1 = Term2, on success prove body Next else fail.
-
+%%@doc Unify Term1 = Term2, on success prove body Next else fail.
+%%@spec unify_prove_body(Term1, Term2, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 unify_prove_body(T1, T2, Next, Cps, Bs0, Vn, Db) ->
     case unify(T1, T2, Bs0) of
 	{succeed,Bs1} -> prove_body(Next, Cps, Bs1, Vn, Db);
 	fail -> ?FAIL(Bs0, Cps, Db)
     end.
 
-%% unify_prove_body(A1, B1, A2, B2, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-%% Unify A1 = B1, A2 = B2, on success prove body Next else fail.
-
+%%@doc Unify A1 = B1, A2 = B2, on success prove body Next else fail.
+%%@spec unify_prove_body(A1, B1, A2, B2, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db) ->
     case unify(A1, B1, Bs0) of
 	{succeed,Bs1} -> unify_prove_body(A2, B2, Next, Cps, Bs1, Vn, Db);
 	fail -> ?FAIL(Bs0, Cps, Db)
     end.
 
-%% term_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, Varnum, Database) ->
-%%      void.
-
+%%@spec term_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, Varnum, Database) -> void
 term_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
     case erlang:Test(dderef(L, Bs), dderef(R, Bs)) of
 	true -> prove_body(Next, Cps, Bs, Vn, Db);
 	false -> ?FAIL(Bs, Cps, Db)
     end.
 
-%% arith_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-
+%%@spec arith_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 arith_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
     case erlang:Test(eval_arith(deref(L, Bs), Bs, Db),
 		     eval_arith(deref(R, Bs), Bs, Db)) of
@@ -630,9 +630,9 @@ arith_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
 	false -> ?FAIL(Bs, Cps, Db)
     end.
 
-%% prove_arg(Index, Term, Arg, Next, ChoicePoints, VarNum, Database) -> void.
-%%  Prove the goal arg(I, Ct, Arg), Index and Term have been dereferenced.
 
+%%@doc Prove the goal arg(I, Ct, Arg), Index and Term have been dereferenced.
+%%@spec prove_arg(Index, Term, Arg, Next, ChoicePoints,Bs, VarNum, Database) -> void
 prove_arg(I, [H|T], A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
     %% He, he, he!
     if  I == 1 -> unify_prove_body(H, A, Next, Cps, Bs, Vn, Db);
@@ -651,9 +651,8 @@ prove_arg(I, Ct, _, _, _, _, _, Db) ->
 	true -> type_error(compound, Ct, Db)
     end.
 
-%% prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
-%%  Prove the call functor(T, F, A), Term has been dereferenced.
-
+%%@doc Prove the call functor(T, F, A), Term has been dereferenced.
+%%@spec prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 prove_functor(T, F, A, Next, Cps, Bs, Vn, Db)
   when is_tuple(T), size(T) >= 2 ->
     unify_prove_body(F, element(1, T), A, size(T)-1, Next, Cps, Bs, Vn, Db);
@@ -681,9 +680,8 @@ prove_functor({_}=Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
 	{F1,_} -> type_error(atom, F1, Db)
     end.
 
-%% prove_univ(Term, List, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
-%%  Prove the goal Term =.. List, Term has already been dereferenced.
-
+%%@doc Prove the goal Term =.. List, Term has already been dereferenced.
+%%@spec prove_univ(Term, List, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 prove_univ(T, L, Next, Cps, Bs, Vn, Db) when is_tuple(T), size(T) >= 2 ->
     Es = tuple_to_list(T),
     unify_prove_body(Es, L, Next, Cps, Bs, Vn, Db);
@@ -708,11 +706,9 @@ prove_univ({_}=Var, L, Next, Cps, Bs0, Vn, Db) ->
 	Other -> type_error(list, Other, Db)
 end.
 
-%% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-%% Call an external (Erlang) generator and handle return value, either
+%%@doc Call an external (Erlang) generator and handle return value, either
 %% succeed or fail.
-
+%%@spec prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db) ->
     case Efun() of
 	{succeed,Ret,Cont} ->			%Succeed and more choices
@@ -726,10 +722,8 @@ prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db) ->
 fail_ecall(#cp{data={Efun,Val},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
     prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db).    
 
-%% prove_clause(Head, Body, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
-%%      void.
-%% Unify clauses matching with functor from Head with both Head and Body.
-
+%%@doc Unify clauses matching with functor from Head with both Head and Body.
+%%@spec prove_clause(Head, Body, Next, ChoicePoints, Bindings, VarNum, DataBase) -> void
 prove_clause(H, B, Next, Cps, Bs, Vn, Db) ->
     Functor = functor(H),
     case get_procedure(Functor, Db) of
@@ -741,10 +735,8 @@ prove_clause(H, B, Next, Cps, Bs, Vn, Db) ->
 	undefined -> ?FAIL(Bs, Cps, Db)
     end.
 
-%% unify_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%      void.
-%% Try to unify Head and Body using Clauses which all have the same functor.
-
+%%@doc Try to unify Head and Body using Clauses which all have the same functor.
+%%@spec unify_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) -> void
 unify_clauses(Ch, Cb, [C], Next, Cps, Bs0, Vn0, Db) ->
     %% No choice point on last clause
     case unify_clause(Ch, Cb, C, Bs0, Vn0) of
@@ -775,10 +767,8 @@ unify_clause(Ch, Cb, {_Tag,H0,{B0,_}}, Bs0, Vn0) ->
 fail_clause(#cp{data={Ch,Cb,Cs},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
     unify_clauses(Ch, Cb, Cs, Next, Cps, Bs, Vn, Db).
 
-%% prove_current_predicate(PredInd, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
-%%      void.
-%% Match functors of existing user (interpreted) predicate with PredInd.
-
+%%@doc Match functors of existing user (interpreted) predicate with PredInd.
+%%@spec prove_current_predicate(PredInd, Next, ChoicePoints, Bindings, VarNum, DataBase) -> void
 prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db) ->
     case Pi of
 	{'/',_,_} -> ok;
@@ -879,12 +869,11 @@ retract_clauses(_Ch, _Cb, [], _Next, Cps, _Bs, _Vn, Db) -> ?FAIL(_Bs, Cps, Db).
 fail_retract(#cp{data={Ch,Cb,Cs},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
     retract_clauses(Ch, Cb, Cs, Next, Cps, Bs, Vn, Db).
 
-%% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
-%%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
-%% Prove the goals in a body. Remove the first goal and try to prove
+%%@doc Prove the goals in a body. Remove the first goal and try to prove
 %% it. Return when there are no more goals. This is how proving a
 %% goal/body succeeds.
-
+%%@spec prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
+%%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}
 prove_body([G|Gs], Cps, Bs0, Vn0, Db0) ->
     %%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
     prove_goal(G, Gs, Cps, Bs0, Vn0, Db0);
@@ -894,9 +883,8 @@ prove_body([], Cps, Bs, Vn, Db) ->
     %%io:fwrite("PB: ~p\n", [Cps]),
     {succeed,Cps,Bs,Vn,Db}.			%No more body
 
-%% unify(Term, Term, Bindings) -> {succeed,NewBindings} | fail.
-%% Unify two terms with a set of bindings.
-
+%%@doc Unify two terms with a set of bindings.
+%%@spec unify(Term, Term, Bindings) -> {succeed,NewBindings} | fail
 unify(T10, T20, Bs0) ->
     case {deref(T10, Bs0),deref(T20, Bs0)} of
 	{T1,T2} when ?IS_CONSTANT(T1), T1 == T2 ->
@@ -1034,11 +1022,10 @@ add_compiled_proc(H, M, F, Db) ->
 		   (_) -> {code,{M,F}}
 	       end, {code,{M,F}}, Db).
 
-%% assertz_clause(Clause, Database) -> NewDatabase.
-%% assertz_clause(Head, Body, Database) -> NewDatabase.
+%%@doc assertz_clause(Head, Body, Database) -> NewDatabase.
 %% Assert a clause into the database first checking that it is well
 %% formed.
-
+%%@spec assertz_clause(Clause, Database) -> NewDatabase
 assertz_clause({':-',H,B}, Db) -> assertz_clause(H, B, Db);
 assertz_clause(H, Db) -> assertz_clause(H, true, Db).
 
@@ -1056,14 +1043,12 @@ assertz_clause(Head, Body0, Db) ->
 		   ({clauses,T,Cs}) -> {clauses,T+1,Cs ++ [{T,Head,Body}]}
 	       end, {clauses,1,[{0,Head,Body}]}, Db).
 
-%% asserta_clause(Clause, Database) -> NewDatabase.
-%% asserta_clause(Head, Body, Database) -> NewDatabase.
-%% Assert a clause into the database first checking that it is well
+%%@doc Assert a clause into the database first checking that it is well
 %% formed.
-
+%%@spec asserta_clause(Clause, Database) -> NewDatabase
 asserta_clause({':-',H,B}, Db) -> asserta_clause(H, B, Db);
 asserta_clause(H, Db) -> asserta_clause(H, true, Db).
-
+%%@spec asserta_clause(Head, Body, Database) -> NewDatabase
 asserta_clause(Head, Body0, Db) ->
     {Functor,Body} = case catch {ok,functor(Head),
 				 well_form_body(Body0, false, sture)} of
@@ -1093,8 +1078,7 @@ retract_clause(F, Ct, Db) ->
 	error -> Db				%Do nothing
     end.
 
-%% abolish_clauses(Functor, Database) -> NewDatabase.
-
+%%@spec abolish_clauses(Functor, Database) -> NewDatabase
 abolish_clauses(Func, Db) ->
     case ?DB:find(Func, Db) of
 	{ok,built_in} ->
@@ -1158,10 +1142,9 @@ add_built_in(H, Db) ->
     ets:insert(Db, {Functor,built_in}),
     Db.
 
-%% add_compiled_proc(Head, Module, Function, Database) -> NewDatabase.
-%% Add Head as a compiled procedure with code in Module:Function. No
+%%@doc Add Head as a compiled procedure with code in Module:Function. No
 %% checking.
-
+%% add_compiled_proc(Head, Module, Function, Database) -> NewDatabase
 add_compiled_proc(H, M, F, Db) ->
     Functor = functor(H),
     case ets:lookup(Db, Functor) of
@@ -1279,8 +1262,7 @@ get_interp_functors(Db) ->
 	      end, [], Db).
 -endif.
 
-%% functor(Goal) -> {Name,Arity}.
-
+%%@spec functor(Goal) -> {Name,Arity}
 functor(T) when is_tuple(T), size(T) > 1, is_atom(element(1, T)) ->
     {element(1, T),size(T)-1};
 functor(T) when is_atom(T) -> {T,0};
@@ -1527,10 +1509,10 @@ pred_ind({N,A}) -> {'/',N,A}.
 pred_ind(N, A) -> {'/',N,A}.
 
 %% Bindings
-%% Bindings are kept in a dict where the key is the variable name.
 %%-define(BIND, orddict).
 -define(BIND, dict).
 
+%%@doc Bindings are kept in a dict where the key is the variable name.
 new_bindings() -> ?BIND:new().
 
 add_binding({V}, Val, Bs0) ->
@@ -1539,9 +1521,8 @@ add_binding({V}, Val, Bs0) ->
 get_binding({V}, Bs) ->
     ?BIND:find(V, Bs).
 
-%% deref(Term, Bindings) -> Term.
-%% Dereference a variable, else just return the term.
-
+%%@doc Dereference a variable, else just return the term.
+%%@spec deref(Term, Bindings) -> Term
 deref({V}=T0, Bs) ->
     case ?BIND:find(V, Bs) of
 	{ok,T1} -> deref(T1, Bs);
@@ -1549,10 +1530,9 @@ deref({V}=T0, Bs) ->
     end;
 deref(T, _) -> T.				%Not a variable, return it.
 
-%% dderef(Term, Bindings) -> Term.
-%% Do a deep dereference. Completely dereference all the variables
+%%@doc Do a deep dereference. Completely dereference all the variables
 %% occuring in a term, even those occuring in a variables value.
-
+%%@spec dderef(Term, Bindings) -> Term
 dderef(A, _) when ?IS_CONSTANT(A) -> A;
 dderef([], _) -> [];
 dderef([H0|T0], Bs) ->
@@ -1567,10 +1547,9 @@ dderef(T, Bs) when is_tuple(T) ->
     Es1 = dderef(Es0, Bs),
     list_to_tuple(Es1).
 
-%% dderef_list(List, Bindings) -> List.
-%%  Dereference all variables to any depth but check that the
+%%@doc  Dereference all variables to any depth but check that the
 %%  top-level is a list.
-
+%%@spec dderef_list(List, Bindings) -> List
 dderef_list([], _Bs) -> [];
 dderef_list([H|T], Bs) ->
     [dderef(H, Bs)|dderef_list(T, Bs)];
@@ -1610,12 +1589,11 @@ initial_goal(S, Bs0, Vn0)
 initial_goal(T, Bs, Vn) when ?IS_CONSTANT(T) -> {T,Bs,Vn};
 initial_goal(T, _Bs, _Vn) -> type_error(callable, T).
 
-%% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
 %% expand_head(Head, Var1, Var2) -> ExpHead.
 %% expand_body(Body, Var1, VarNum) -> {ExpBody,Var2,NewVarNum}.
-%% Handle DCG expansion. We do NOT work backwards.
-
+%%@doc Handle DCG expansion. We do NOT work backwards.
+%%@spec expand_term(Term) -> {ExpTerm}
 expand_term(Term) ->
     {Exp,_} = expand_term(Term, 0),
     Exp.
