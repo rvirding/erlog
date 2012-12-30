@@ -4,4 +4,4 @@
 .eunit/*
 doc/*
 !doc/overview.edoc
-
+!doc/*.txt

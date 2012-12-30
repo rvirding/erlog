@@ -1,4 +1,0 @@
-{application,erlog}.
-{packages,[]}.
-{modules,[erlog,erlog_boot,erlog_demo,erlog_ets,erlog_int,erlog_io,
-          erlog_parse,erlog_scan,erlog_shell,user_pl]}.
