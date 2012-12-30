@@ -3,3 +3,5 @@
 *.beam
 .eunit/*
 doc/*
+!doc/overview.edoc
+
