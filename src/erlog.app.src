@@ -1,0 +1,13 @@
+{application, erlog,
+ [
+  {description, "Erlog is a Prolog interpreter implemented in Erlang and integrated
+with the Erlang runtime system. It is a subset of the Prolog standard.
+An erlog shell is also included."},
+  {vsn, "0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.

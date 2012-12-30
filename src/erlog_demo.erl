@@ -1,21 +1,24 @@
 %%% File    : erlog_demo.erl
-%%% Author  : Robert Virding
-%%% Purpose : Demo functions for Erlang interface of Erlog system.
-
-%%% (C)Robert Virding. This stuff is mine, distributed without
+%%% @author  : Robert Virding
+%%%
+%%% @doc Demo functions for Erlang interface of Erlog system.
+%%%
+%% Test/demo functions for ecall predicate. Examples of different ways
+%% of generating solutions.
+%%@end
+%%% @copyright Robert Virding. This stuff is mine, distributed without
 %%% warranty "as is" and may not be used commercially without written
 %%% permission.
+%%% @end
 
 -module(erlog_demo).
 
 -export([efunc/1,ets_keys/1,get_list/1]).
 
-%% efunc(Fcall) -> {succeed_last,Val}.
-%% ets_keys(Table) -> {succeed,Val,Cont} | {succeed_last,Val} | fail.
-%% get_list(ListGenerator) -> {succeed,Val,Cont} | {succeed_last,Val} | fail.
-%% Test/demo functions for ecall predicate. Examples of different ways
-%% of generating solutions.
 
+
+
+%%@spec efunc(Fcall) -> {succeed_last,Val}
 efunc(Fcall) ->
     %% Call an erlang function and return the value.
     %% This is what the operators will generate.
@@ -28,6 +31,7 @@ efunc(Fcall) ->
 	  end,
     {succeed_last,Val}.				%Optimisation
 
+%%@spec ets_keys(Table) -> {succeed,Val,Cont} | {succeed_last,Val} | fail
 ets_keys(Tab) ->
     %% Ets table keys back-trackable.
     %% Solution with no look-ahead, get keys when requested.
@@ -43,6 +47,7 @@ ets_keys(Tab) ->
 	Key -> {succeed,Key, fun () -> F(F, Tab, Key) end}
     end.
 
+%%@spec get_list(ListGenerator) -> {succeed,Val,Cont} | {succeed_last,Val} | fail
 get_list(ListGen) ->
     %% List as back-trackable generator.
     %% This is what the operators will generate.

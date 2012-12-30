@@ -1,5 +1,5 @@
-%% Copyright (c) 2008 Robert Virding. All rights reserved.
-%%
+%% @copyright (c) 2008 Robert Virding. All rights reserved.
+%%@end
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
 %% are met:
@@ -24,17 +24,18 @@
 %% POSSIBILITY OF SUCH DAMAGE.
 
 %%% File    : erlog_parse.erl
-%%% Author  : Robert Virding
+%%% @author  : Robert Virding
+%%%@end
 %%% Purpose : Erlog parser
 %%%
-%%% Parses Erlog tokens into Erlog terms. Based on the Standard prolog
+%%% @doc Parses Erlog tokens into Erlog terms. Based on the Standard prolog
 %%% parser and directly coded from the parser description. To handle
 %%% back-tracking in the parser we use a continuation style using funs
 %%% where each fun handles one step of what follows. This allows
 %%% back-tracking. This may not be a specially efficient way of
 %%% parsing but it is simple and easy to derive from the
 %%% description. No logical variables are necessary here.
-
+%%% @end
 -module(erlog_parse).
 
 -export([term/1,term/2,format_error/1]).
@@ -55,7 +56,7 @@ all_read([{T,L}|_], _) -> syntax_error(L, {operator_expected,{ar,T}});
 all_read([{_,L,V}|_], _) -> syntax_error(L, {operator_expected,{ar,V}});
 all_read([], _) -> syntax_error(9999, premature_end).
 
-%%syntax_error(Line, Error) -> {fail,{Line,Error}}.
+%%@spec syntax_error(Line, Error) -> {fail,{Line,Error}}
 syntax_error(Line, Error) ->
     io:fwrite("se: ~p\n", [{Line,Error}]), {fail,{Line,Error}}.
 
@@ -70,8 +71,7 @@ format_error({op_priority,Op}) ->
 format_error({expected,T}) ->
     io_lib:fwrite("~w or operator expected", [T]).
 
-%% term(Tokens, Precedence, Next) -> {succeed,Term} | {fail,Error}.
-
+%%@spec term(Tokens, Precedence, Next) -> {succeed,Term} | {fail,Error}
 term([{number,_,N}|Toks], Prec, Next) -> rest_term(Toks, N, 0, Prec, Next);
 term([{string,_,S}|Toks], Prec, Next) -> rest_term(Toks, S, 0, Prec, Next);
 term([{'(',_}|Toks], Prec, Next) ->
@@ -84,8 +84,8 @@ term([{'{',_}|Toks0], Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, '}', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, {'{}',Term}, 0, Prec, Next)
+			fun (Toks2, Term0) ->
+				rest_term(Toks2, {'{}',Term0}, 0, Prec, Next)
 			end)
 	 end);
 term([{'[',_},{']',_}|Toks], Prec, Next) ->
@@ -134,9 +134,8 @@ term([{atom,L,Op}|Toks0], Prec, Next) ->
 term([T|_], _, _) -> syntax_error(line(T), {illegal,T});
 term([], _, _) -> syntax_error(9999, no_term).
 
-%% possible_right_operand(Tokens) -> true | false.
-%%  Test if there maybe a possible right operand.
-
+%%@doc Test if there maybe a possible right operand.
+%%@spec possible_right_operand(Tokens) -> true | false
 possible_right_operand([{')',_}|_]) -> false;
 possible_right_operand([{'}',_}|_]) -> false;
 possible_right_operand([{']',_}|_]) -> false;
@@ -144,22 +143,19 @@ possible_right_operand([{',',_}|_]) -> false;
 possible_right_operand([{'|',_}|_]) -> false;
 possible_right_operand(_) -> true.
 
-%% bracket_term(Tokens, Precedence, Next) ->
-%%      {succeed,Term} | {fail,Error}.
-
+%%@spec  bracket_term(Tokens, Precedence, Next) -> {succeed,Term} | {fail,Error}
 bracket_term(Toks0, Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, ')', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, Term, 0, Prec, Next)
+			fun (Toks2, Term0) ->
+				rest_term(Toks2, Term0, 0, Prec, Next)
 			end)
 	 end).
 
-%% rest_term(Tokens, Term, LeftPrec, Precedence, Next) ->
-%%      {succeed,Term} | {fail,Error}.
-%%  Have a term to the left, test if operator follows or just go on.
-
+%%@doc  Have a term to the left, test if operator follows or just go on.
+%%@spec rest_term(Tokens, Term, LeftPrec, Precedence, Next) ->
+%%      {succeed,Term} | {fail,Error}
 rest_term([{atom,L,Op}|Toks0], Term, Left, Prec, Next) ->
     cp([fun () -> infix_term(Op, L, Toks0, Term, Left, Prec, Next) end,
 	fun () -> postfix_term(Op, L, Toks0, Term, Left, Prec, Next) end,
@@ -176,11 +172,10 @@ rest_term([{',',L}|Toks0], Term, Left, Prec, Next) ->
 rest_term(Toks, Term, _, _, Next) ->
     Next(Toks, Term).
 
-%% infix_term(Operator, Line, Tokens, Term, LeftPrec, Prec, Next) ->
-%%      {succeed,Term} | {fail,Error}.
-%%  Test if infix operator of correct priority, fail with
+%%@doc  Test if infix operator of correct priority, fail with
 %%  operator_expected if not an operator to have some error.
-
+%%@spec infix_term(Operator, Line, Tokens, Term, LeftPrec, Prec, Next) ->
+%%      {succeed,Term} | {fail,Error}
 infix_term(Op, L, Toks0, Term, Left, Prec, Next) ->
     case infix_op(Op) of
 	{yes,LAP,OpP,RAP} when Prec >= OpP, Left =< LAP ->
@@ -192,11 +187,10 @@ infix_term(Op, L, Toks0, Term, Left, Prec, Next) ->
 	no -> fail
     end.
 
-%% postfix_term(Operator, Line, Tokens, Term, LeftPrec, Prec, Next) ->
-%%      {succeed,Term} | {fail,Error}.
-%%  Test if postfix operator of correct priority, fail with
+%%@doc  Test if postfix operator of correct priority, fail with
 %%  operator_expected if not an operator to have some error.
-
+%%@spec postfix_term(Operator, Line, Tokens, Term, LeftPrec, Prec, Next) ->
+%%      {succeed,Term} | {fail,Error}
 postfix_term(Op, L, Toks0, Term, Left, Prec, Next) ->
     case postfix_op(Op) of
 	{yes,ArgP,OpP} when Prec >= OpP, Left =< ArgP ->
@@ -205,9 +199,7 @@ postfix_term(Op, L, Toks0, Term, Left, Prec, Next) ->
 	no -> fail
     end.
 
-%% list_elems(Tokens, RevElems, Next) ->
-%%      {succeed,Term} | {fail,Error}.
-
+%%@spec list_elems(Tokens, RevElems, Next) ->  {succeed,Term} | {fail,Error}
 list_elems([{',',_}|Toks0], REs, Next) ->
     term(Toks0, 999,
 	 fun (Toks1, E) ->
@@ -221,8 +213,7 @@ list_elems([{'|',_}|Toks0], REs, Next) ->
 list_elems(Toks, REs, Next) ->
     expect(Toks, ']', lists:reverse(REs), Next).
 
-%% arg_list(Tokens, RevArgs, Next) -> {succeed,Term} | {fail,Error}.
-
+%%@spec arg_list(Tokens, RevArgs, Next) -> {succeed,Term} | {fail,Error}
 arg_list([{',',_}|Toks0], RAs, Next) ->
     term(Toks0, 999,
 	 fun (Toks1, Arg) ->
@@ -231,8 +222,7 @@ arg_list([{',',_}|Toks0], RAs, Next) ->
 arg_list(Toks, RAs, Next) ->
     expect(Toks, ')', lists:reverse(RAs), Next).
 
-%% expect(Tokens, Token, Term, Next) -> {succeed,Term} | {fail,Error}.
-
+%%@spec expect(Tokens, Token, Term, Next) -> {succeed,Term} | {fail,Error}
 expect([T|Toks], Tok, Term, Next) ->
     case type(T) of
 	Tok -> Next(Toks, Term);
@@ -240,10 +230,9 @@ expect([T|Toks], Tok, Term, Next) ->
     end;
 expect([], Tok, _, _) -> syntax_error(9999, {expected,Tok}).
 
-%% cp(Choices) -> {succeed,Term} | {fail,_} | fail.
-%%  Special choice point handler for parser. If all clauses fail then
+%%@doc  Special choice point handler for parser. If all clauses fail then
 %%  fail with first fail value, this usually gives better error report.
-
+%%@spec cp(Choices) -> {succeed,Term} | {fail,any()} | fail
 cp([C|Cs]) ->
     case C() of
 	{succeed,Res} -> {succeed,Res};
@@ -259,16 +248,13 @@ cp([C|Cs], Fail) ->
     end;
 cp([], Fail) -> Fail.
 
-%% type(Tok) -> Line.
-%% line(Tok) -> Line.
 %% val(Tok) -> Value.
-
+%%@spec type(Tok) -> Line
 type(Tok) -> element(1, Tok).
+%%@spec line(Tok) -> Line
 line(Tok) -> element(2, Tok).
-val(Tok) -> element(3, Tok).
 
-%% prefix_op(Op) -> {yes,Prec,ArgPrec} | no.
-
+%%@spec prefix_op(Op) -> {yes,Prec,ArgPrec} | no
 prefix_op('?-') -> {yes,1200,1199};		%fx 1200
 prefix_op(':-') -> {yes,1200,1199};		%fx 1200
 prefix_op('\\+') -> {yes,900,900};		%fy 900

@@ -1,15 +1,20 @@
 %%% File    : user_pl.erl
-%%% Author  : Robert Virding
-%%% Purpose : Test compilation of Erlog procedures.
+%%% @author Robert Virding
 %%%
-%%% (C)Robert Virding. This stuff is mine, distributed without
+%%% @copyright Robert Virding.
+%%%
+%%% This stuff is mine, distributed without
 %%% warranty "as is" and may not be used commercially without written
 %%% permission.
-%%% 
-%%% Hand compiled app/3 and rev/2 to test speed-up. (~2)
+%%% @end
+%%% @doc Test compilation of Erlog procedures.
+%%%
+%%%Hand compiled app/3 and rev/2 to test speed-up. (~2)
+%%%
 %%% Hand compiled mem/2 to show the small benefit when only
+%%%
 %%% implementing indexing on first argument.
-
+%%%@end
 -module(user_pl).
 
 -export([assert/1,app_3/6,rev_2/6,mem_2/6]).
@@ -21,7 +26,7 @@
 
 %% Define the choice point record
 -record(cp, {type,label,data,next,bs,vn}).
--record(cut, {label,next}).
+%-record(cut, {label,next}).
 
 assert(Db) ->
     foldl(fun ({Head,M,F}, LDb) -> 

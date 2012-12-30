@@ -1,14 +1,13 @@
-%% Copyright (c) 2008 Robert Virding. All rights reserved.
-%%
+%% @copyright (c) 2008 Robert Virding. All rights reserved.
+%%@end
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions
 %% are met:
-%%
-%% 1. Redistributions of source code must retain the above copyright
-%%    notice, this list of conditions and the following disclaimer.
-%% 2. Redistributions in binary form must reproduce the above copyright
-%%    notice, this list of conditions and the following disclaimer in the
-%%    documentation and/or other materials provided with the distribution.
+%%   Redistributions of source code must retain the above copyright
+%%        notice, this list of conditions and the following disclaimer.</li>
+%%   Redistributions in binary form must reproduce the above copyright
+%%        notice, this list of conditions and the following disclaimer in the
+%%        documentation and/or other materials provided with the distribution.</li>
 %%
 %% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 %% "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -23,15 +22,21 @@
 %% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 %% POSSIBILITY OF SUCH DAMAGE.
 
-%%% File    : erlog_shell.erl
-%%% Author  : Robert Virding
-%%% Purpose : A simple Erlog shell.
+%%% @author Robert Virding <robert.virding@telia.com>
+%%%	(with thanks to Richard O'Keefe for explaining some finer
+%%%	points of the Prolog standard)
+%%% @end
+
+%%% @doc <p>Erlog is a Prolog interpreter implemented in Erlang and
+%%% 	 integrated with the Erlang runtime system. This is a simple
+%%%	 prolog like shell to run Erlog.</p>
+%%% @end
 
 -module(erlog_shell).
 
 -export([start/0,start/1,server/0,server/1]).
 
--import(lists, [foldl/3,foreach/2]).
+-import(lists, [foreach/2]).
 
 start() -> start(default).
 
@@ -45,10 +50,9 @@ server(_) ->
 	      [erlang:system_info(version)]),
     server_loop(erlog:new()).
 
-%% A simple Erlog shell similar to a "normal" Prolog shell. It allows
+%%@doc A simple Erlog shell similar to a "normal" Prolog shell. It allows
 %% user to enter goals, see resulting bindings and request next
 %% solution.
-
 server_loop(P0) ->
     case erlog_io:read('| ?- ') of
 	{ok,halt} -> ok;
@@ -98,9 +102,8 @@ shell_prove_result({{'EXIT',Error},P}) ->	%No new database here
     io:fwrite("EXIT: ~p\n", [Error]),
     server_loop(P).
 
-%% show_bindings(VarList, Prolog())
-%% Show the bindings and query user for next solution.
-
+%%@doc Show the bindings and query user for next solution.
+%%show_bindings(VarList, Prolog())
 show_bindings([], P) ->
     io:fwrite("Yes\n"),
     server_loop(P);
