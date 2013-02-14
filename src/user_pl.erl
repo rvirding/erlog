@@ -1,14 +1,24 @@
-%%% File    : user_pl.erl
-%%% Author  : Robert Virding
-%%% Purpose : Test compilation of Erlog procedures.
-%%%
-%%% (C)Robert Virding. This stuff is mine, distributed without
-%%% warranty "as is" and may not be used commercially without written
-%%% permission.
-%%% 
-%%% Hand compiled app/3 and rev/2 to test speed-up. (~2)
-%%% Hand compiled mem/2 to show the small benefit when only
-%%% implementing indexing on first argument.
+%% Copyright (c) 2008-2013 Robert Virding
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%%     http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+
+%% File    : user_pl.erl
+%% Author  : Robert Virding
+%% Purpose : Test compilation of Erlog procedures.
+%% 
+%% Hand compiled app/3 and rev/2 to test speed-up. (~2)
+%% Hand compiled mem/2 to show the small benefit when only
+%% implementing indexing on first argument.
 
 -module(user_pl).
 
