@@ -26,9 +26,18 @@ L	= [a-z]
 A	= ({U}|{L}|{D}|_)
 G	= [-#$&*+./\\:<=>?@^~]
 S	= [](),[}{|]
-WS	= ([\000-\s]|%.*)
+LC	= (%.*)
+BC	= (/\*([^*]|\*+[^*/])*\*+/)
+WS	= ([\000-\s]|{LC}|{BC})
 
 Rules.
+%% We need whitespace first so /**/ is interpreted as comment.
+%% Must separate ( preceded by white space from those that aren't.
+{WS}+\(		:	{token,{' (',TokenLine}}.
+\.{WS}		:	{end_token,{dot,TokenLine}}.
+{WS}+		:	skip_token.
+
+%% Numbers.
 {D}+\.{D}+((E|e)(\+|\-)?{D}+)? :
 			{token,{number,TokenLine,list_to_float(TokenChars)}}.
 {D}+		:	{token,{number,TokenLine,list_to_integer(TokenChars)}}.
@@ -37,6 +46,8 @@ Rules.
 0x{H}+		:	base(TokenLine, string:substr(TokenChars, 3), 16).
 0'(\\{O}+\\|\\x{H}+\\|\\.|.) :
 			{token,{number,TokenLine,hd(chars(string:substr(TokenChars, 3)))}}.
+
+%% Atoms.
 {L}{A}*		:	{token,{atom,TokenLine,list_to_atom(TokenChars)}}.
 !		:	{token,{atom,TokenLine,'!'}}.
 ;		:	{token,{atom,TokenLine,';'}}.
@@ -48,16 +59,18 @@ Rules.
 			    {'EXIT',_} -> {error,"illegal atom " ++ TokenChars};
 			    Atom -> {token,{atom,TokenLine,Atom}}
 			end.
+
+%% Variables.
 ({U}|_){A}*	:	{token,{var,TokenLine,list_to_atom(TokenChars)}}.
+
+%% Strings.
 "(\\{O}+\\|\\x{H}+\\|\\.|[^"])*" :
 			%% Strip quotes.
 			S = string:substr(TokenChars, 2, TokenLen - 2),
 			{token,{string,TokenLine,chars(S)}}.
-%% Must separate ( preceded by white space from those that aren't.
-{WS}+\(		:	{token,{' (',TokenLine}}.
+
+%% Separators.
 {S}		:	{token,{list_to_atom(TokenChars),TokenLine}}.
-\.{WS}		:	{end_token,{dot,TokenLine}}.
-{WS}+		:	skip_token.
 
 Erlang code.
 

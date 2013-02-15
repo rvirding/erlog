@@ -44,9 +44,9 @@ all_read([{T,L}|_], _) -> syntax_error(L, {operator_expected,{ar,T}});
 all_read([{_,L,V}|_], _) -> syntax_error(L, {operator_expected,{ar,V}});
 all_read([], _) -> syntax_error(9999, premature_end).
 
-%%syntax_error(Line, Error) -> {fail,{Line,Error}}.
-syntax_error(Line, Error) ->
-    io:fwrite("se: ~p\n", [{Line,Error}]), {fail,{Line,Error}}.
+syntax_error(Line, Error) -> {fail,{Line,Error}}.
+%% syntax_error(Line, Error) ->
+%%     io:fwrite("se: ~p\n", [{Line,Error}]), {fail,{Line,Error}}.
 
 format_error(premature_end) -> "premature end";
 format_error({operator_expected,T}) ->
