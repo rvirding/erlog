@@ -1,3 +1,5 @@
 *~
 .DS_Store
 *.beam
+ebin/*
+src/erlog_scan.erl
