@@ -29,6 +29,7 @@
 -export([term/1,term/2,format_error/1]).
 -export([prefix_op/1,infix_op/1,postfix_op/1]).
 
+-compile({nowarn_unused_function, [val/1]}).
 %% -compile(export_all).
 
 term(Toks) -> term(Toks, 1).
@@ -73,8 +74,8 @@ term([{'{',_}|Toks0], Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, '}', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, {'{}',Term}, 0, Prec, Next)
+			fun (Toks2, Term1) ->
+				rest_term(Toks2, {'{}',Term1}, 0, Prec, Next)
 			end)
 	 end);
 term([{'[',_},{']',_}|Toks], Prec, Next) ->
@@ -140,8 +141,8 @@ bracket_term(Toks0, Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, ')', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, Term, 0, Prec, Next)
+			fun (Toks2, Term1) ->
+				rest_term(Toks2, Term1, 0, Prec, Next)
 			end)
 	 end).
 

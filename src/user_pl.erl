@@ -24,14 +24,19 @@
 
 -export([assert/1,app_3/6,rev_2/6,mem_2/6]).
 
--import(erlog_int, [add_binding/3,unify/3,deref/2,dderef/2,
-		    prove_body/5,unify_prove_body/7,fail/2,
+-import(erlog_int, [add_binding/3,
+                    %% unify/3,
+                    %% deref/2,
+                    dderef/2,
+		    %% prove_body/5,
+                    unify_prove_body/7,
+                    fail/2,
 		    add_compiled_proc/4]).
 -import(lists, [foldl/3]).
 
 %% Define the choice point record
 -record(cp, {type,label,data,next,bs,vn}).
--record(cut, {label,next}).
+%%-record(cut, {label,next}).
 
 assert(Db) ->
     foldl(fun ({Head,M,F}, LDb) -> 
