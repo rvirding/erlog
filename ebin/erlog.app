@@ -12,7 +12,7 @@
              erlog_parse,
              erlog_scan,
              erlog_shell,
-	     user_pl.erl]},
+	     user_pl]},
   {registered, []},
   {applications, [kernel,stdlib]}
  ]}.
