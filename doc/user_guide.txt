@@ -61,7 +61,7 @@ the Prolog term:
 
 Goal = insert([1,2,3], atom, Es), call(Goal)
 
-is represeted in Erlang by:
+is represented in Erlang by:
 
 {',',{'=',{'Goal'},{insert,[1,2,3],atom,{'Es'}}},{call,{'Goal'}}}
 
@@ -101,7 +101,7 @@ The Erlang function must return:
 
 {succeed,Value,Continuation}
 
-	The function hass succeeded and returns Value which is unified
+	The function has succeeded and returns Value which is unified
 	with the output argument of ecall/2.  Continuation will be
 	called on backtracking to generate the next value.
 
@@ -147,7 +147,7 @@ ets_keys(Tab) ->
 	Key -> {succeed,Key, fun () -> F(F, Tab, Key) end}
     end.
 
-The third example calls a function which returns a list and retuns
+The third example calls a function which returns a list and returns
 elements from this list on backtracking. I KNOW we could just return
 the whole list and use member/2 to generate elements from it, but this
 is more fun.
@@ -206,7 +206,7 @@ PROLOG SYNTAX
 There is a simple Prolog parser, based on a Leex scanner and a
 Standard Prolog parser, which will parse most Prolog terms. It
 recognises all the standard operators, which have the default
-priorites, but does not allow adding new operators.
+priorities, but does not allow adding new operators.
 
 Files containing Prolog predicates can be consulted, however
 directives and queries in the file are ignored.
