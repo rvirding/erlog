@@ -184,6 +184,9 @@ built_in_db() ->
 		 {'<',{1},{2}},
 		 {'=<',{1},{2}},
 		 {'is',{1},{2}},
+		 %% Atom processing.
+		 {atom_chars,{1},{2}},
+		 {atom_length,{1},{2}},
 		 %% Clause creation and destruction.
 		 {abolish,{1}},
 		 {assert,{1}},
@@ -422,6 +425,47 @@ prove_goal({functor,T,F,A}, Next, Cps, Bs, Vn, Db) ->
     prove_functor(dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
 prove_goal({'=..',T,L}, Next, Cps, Bs, Vn, Db) ->
     prove_univ(dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
+%% Atom processing.
+prove_goal({atom_chars,A,L}, Next, Cps, Bs, Vn, Db) ->
+    %% After a suggestion by Sean Cribbs.
+    case dderef(A, Bs) of
+        Atom when is_atom(Atom) ->
+            AtomList = [ list_to_atom([C]) || C <- atom_to_list(Atom) ],
+            unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
+        {_}=Var ->
+            %% Error #3: List is neither a list nor a partial list.
+            %% Handled in dderef_list/2.
+            List = dderef_list(L, Bs),
+            %% Error #1, #4: List is a list or partial list with an
+            %% element which is a variable or not one char atom.
+	    Fun = fun ({_}) -> instantiation_error(Db);
+		      (Atom) ->
+			  case is_atom(Atom) andalso atom_to_list(Atom) of
+			      [C] -> C;
+			      _ -> type_error(character, Atom)
+			  end
+		  end,
+	    Chars = lists:map(Fun, List),
+	    Atom = list_to_atom(Chars),
+	    unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
+	Other ->
+	    %% Error #2: Atom is neither a variable nor an atom
+	    type_error(atom, Other)
+    end;
+prove_goal({atom_length,A0,L0}, Next, Cps, Bs, Vn, Db) ->
+    case dderef(A0, Bs) of
+	A when is_atom(A) ->
+	    Alen = length(atom_to_list(A)),	%No of chars in atom
+	    case dderef(L0, Bs) of
+		L when is_integer(L) ->
+		    unify_prove_body (Alen, L, Next, Cps, Bs, Vn, Db);
+		{_}=Var ->
+		    unify_prove_body (Alen, Var, Next, Cps, Bs, Vn, Db);
+		Other -> type_error(integer, Other)
+	    end;
+	{_} -> instantiation_error(Db);
+	Other -> type_error(atom, Other)
+    end;
 %% Clause creation and destruction.
 prove_goal({abolish,Pi0}, Next, Cps, Bs, Vn, Db) ->
     case dderef(Pi0, Bs) of
