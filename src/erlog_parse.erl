@@ -1,38 +1,27 @@
-%% Copyright (c) 2008 Robert Virding. All rights reserved.
+%% Copyright (c) 2008-2013 Robert Virding
 %%
-%% Redistribution and use in source and binary forms, with or without
-%% modification, are permitted provided that the following conditions
-%% are met:
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
 %%
-%% 1. Redistributions of source code must retain the above copyright
-%%    notice, this list of conditions and the following disclaimer.
-%% 2. Redistributions in binary form must reproduce the above copyright
-%%    notice, this list of conditions and the following disclaimer in the
-%%    documentation and/or other materials provided with the distribution.
+%%     http://www.apache.org/licenses/LICENSE-2.0
 %%
-%% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-%% "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-%% LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-%% FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-%% COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-%% INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-%% BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-%% LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-%% CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-%% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-%% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-%% POSSIBILITY OF SUCH DAMAGE.
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
 
-%%% File    : erlog_parse.erl
-%%% Author  : Robert Virding
-%%% Purpose : Erlog parser
-%%%
-%%% Parses Erlog tokens into Erlog terms. Based on the Standard prolog
-%%% parser and directly coded from the parser description. To handle
-%%% back-tracking in the parser we use a continuation style using funs
-%%% where each fun handles one step of what follows. This allows
-%%% back-tracking. This may not be a specially efficient way of
-%%% parsing but it is simple and easy to derive from the
+%% File    : erlog_parse.erl
+%% Author  : Robert Virding
+%% Purpose : Erlog parser
+%%
+%% Parses Erlog tokens into Erlog terms. Based on the Standard prolog
+%% parser and directly coded from the parser description. To handle
+%% back-tracking in the parser we use a continuation style using funs
+%% where each fun handles one step of what follows. This allows
+%% back-tracking. This may not be a specially efficient way of
+%% parsing but it is simple and easy to derive from the
 %%% description. No logical variables are necessary here.
 
 -module(erlog_parse).
@@ -40,6 +29,7 @@
 -export([term/1,term/2,format_error/1]).
 -export([prefix_op/1,infix_op/1,postfix_op/1]).
 
+-compile({nowarn_unused_function, [val/1]}).
 %% -compile(export_all).
 
 term(Toks) -> term(Toks, 1).
@@ -55,9 +45,9 @@ all_read([{T,L}|_], _) -> syntax_error(L, {operator_expected,{ar,T}});
 all_read([{_,L,V}|_], _) -> syntax_error(L, {operator_expected,{ar,V}});
 all_read([], _) -> syntax_error(9999, premature_end).
 
-%%syntax_error(Line, Error) -> {fail,{Line,Error}}.
-syntax_error(Line, Error) ->
-    io:fwrite("se: ~p\n", [{Line,Error}]), {fail,{Line,Error}}.
+syntax_error(Line, Error) -> {fail,{Line,Error}}.
+%% syntax_error(Line, Error) ->
+%%     io:fwrite("se: ~p\n", [{Line,Error}]), {fail,{Line,Error}}.
 
 format_error(premature_end) -> "premature end";
 format_error({operator_expected,T}) ->
@@ -84,8 +74,8 @@ term([{'{',_}|Toks0], Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, '}', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, {'{}',Term}, 0, Prec, Next)
+			fun (Toks2, Term1) ->
+				rest_term(Toks2, {'{}',Term1}, 0, Prec, Next)
 			end)
 	 end);
 term([{'[',_},{']',_}|Toks], Prec, Next) ->
@@ -151,8 +141,8 @@ bracket_term(Toks0, Prec, Next) ->
     term(Toks0, 1200,
 	 fun (Toks1, Term) ->
 		 expect(Toks1, ')', Term,
-			fun (Toks2, Term) ->
-				rest_term(Toks2, Term, 0, Prec, Next)
+			fun (Toks2, Term1) ->
+				rest_term(Toks2, Term1, 0, Prec, Next)
 			end)
 	 end).
 
@@ -292,6 +282,7 @@ infix_op('->') -> {yes,1049,1050,1050};		%xfy 1050
 infix_op(',') -> {yes,999,1000,1000};		%xfy 1000
 infix_op('=') -> {yes,699,700,699};		%xfx 700
 infix_op('\\=') -> {yes,699,700,699};		%xfx 700
+infix_op('\\==') -> {yes,699,700,699};		%xfx 700
 infix_op('==') -> {yes,699,700,699};		%xfx 700
 infix_op('@<') -> {yes,699,700,699};		%xfx 700
 infix_op('@=<') -> {yes,699,700,699};		%xfx 700

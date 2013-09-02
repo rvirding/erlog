@@ -1,136 +1,125 @@
-%% Copyright (c) 2009 Robert Virding. All rights reserved.
+%% Copyright (c) 2008-2013 Robert Virding
 %%
-%% Redistribution and use in source and binary forms, with or without
-%% modification, are permitted provided that the following conditions
-%% are met:
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
 %%
-%% 1. Redistributions of source code must retain the above copyright
-%%    notice, this list of conditions and the following disclaimer.
-%% 2. Redistributions in binary form must reproduce the above copyright
-%%    notice, this list of conditions and the following disclaimer in the
-%%    documentation and/or other materials provided with the distribution.
+%%     http://www.apache.org/licenses/LICENSE-2.0
 %%
-%% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-%% "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-%% LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-%% FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-%% COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-%% INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-%% BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-%% LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-%% CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-%% LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-%% ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-%% POSSIBILITY OF SUCH DAMAGE.
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
 
-%%% File    : erlog_int.erl
-%%% Author  : Robert Virding
-%%% Purpose : Basic interpreter of a Prolog sub-set.
-%%% 
-%%% This is the basic Prolog interpreter. 
-%%% The internal data structures used are very direct and basic:
-%%%
-%%% Structures	- {Functor,arg1, Arg2,...} where Functor is an atom
-%%% Variables	- {Name} where Name is an atom or integer
-%%% Lists	- Erlang lists
-%%% Atomic	- Erlang constants
-%%%
-%%% There is no problem with the representation of variables as Prolog
-%%% functors of arity 0 are atoms. This representation is much easier
-%%% to test for, and create new variables with than using funny atom
-%%% names like '$1' (yuch!), and we need LOTS of variables.
-%%%
-%%% All information about the state of an evaluation is held in the
-%%% variables:
-%%%
-%%% [CurrentGoal,] NextGoal, ChoicePoints, Bindings, VarNum, Database
-%%%
-%%% Proving a goal succeeds when we have reached the end of the goal
-%%% list, i.e. NextGoal is empty (true). Proving goal fails when there
-%%% are no more choice points left to backtrack into. The evaluation
-%%% is completely flat as all back track information is held in
-%%% ChoicePoints. Choice points are added going forwards and removed
-%%% by backtracking and cuts.
-%%%
-%%% Internal goals all have the format {{Name},...} as this is an
-%%% illegal Erlog structure which can never be generated in (legal)
-%%% code.
-%%%
-%%% Proving a top-level goal will return:
-%%%
-%%% {succeed,ChoicePoints,Bindings,VarNum,Database} - the
-%%%     goal succeeded and these are the
-%%%     choicepoints/bindings/varnum/database to continue with.
-%%%
-%%% {fail,Database} - the goal failed and this is the current database.
-%%%
-%%% When a goal has succeeded back tracking is initiated by calling
-%%% fail(ChoicePoints, Database) which has the same return values as
-%%% proving the goal.
-%%%
-%%% When the interpreter detects an error it builds an error term
-%%%
-%%%	{erlog_error,ErrorDescriptor,Database}
-%%%
-%%% and throws it. The ErrorDescriptor is a valid Erlog term.
-%%%
-%%% Database
-%%%
-%%% We use a dictionary for the database. All data for a procedure are
-%%% kept in the database with the functor as key. Interpreted clauses
-%%% are kept in a list, each clause has a unique (for that functor)
-%%% tag. Functions which traverse clauses, clause/retract/goals, get
-%%% the whole list to use. Any database operations can they be done
-%%% directly on the database. Retract uses the tag to remove the
-%%% correct clause. This preserves the logical database view. It is
-%%% possible to use ETS instead if a dictionary, define macro ETS, but
-%%% the logical database view makes it difficult to directly use ETS
-%%% efficiently.
-%%%
-%%% Interpreted Code
-%%%
-%%% Code, interpreted clause bodies, are not stored directly as Erlog
-%%% terms. Before being added to the database they are checked that
-%%% they are well-formed, control structures are recognised, cuts
-%%% augmented with status and sequences of conjunctions are converted
-%%% to lists. When code is used a new instance is made with fresh
-%%% variables, correct cut labels, and bodies directly linked to
-%%% following code to remove the need of later appending.
-%%%
-%%% The following functions convert code:
-%%%
-%%% well_form_body/4 - converts an Erlog term to database code body
-%%%     format checking that it is well formed.
-%%% well_form_goal/4 - converts an Erlog term directly to a code body
-%%%     checking that it is well formed.
-%%% unify_head/4 - unify a goal directly with head without creating a
-%%%     new instance of the head. Saves creating local variables and
-%%%     MANY bindings. This is a BIG WIN!
-%%% body_instance/5 - creates a new code body instance from the
-%%%     database format.
-%%% body_term/3 - creates a copy of a body as a legal Erlog term.
-%%%
-%%% Choicepoints/Cuts
-%%%
-%%% Choicepoints and cuts are kept on the same stack/list. There are
-%%% different types of cps depending on their context. Failure pops
-%%% the first cp off the stack, passing over cuts and resumes
-%%% execution from that cp. A cut has a label and a flag indicating if
-%%% this is the last cut with this label. Cut steps over cps/cuts
-%%% until a cut the same label is reached and execution is resumed
-%%% with that stack. Unless this is the last cut with a label a new
-%%% cut is pushed on the stack. For efficiency some cps also act as
-%%% cuts.
-%%%
-%%% It is possible to reuse cut labels for different markers as long
-%%% the areas the cuts are valid don't overlap, though one may be
-%%% contained within the other, and the cuts correctly indicate when
-%%% they are the last cut. This is used for ->; and once/1 where we
-%%% KNOW the last cut of the internal section.
-%%%
-%%% It would be better if the cut marker was the actual cps/cut stack
-%%% to go back to but this would entail a more interactive
-%%% body_instance.
+%% File    : erlog_int.erl
+%% Author  : Robert Virding
+%% Purpose : Basic interpreter of a Prolog sub-set.
+%% 
+%% This is the basic Prolog interpreter. 
+%% The internal data structures used are very direct and basic:
+%%
+%% Structures	- {Functor,arg1, Arg2,...} where Functor is an atom
+%% Variables	- {Name} where Name is an atom or integer
+%% Lists	- Erlang lists
+%% Atomic	- Erlang constants
+%%
+%% There is no problem with the representation of variables as Prolog
+%% functors of arity 0 are atoms. This representation is much easier
+%% to test for, and create new variables with than using funny atom
+%% names like '$1' (yuch!), and we need LOTS of variables.
+%%
+%% All information about the state of an evaluation is held in the
+%% variables:
+%%
+%% [CurrentGoal,] NextGoal, ChoicePoints, Bindings, VarNum, Database
+%%
+%% Proving a goal succeeds when we have reached the end of the goal
+%% list, i.e. NextGoal is empty (true). Proving goal fails when there
+%% are no more choice points left to backtrack into. The evaluation
+%% is completely flat as all back track information is held in
+%% ChoicePoints. Choice points are added going forwards and removed
+%% by backtracking and cuts.
+%%
+%% Internal goals all have the format {{Name},...} as this is an
+%% illegal Erlog structure which can never be generated in (legal)
+%% code.
+%%
+%% Proving a top-level goal will return:
+%%
+%% {succeed,ChoicePoints,Bindings,VarNum,Database} - the
+%%     goal succeeded and these are the
+%%     choicepoints/bindings/varnum/database to continue with.
+%%
+%% {fail,Database} - the goal failed and this is the current database.
+%%
+%% When a goal has succeeded back tracking is initiated by calling
+%% fail(ChoicePoints, Database) which has the same return values as
+%% proving the goal.
+%%
+%% When the interpreter detects an error it builds an error term
+%%
+%%	{erlog_error,ErrorDescriptor,Database}
+%%
+%% and throws it. The ErrorDescriptor is a valid Erlog term.
+%%
+%% Database
+%%
+%% We use a dictionary for the database. All data for a procedure are
+%% kept in the database with the functor as key. Interpreted clauses
+%% are kept in a list, each clause has a unique (for that functor)
+%% tag. Functions which traverse clauses, clause/retract/goals, get
+%% the whole list to use. Any database operations can they be done
+%% directly on the database. Retract uses the tag to remove the
+%% correct clause. This preserves the logical database view. It is
+%% possible to use ETS instead if a dictionary, define macro ETS, but
+%% the logical database view makes it difficult to directly use ETS
+%% efficiently.
+%%
+%% Interpreted Code
+%%
+%% Code, interpreted clause bodies, are not stored directly as Erlog
+%% terms. Before being added to the database they are checked that
+%% they are well-formed, control structures are recognised, cuts
+%% augmented with status and sequences of conjunctions are converted
+%% to lists. When code is used a new instance is made with fresh
+%% variables, correct cut labels, and bodies directly linked to
+%% following code to remove the need of later appending.
+%%
+%% The following functions convert code:
+%%
+%% well_form_body/4 - converts an Erlog term to database code body
+%%     format checking that it is well formed.
+%% well_form_goal/4 - converts an Erlog term directly to a code body
+%%     checking that it is well formed.
+%% unify_head/4 - unify a goal directly with head without creating a
+%%     new instance of the head. Saves creating local variables and
+%%     MANY bindings. This is a BIG WIN!
+%% body_instance/5 - creates a new code body instance from the
+%%     database format.
+%% body_term/3 - creates a copy of a body as a legal Erlog term.
+%%
+%% Choicepoints/Cuts
+%%
+%% Choicepoints and cuts are kept on the same stack/list. There are
+%% different types of cps depending on their context. Failure pops
+%% the first cp off the stack, passing over cuts and resumes
+%% execution from that cp. A cut has a label and a flag indicating if
+%% this is the last cut with this label. Cut steps over cps/cuts
+%% until a cut the same label is reached and execution is resumed
+%% with that stack. Unless this is the last cut with a label a new
+%% cut is pushed on the stack. For efficiency some cps also act as
+%% cuts.
+%%
+%% It is possible to reuse cut labels for different markers as long
+%% the areas the cuts are valid don't overlap, though one may be
+%% contained within the other, and the cuts correctly indicate when
+%% they are the last cut. This is used for ->; and once/1 where we
+%% KNOW the last cut of the internal section.
+%%
+%% It would be better if the cut marker was the actual cps/cut stack
+%% to go back to but this would entail a more interactive
+%% body_instance.
 
 -module(erlog_int).
 
@@ -195,6 +184,9 @@ built_in_db() ->
 		 {'<',{1},{2}},
 		 {'=<',{1},{2}},
 		 {'is',{1},{2}},
+		 %% Atom processing.
+		 {atom_chars,{1},{2}},
+		 {atom_length,{1},{2}},
 		 %% Clause creation and destruction.
 		 {abolish,{1}},
 		 {assert,{1}},
@@ -433,6 +425,47 @@ prove_goal({functor,T,F,A}, Next, Cps, Bs, Vn, Db) ->
     prove_functor(dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
 prove_goal({'=..',T,L}, Next, Cps, Bs, Vn, Db) ->
     prove_univ(dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
+%% Atom processing.
+prove_goal({atom_chars,A,L}, Next, Cps, Bs, Vn, Db) ->
+    %% After a suggestion by Sean Cribbs.
+    case dderef(A, Bs) of
+        Atom when is_atom(Atom) ->
+            AtomList = [ list_to_atom([C]) || C <- atom_to_list(Atom) ],
+            unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
+        {_}=Var ->
+            %% Error #3: List is neither a list nor a partial list.
+            %% Handled in dderef_list/2.
+            List = dderef_list(L, Bs),
+            %% Error #1, #4: List is a list or partial list with an
+            %% element which is a variable or not one char atom.
+	    Fun = fun ({_}) -> instantiation_error(Db);
+		      (Atom) ->
+			  case is_atom(Atom) andalso atom_to_list(Atom) of
+			      [C] -> C;
+			      _ -> type_error(character, Atom)
+			  end
+		  end,
+	    Chars = lists:map(Fun, List),
+	    Atom = list_to_atom(Chars),
+	    unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
+	Other ->
+	    %% Error #2: Atom is neither a variable nor an atom
+	    type_error(atom, Other)
+    end;
+prove_goal({atom_length,A0,L0}, Next, Cps, Bs, Vn, Db) ->
+    case dderef(A0, Bs) of
+	A when is_atom(A) ->
+	    Alen = length(atom_to_list(A)),	%No of chars in atom
+	    case dderef(L0, Bs) of
+		L when is_integer(L) ->
+		    unify_prove_body (Alen, L, Next, Cps, Bs, Vn, Db);
+		{_}=Var ->
+		    unify_prove_body (Alen, Var, Next, Cps, Bs, Vn, Db);
+		Other -> type_error(integer, Other)
+	    end;
+	{_} -> instantiation_error(Db);
+	Other -> type_error(atom, Other)
+    end;
 %% Clause creation and destruction.
 prove_goal({abolish,Pi0}, Next, Cps, Bs, Vn, Db) ->
     case dderef(Pi0, Bs) of
