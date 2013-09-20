@@ -43,8 +43,9 @@
 %% -compile(export_all).
 
 new() ->
-    Db = erlog_int:built_in_db(),
-    fun (Cmd) -> top_cmd(Cmd, Db) end.
+    Db0 = erlog_int:built_in_db(),		%Basic interpreter predicates
+    Db1 = erlog_bips:assert(Db0),		%Built in predicates
+    fun (Cmd) -> top_cmd(Cmd, Db1) end.
 
 top_cmd({prove,Goal}, Db) ->
     prove_goal(Goal, Db);
