@@ -133,7 +133,7 @@ write_canonical(Io, T) ->
 %% write1(Term, Precedence, Ops) -> iolist().
 %%  The function which does the actual writing.
 
-write1(T) -> write1(T, 1200, #ops{op=true,q=false}).
+write1(T) -> write1(T, 1200, #ops{op=true,q=true}).
 
 write1(T, Prec, Ops) when is_atom(T) -> write1_atom(T, Prec, Ops);
 write1(T, _, _) when is_number(T) -> io_lib:write(T);
@@ -146,28 +146,26 @@ write1({F,A}, Prec, #ops{op=true}=Ops) ->
     case erlog_parse:prefix_op(F) of
 	{yes,OpP,ArgP} ->
 	    Out = [write1(F, 1200, Ops),$\s,write1(A, ArgP, Ops)],
-	    if OpP > Prec -> [$(,Out,$)];
-	       true -> Out
-	    end;
+	    write1_prec(Out, OpP, Prec);
 	no ->
 	    case erlog_parse:postfix_op(F) of
 		{yes,ArgP,OpP} ->
 		    Out = [write1(A, ArgP, Ops),$\s,write1(F, 1200, Ops)],
-		    if OpP > Prec -> [$(,Out,$)];
-		       true -> Out
-		    end;
+		    write1_prec(Out, OpP, Prec);
 		no ->
 		    [write1(F, 1200, Ops),$(,write1(A, 999, Ops),$)]
 	    end
     end;
+write1({',',A1,A2}, Prec, #ops{op=true}=Ops) ->
+    %% Must special case , here.
+    Out = [write1(A1, 999, Ops),", ",write1(A2, 1000, Ops)],
+    write1_prec(Out, 1000, Prec);
 write1({F,A1,A2}, Prec, #ops{op=true}=Ops) ->
     case erlog_parse:infix_op(F) of
 	{yes,Lp,OpP,Rp} ->
 	    Out = [write1(A1, Lp, Ops),$\s,write1(F, 1200, Ops),
 		   $\s,write1(A2, Rp,Ops)],
-	    if OpP > Prec -> [$(,Out,$)];
-	       true -> Out
-	    end;
+	    write1_prec(Out, OpP, Prec);
 	no ->
 	    [write1(F, 1200, Ops),$(,write1(A1, 999, Ops),
 				    $,,write1(A2, 999, Ops),$)]
@@ -178,18 +176,73 @@ write1(T, _, Ops) when is_tuple(T) ->
 write1(T, _, _) ->			     %Else use default Erlang.
     io_lib:write(T).
 
+%% write1_prec(OutString, OpPrecedence, Precedence) -> iolist().
+%%  Encase OutString with (..) if op precedence higher than
+%%  precedence.
+
+write1_prec(Out, OpP, Prec) when OpP > Prec -> [$(,Out,$)];
+write1_prec(Out, _, _) -> Out.
+
 write1_tail([T|Ts], Ops) ->
     [$,,write1(T, 999, Ops)|write1_tail(Ts, Ops)];
 write1_tail([], _) -> [];
 write1_tail(T, Ops) -> [$|,write1(T, 999, Ops)].
 
+write1_atom(A, Prec, #ops{q=false}) ->
+    write1_atom_1(A, atom_to_list(A), Prec);
+write1_atom(A, Prec, _) when A == '!'; A == ';'; A == '|' ->
+    write1_atom_1(A, atom_to_list(A), Prec);
 write1_atom(A, Prec, _) ->
-    Out = atom_to_list(A),
+    case atom_to_list(A) of
+	[C|Cs]=Acs ->
+	    case (lower_case(C) andalso alpha_chars(Cs))
+		orelse symbol_chars(Acs) of
+		true -> write1_atom_1(A, Acs, Prec);
+		false ->
+		    Qcs = quote_atom(Acs),
+		    write1_atom_1(A, Qcs, Prec)
+	    end;
+	[] -> write1_atom_1(A, "''", Prec)
+    end.
+
+write1_atom_1(A, Acs, Prec) ->
     case erlog_parse:prefix_op(A) of
-	{yes,OpP,_} when OpP > Prec -> [$(,Out,$)];
+	{yes,OpP,_} when OpP > Prec -> [$(,Acs,$)];
 	_ ->
 	    case erlog_parse:postfix_op(A) of
-		{yes,_,OpP} when OpP > Prec -> [$(,Out,$)];
-		_ -> Out
+		{yes,_,OpP} when OpP > Prec -> [$(,Acs,$)];
+		_ -> Acs
 	    end
     end.
+
+quote_atom(Acs) -> [$',Acs,$'].			%Very naive as yet.
+
+symbol_chars(Cs) -> lists:all(fun symbol_char/1, Cs).
+
+symbol_char($-) -> true;
+symbol_char($#) -> true;
+symbol_char($$) -> true;
+symbol_char($&) -> true;
+symbol_char($*) -> true;
+symbol_char($+) -> true;
+symbol_char($.) -> true;
+symbol_char($/) -> true;
+symbol_char($\\) -> true;
+symbol_char($:) -> true;
+symbol_char($<) -> true;
+symbol_char($=) -> true;
+symbol_char($>) -> true;
+symbol_char($?) -> true;
+symbol_char($@) -> true;
+symbol_char($^) -> true;
+symbol_char($~) -> true;
+symbol_char(_) -> false.
+
+lower_case(C) -> (C >= $a) and (C =< $z).
+
+alpha_chars(Cs) -> lists:all(fun alpha_char/1, Cs).
+
+alpha_char($_) -> true;
+alpha_char(C) when C >= $A, C =< $Z -> true;
+alpha_char(C) when C >= $0, C =< $9 -> true;
+alpha_char(C) -> lower_case(C).
