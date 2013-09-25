@@ -29,8 +29,8 @@
 -module(erlog_io).
 
 -export([scan_file/1,read_file/1,read/1,read/2,
-	 write/1,write/2,writeq/1,writeq/2,write_canonical/1,write_canonical/2,
-	 write1/1]).
+	 write/1,write/2,write1/1,writeq/1,writeq/2,writeq1/1,
+	 write_canonical/1,write_canonical/2,write_canonical1/1]).
 
 scan_file(File) ->
     case file:open(File, [read]) of
@@ -112,28 +112,28 @@ scan_erlog_term(Io, Prompt, Line) ->
 %% writeq([IoDevice], Term) -> ok.
 %% write_canonical([IoDevice], Term) -> ok.
 %%  A very simple write function. Does not pretty-print but can handle
-%%  operators.
+%%  operators. The xxx1 verions return an iolist of the characters.
 
 write(T) -> write(standard_io, T).
 
-write(Io, T) ->
-    io:put_chars(Io, write1(T, 1200, #ops{op=true,q=false})).
+write(Io, T) -> io:put_chars(Io, write1(T)).
+
+write1(T) -> write1(T, 1200, #ops{op=true,q=false}).
 
 writeq(T) -> writeq(standard_io, T).
 
-writeq(Io, T) ->
-    io:put_chars(Io, write1(T, 1200, #ops{op=true,q=true})).
+writeq(Io, T) -> io:put_chars(Io, writeq1(T)).
+
+writeq1(T) -> write1(T, 1200, #ops{op=true,q=true}).
 
 write_canonical(T) -> write_canonical(standard_io, T).
 
-write_canonical(Io, T) ->
-    io:put_chars(Io, write1(T, 1200, #ops{op=false,q=true})).
+write_canonical(Io, T) -> io:put_chars(Io, write_canonical1(T)).
 
-%% write1(Term) -> iolist().
+write_canonical1(T) -> write1(T, 1200, #ops{op=false,q=true}).
+
 %% write1(Term, Precedence, Ops) -> iolist().
 %%  The function which does the actual writing.
-
-write1(T) -> write1(T, 1200, #ops{op=true,q=true}).
 
 write1(T, Prec, Ops) when is_atom(T) -> write1_atom(T, Prec, Ops);
 write1(T, _, _) when is_number(T) -> io_lib:write(T);
@@ -188,9 +188,9 @@ write1_tail([T|Ts], Ops) ->
 write1_tail([], _) -> [];
 write1_tail(T, Ops) -> [$|,write1(T, 999, Ops)].
 
-write1_atom(A, Prec, #ops{q=false}) ->
+write1_atom(A, Prec, #ops{q=false}) ->		%No quoting
     write1_atom_1(A, atom_to_list(A), Prec);
-write1_atom(A, Prec, _) when A == '!'; A == ';'; A == '|' ->
+write1_atom(A, Prec, _) when A == '!'; A == ';' -> %Special atoms
     write1_atom_1(A, atom_to_list(A), Prec);
 write1_atom(A, Prec, _) ->
     case atom_to_list(A) of
