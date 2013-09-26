@@ -24,7 +24,7 @@
 -include("erlog_int.hrl").
 
 %% Main interface functions.
--export([assert/1]).
+-export([load/1]).
 -export([prove_goal/6]).
 
 %%-compile(export_all).
@@ -39,10 +39,10 @@
 		    add_built_in/2,add_compiled_proc/4,
 		    asserta_clause/2,assertz_clause/2]).
 
-%% assert(Database) -> Database.
+%% load(Database) -> Database.
 %%  Assert predicates into the database.
 
-assert(Db0) ->
+load(Db0) ->
     Db1 = foldl(fun (Head, Db) -> add_built_in(Head, Db) end, Db0,
 		[
 		 %% Term unification and comparison
@@ -83,11 +83,6 @@ assert(Db0) ->
     %% Next the interpreted built-ins.
     Db2 = foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
  		[
-		 {'C',[{1}|{2}],{1},{2}},		%For DCGs
-		 {':-',{phrase,{1},{2}},{phrase,{1},{2},[]}},
-		 {':-',{phrase,{1},{2},{3}},
-		  {',',{'=..',{1},{4}},{',',{append,{4},[{2},{3}],{5}},
-					{',',{'=..',{6},{5}},{6}}}}}
  		]),
     %% Compiled built-ins and common libray.
     Db3 = foldl(fun ({Head,M,F}, Db) ->
@@ -97,16 +92,32 @@ assert(Db0) ->
 		 %%{{rev,{1},{2}},user_pl,rev_2},
 		 %%{{mem,{1},{2}},user_pl,mem_2}
 		]),
-    %% Finally some interpreted common library.
+    %% Finally some interpreted common list library.
     foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db3,
 	  [
+	   %% append([], L, L). append([H|T], L, [H|L1]) :- append(T, L, L1).
 	   {append,[],{1},{1}},
 	   {':-',{append,[{1}|{2}],{3},[{1}|{4}]},{append,{2},{3},{4}}},
+	   %% insert(L, X, [X|L]). insert([H|T], X, [H|T1]) :- insert(T, X, T1).
 	   {insert,{1},{2},[{2}|{1}]},
 	   {':-',{insert,[{1}|{2}],{3},[{1}|{4}]},{insert,{2},{3},{4}}},
+	   %% delete([X|T], X, T). delete([H|T], X, [H|T1]) :- delete(T, X, T1).
+	   {delete,[{1}|{2}],{1},{2}},
+	   {':-',{delete,[{1}|{2}],{3},[{1}|{4}]},{delete,{2},{3},{4}}},
+	   %% member(X, [X|_]). member(X, [_|T]) :- member(X, T).
 	   {member,{1},[{1}|{2}]},
-	   {':-',{member,{1},[{2}|{3}]},{member,{1},{3}}}
+	   {':-',{member,{1},[{2}|{3}]},{member,{1},{3}}},
+	   %% perm([], []).
+	   %% perm([X|Xs], Ys1) :- perm(Xs, Ys), insert(Ys, X, Ys1).
+	   {perm,[],[]},
+	   {':-',{perm,[{1}|{2}],{3}},{',',{perm,{2},{4}},{insert,{4},{1},{3}}}}
 	  ]).
+
+%% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
+%%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
+%%      {fail,NewDatabase}.
+%% Prove one goal. We seldom return succeed here but usually go directly to
+%% to NextGoal.
 
 %% Term unification and comparison
 prove_goal({'=',L,R}, Next, Cps, Bs, Vn, Db) ->
@@ -296,6 +307,7 @@ prove_univ({_}=Var, L, Next, Cps, Bs0, Vn, Db) ->
 	    prove_body(Next, Cps, Bs1, Vn, Db);
 	%% Now the error cases.
 	[{_}|_] -> erlog_int:instantiation_error(Db);
+	{_} -> erlog_int:instantiation_error(Db);
 	Other -> erlog_int:type_error(list, Other, Db)
 end.
 

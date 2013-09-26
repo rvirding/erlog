@@ -136,9 +136,7 @@
 %% Adding to database.
 -export([asserta_clause/2,assertz_clause/2,abolish_clauses/2]).
 -export([add_built_in/2,add_compiled_proc/4]).
-%% Expanding DCGs.
--export([expand_term/1]).
--export([built_in_db/0]).
+-export([new_db/0,built_in_db/0]).
 
 %% Error types.
 -export([type_error/2,type_error/3,instantiation_error/1,permission_error/4]).
@@ -154,6 +152,7 @@
 
 %% -define(IS_ATOMIC(T), (is_atom(T) orelse is_number(T) orelse (T == []))).
 -define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
+-define(IS_FUNCTOR(T), ((tuple_size(T) >= 2) andalso is_atom(element(1, T)))).
 
 %% Define the database to use. ONE of the follwing must be defined.
 
@@ -197,7 +196,6 @@ built_in_db() ->
 		 {ecall,{1},{2}},
 		 %% Non-standard but useful
 		 {sort,{1},{2}},
-		 {expand_term,{1},{2}},
 		 {display,{1}}
 		]),
     Db1.
@@ -333,9 +331,8 @@ prove_goal({ecall,C0,Val}, Next, Cps, Bs, Vn, Db) ->
 		   fun () -> M:F(A) end;
 	       {':',M,{F,A1,A2}} when is_atom(M), is_atom(F) ->
 		   fun () -> M:F(A1,A2) end;
-	       {':',M,T} when is_atom(M), tuple_size(T) >= 2,
-			      is_atom(element(1, T)) ->
-			  L = tuple_to_list(T),
+	       {':',M,T} when is_atom(M), ?IS_FUNCTOR(T) ->
+		   L = tuple_to_list(T),
 		   fun () -> apply(M, hd(L), tl(L)) end;
 	       Fun when is_function(Fun) -> Fun;
 	       Other -> type_error(callable, Other, Db)
@@ -347,10 +344,6 @@ prove_goal({sort,L0,S}, Next, Cps, Bs, Vn, Db) ->
 	{erlog_error,E} -> erlog_error(E, Db);
 	L1 -> unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db)
     end;
-prove_goal({expand_term,T0,Exp}, Next, Cps, Bs, Vn0, Db) ->
-    T1 = dderef(T0, Bs),
-    {E,Vn1} = expand_term(T1, Vn0),
-    unify_prove_body(E, Exp, Next, Cps, Bs, Vn1, Db);
 prove_goal({display,T}, Next, Cps, Bs, Vn, Db) ->
     %% A very simple display procedure.
     io:fwrite("~p\n", [dderef(T, Bs)]),
@@ -359,7 +352,7 @@ prove_goal({display,T}, Next, Cps, Bs, Vn, Db) ->
 prove_goal(G, Next, Cps, Bs, Vn, Db) ->
     %%io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
     case catch get_procedure(functor(G), Db) of
-	built_in -> erlog_bip:prove_goal(G, Next, Cps, Bs, Vn, Db);
+	built_in -> erlog_bips:prove_goal(G, Next, Cps, Bs, Vn, Db);
 	{code,{Mod,Func}} -> Mod:Func(G, Next, Cps, Bs, Vn, Db);
 	{clauses,Cs} -> prove_goal_clauses(G, Cs, Next, Cps, Bs, Vn, Db);
 	undefined -> ?FAIL(Bs, Cps, Db);
@@ -689,6 +682,14 @@ make_vars(I, Vn) ->
     [{Vn}|make_vars(I-1, Vn+1)].
 
 %% Errors
+%% To keep dialyzer quiet.
+-spec type_error(_, _) -> no_return().
+-spec type_error(_, _, _) -> no_return().
+-spec instantiation_error() -> no_return().
+-spec instantiation_error(_) -> no_return().
+-spec permission_error(_, _, _, _) -> no_return().
+-spec erlog_error(_) -> no_return().
+-spec erlog_error(_, _) -> no_return().
 
 type_error(Type, Value, Db) -> erlog_error({type_error,Type,Value}, Db).
 type_error(Type, Value) -> erlog_error({type_error,Type,Value}).
@@ -982,7 +983,7 @@ get_interp_functors(Db) ->
 
 %% functor(Goal) -> {Name,Arity}.
 
-functor(T) when tuple_size(T) >= 2, is_atom(element(1, T)) ->
+functor(T) when ?IS_FUNCTOR(T) ->
     {element(1, T),tuple_size(T)-1};
 functor(T) when is_atom(T) -> {T,0};
 functor(T) -> type_error(callable, T).
@@ -1303,66 +1304,9 @@ initial_goal([H0|T0], Bs0, Vn0) ->
     {T1,Bs2,Vn2} = initial_goal(T0, Bs1, Vn1),
     {[H1|T1],Bs2,Vn2};
 initial_goal([], Bs, Vn) -> {[],Bs,Vn};
-initial_goal(S, Bs0, Vn0) when tuple_size(S) >= 2, is_atom(element(1, S)) ->
+initial_goal(S, Bs0, Vn0) when ?IS_FUNCTOR(S) ->
     As0 = tl(tuple_to_list(S)),
     {As1,Bs1,Vn1} = initial_goal(As0, Bs0, Vn0),
     {list_to_tuple([element(1, S)|As1]),Bs1,Vn1};
-initial_goal(T, Bs, Vn) when ?IS_CONSTANT(T) -> {T,Bs,Vn};
+initial_goal(T, Bs, Vn) when ?IS_ATOMIC(T) -> {T,Bs,Vn};
 initial_goal(T, _Bs, _Vn) -> type_error(callable, T).
-
-%% expand_term(Term) -> {ExpTerm}.
-%% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
-%% expand_head(Head, Var1, Var2) -> ExpHead.
-%% expand_body(Body, Var1, VarNum) -> {ExpBody,Var2,NewVarNum}.
-%%  Handle DCG expansion. We do NOT work backwards.
-
-expand_term(Term) ->
-    {Exp,_} = expand_term(Term, 0),
-    Exp.
-
-expand_term({'-->',H0,B0}, Vn0) ->
-    V1 = {Vn0},					%Top-level chaining variable
-    {B1,V2,Vn1} = expand_body(B0, V1, Vn0+1),
-    H1 = expand_head(H0, V1, V2),
-    {{':-',H1,B1},Vn1+1};
-expand_term(T, Vn) -> {T,Vn}.			%Do nothing
-
-expand_head(A, V1, V2) when is_atom(A) -> {A,V1,V2};
-expand_head(T, V1, V2) when tuple_size(T) >= 2, is_atom(element(1, T)) ->
-    list_to_tuple(tuple_to_list(T) ++ [V1,V2]);
-expand_head(Other, _V1, _V2) -> type_error(callable, Other).
-
-expand_body('!', V1, Vn) -> {'!',V1,Vn};	%No chaining
-expand_body({_}=V, V1, Vn) -> V2 = {Vn}, {{phrase,V,V1,V2},V2,Vn+1};
-expand_body({'{}',T}, V1, Vn) -> {T,V1,Vn};	%No chaining
-expand_body({'\\+',G0}, V1, Vn0) ->		%No chaining
-    {G1,_V2,Vn1} = expand_body(G0, V1, Vn0),
-    {{'\\+',G1},V1,Vn1};
-expand_body({',',L0,R0}, V1, Vn0) ->
-    {L1,V2,Vn1} = expand_body(L0, V1, Vn0),
-    {R1,V3,Vn2} = expand_body(R0, V2, Vn1),
-    {{',',L1,R1},V3,Vn2};
-expand_body({'->',L0,R0}, V1, Vn0) ->
-    {L1,V2,Vn1} = expand_body(L0, V1, Vn0),
-    {R1,V3,Vn2} = expand_body(R0, V2, Vn1),
-    {{'->',L1,R1},V3,Vn2};
-expand_body({';',L0,R0}, V1, Vn0) ->
-    {L1,V2,Vn1} = expand_body(L0, V1, Vn0),
-    {R1,V3,Vn2} = expand_body(R0, V1, Vn1),
-    {{';',L1,{',',R1,{'=',V3,V2}}},V2,Vn2};
-expand_body([], V1, Vn) ->			%Chain but do nothing
-    V2 = {Vn},
-    {{'=',V1,V2},V2,Vn+1};
-expand_body(Lits, V1, Vn) when is_list(Lits) ->
-    expand_lits(Lits, V1, Vn);
-expand_body(Goal, V1, Vn) ->
-    V2 = {Vn},
-    {expand_head(Goal, V1, V2),V2,Vn+1}.
-
-expand_lits([Lit], V1, Vn) ->
-    V2 = {Vn},
-    {{'C',V1,Lit,V2},V2,Vn+1};
-expand_lits([Lit|Lits0], V1, Vn0) ->
-    V2 = {Vn0},
-    {Lits1,V3,Vn1} = expand_lits(Lits0, V2, Vn0+1),
-    {{',',{'C',V1,Lit,V2},Lits1},V3,Vn1}.
