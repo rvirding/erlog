@@ -28,23 +28,37 @@
 
 -module(erlog).
 
+-include("erlog_int.hrl").
+
 %% Basic evaluator interface.
 -export([new/0]).
 %% Interface to server.
 -export([start/0,start_link/0]).
 -export([prove/2,next_solution/1,
 	 consult/2,reconsult/2,get_db/1,set_db/2,halt/1]).
+-export([init/1,handle_call/3,handle_cast/2,handle_info/2,terminate/2,
+	 code_change/3]).
 %% User utilities.
 -export([is_legal_term/1,vars_in/1]).
--export([consult_file/2,reconsult_file/2]).
 
 -import(lists, [foldl/3,foreach/2]).
 
+-behaviour(gen_server).
+-vsn('0.6').
+
 %% -compile(export_all).
+
+%% new() -> erlog().
+%%  Define an Erlog instance. This is a fun which is called with the
+%%  top-level command and returns the result and the continutation in
+%%  a new fun.
 
 new() ->
     Db0 = erlog_int:built_in_db(),		%Basic interpreter predicates
-    Db1 = erlog_bips:assert(Db0),		%Built in predicates
+    Db1 = foldl(fun (Mod, Db) -> Mod:load(Db) end, Db0,
+		[erlog_bips,			%Built in predicates
+		 erlog_dcg			%DCG predicates
+		]),
     fun (Cmd) -> top_cmd(Cmd, Db1) end.
 
 top_cmd({prove,Goal}, Db) ->
@@ -52,7 +66,7 @@ top_cmd({prove,Goal}, Db) ->
 top_cmd(next_solution, Db) ->
     {fail,fun (Cmd) -> top_cmd(Cmd, Db) end};
 top_cmd({consult,File}, Db0) ->
-    case consult_file(File, Db0) of
+    case erlog_consult:consult(File, Db0) of
 	{ok,Db1} -> {ok,fun (Cmd) -> top_cmd(Cmd, Db1) end};
 	{erlog_error,Error} ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end};
@@ -60,7 +74,7 @@ top_cmd({consult,File}, Db0) ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end}
     end;
 top_cmd({reconsult,File}, Db0) ->
-    case reconsult_file(File, Db0) of
+    case erlog_consult:reconsult(File, Db0) of
 	{ok,Db1} -> {ok,fun (Cmd) -> top_cmd(Cmd, Db1) end};
 	{erlog_error,Error} ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end};
@@ -110,66 +124,48 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 %% get_db(Erlog) -> {ok,Database}.
 %% set_db(Erlog, Database) -> ok.
 %% halt(Erlog) -> ok.
-%% Interface functions to server.
+%%  Interface functions to server.
 
-prove(Erl, Goal) ->
-    send_request(Erl, {prove,Goal}),
-    wait_reply().
+prove(Erl, Goal) -> gen_server:call(Erl, {prove,Goal}).
 
-next_solution(Erl) ->
-    send_request(Erl, next_solution),
-    wait_reply().
+next_solution(Erl) -> gen_server:call(Erl, next_solution).
 
-consult(Erl, File) ->
-    send_request(Erl, {consult,File}),
-    wait_reply().
+consult(Erl, File) -> gen_server:call(Erl, {consult,File}).
 
-reconsult(Erl, File) ->
-    send_request(Erl, {reconsult,File}),
-    wait_reply().
+reconsult(Erl, File) -> gen_server:call(Erl, {reconsult,File}).
 
-get_db(Erl) ->
-    send_request(Erl, get_db),
-    wait_reply().
+get_db(Erl) -> gen_server:call(Erl, get_db).
 
-set_db(Erl, Db) ->
-    send_request(Erl, {set_db,Db}),
-    wait_reply().
+set_db(Erl, Db) -> gen_server:call(Erl, {set_db,Db}).
 
-halt(Erl) ->
-    send_request(Erl, halt),
-    wait_reply().
+halt(Erl) -> gen_server:cast(Erl, halt).
 
-%% start()
-%% start_link()
-%% Start an Erlog server.
+%% Erlang server code.
+-record(state, {erlog}).			%Erlog state
 
 start() ->
-    spawn(fun () -> server_loop(new()) end).
+    gen_server:start(?MODULE, [], []).
 
 start_link() ->
-    spawn_link(fun () -> server_loop(new()) end).
+    gen_server:start_link(?MODULE, [], []).
 
-server_loop(P0) ->
-    receive
-	{erlog_request,From,Req} ->
-	    {Res,P1} = P0(Req),
-	    send_reply(From, Res),
-	    server_loop(P1)
-    end.
+init(_) ->
+    {ok,#state{erlog=new()}}.
 
-%% send_request(Erlog, Request)
-%% send_reply(To, Reply)
-%% wait_reply() -> Reply.
+handle_call(Req, _, St) ->
+    {Res,Erl} = (St#state.erlog)(Req),
+    {reply,Res,St#state{erlog=Erl}}.
 
-send_request(Erl, Req) -> Erl ! {erlog_request,self(),Req}.
-    
-send_reply(To, Rep) -> To ! {erlog_reply,Rep}.
+handle_cast(halt, St) ->
+    {stop,normal,St}.
 
-wait_reply() ->
-    receive
-	{erlog_reply,Rep} -> Rep
-    end.
+handle_info(_, St) ->
+    {noreply,St}.
+
+terminate(_, St) ->
+    (St#state.erlog)(halt).
+
+code_change(_, _, St) -> {ok,St}.
 
 %% vars_in(Term) -> [{Name,Var}].
 %% Returns an ordered list of {VarName,Variable} pairs.
@@ -188,68 +184,6 @@ vars_in_struct(_Str, I, S, Vs) when I > S -> Vs;
 vars_in_struct(Str, I, S, Vs) ->
     vars_in_struct(Str, I+1, S, vars_in(element(I, Str), Vs)).
 
-%% consult_file(File, Database) ->
-%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
-%% reconsult_file(File, Database) ->
-%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
-%% Load/reload an Erlog file into the interpreter. Reloading will
-%% abolish old definitons of clauses.
-
-consult_file(File, Db0) ->
-    case erlog_io:read_file(File) of
-	{ok,Terms} ->
-	    consult_terms(fun consult_assert/2, Db0, Terms);
-	Error -> Error
-    end.
-
-consult_assert(Term0, Db) ->
-    Term1 = erlog_int:expand_term(Term0),
-    {ok,erlog_int:assertz_clause(Term1, Db)}.
-
-reconsult_file(File, Db0) ->
-    case erlog_io:read_file(File) of
-	{ok,Terms} ->
-	    case consult_terms(fun reconsult_assert/2, {Db0,[]}, Terms) of
-		{ok,{Db1,_Seen1}} -> {ok,Db1};
-		Error -> Error
-	    end;
-	Error -> Error
-    end.
-
-reconsult_assert(Term0, {Db0,Seen}) ->
-    Term1 = erlog_int:expand_term(Term0),
-    Func = functor(Term1),
-    case lists:member(Func, Seen) of
-	true ->
-	    {ok,{erlog_int:assertz_clause(Term1, Db0), Seen}};
-	false ->
-	    Db1 = erlog_int:abolish_clauses(Func, Db0),
-	    {ok,{erlog_int:assertz_clause(Term1, Db1), [Func|Seen]}}
-    end.
-
-%% consult_terms(InsertFun, Database, Terms) ->
-%%      {ok,NewDatabase} | {erlog_error,Error}.
-%% Add terms to the database using InsertFun. Ignore directives and
-%% queries.
-
-consult_terms(Ifun, Db, [{':-',_}|Ts]) ->
-    consult_terms(Ifun, Db, Ts);
-consult_terms(Ifun, Db, [{'?-',_}|Ts]) ->
-    consult_terms(Ifun, Db, Ts);
-consult_terms(Ifun, Db0, [T|Ts]) ->
-    case catch Ifun(T, Db0) of
-	{ok,Db1} -> consult_terms(Ifun, Db1, Ts);
-	{erlog_error,E,_Db1} -> {erlog_error,E};
-	{erlog_error,E} -> {erlog_error,E}
-    end;
-consult_terms(_Ifun, Db, []) -> {ok,Db}.
-
-functor({':-',H,_B}) -> erlog_int:functor(H);
-functor(T) -> erlog_int:functor(T).
-
-%% The old is_constant/1 ?
--define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
-
 %% is_legal_term(Goal) -> true | false.
 %% Test if a goal is a legal Erlog term. Basically just check if
 %% tuples are used correctly as structures and variables.
@@ -258,11 +192,11 @@ is_legal_term({V}) -> is_atom(V);
 is_legal_term([H|T]) ->
     is_legal_term(H) andalso is_legal_term(T);
 is_legal_term(T) when is_tuple(T) ->
-    if  size(T) >= 2, is_atom(element(1, T)) ->
+    if  tuple_size(T) >= 2, is_atom(element(1, T)) ->
 	    are_legal_args(T, 2, size(T));	%The right tuples.
 	true -> false
     end;
-is_legal_term(T) when ?IS_CONSTANT(T) -> true;	%All constants, including []
+is_legal_term(T) when ?IS_ATOMIC(T) -> true;	%All constants, including []
 is_legal_term(_T) -> false.
 
 are_legal_args(_T, I, S) when I > S -> true;
