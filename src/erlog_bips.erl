@@ -43,75 +43,43 @@
 %%  Assert predicates into the database.
 
 load(Db0) ->
-    Db1 = foldl(fun (Head, Db) -> add_built_in(Head, Db) end, Db0,
-		[
-		 %% Term unification and comparison
-		 {'=',{1},{2}},
-		 {'\\=',{1},{2}},
-		 {'@>',{1},{2}},
-		 {'@>=',{1},{2}},
-		 {'==',{1},{2}},
-		 {'\\==',{1},{2}},
-		 {'@<',{1},{2}},
-		 {'@=<',{1},{2}},
-		 %% Term creation and decomposition.
-		 {arg,{1},{2},{3}},
-		 {copy_term,{1},{2}},
-		 {functor,{1},{2},{3}},
-		 {'=..',{1},{2}},
-		 %% Type testing.
-		 {atom,{1}},
-		 {atomic,{1}},
-		 {compound,{1}},
-		 {integer,{1}},
-		 {float,{1}},
-		 {number,{1}},
-		 {nonvar,{1}},
-		 {var,{1}},
-		 %% Atom processing.
-		 {atom_chars,{1},{2}},
-		 {atom_length,{1},{2}},
-		 %% Arithmetic evaluation and comparison
-		 {'is',{1},{2}},
-		 {'>',{1},{2}},
-		 {'>=',{1},{2}},
-		 {'=:=',{1},{2}},
-		 {'=\\=',{1},{2}},
-		 {'<',{1},{2}},
-		 {'=<',{1},{2}}
-		]),
-    %% Next the interpreted built-ins.
-    Db2 = foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
- 		[
- 		]),
-    %% Compiled built-ins and common libray.
-    Db3 = foldl(fun ({Head,M,F}, Db) ->
-			add_compiled_proc(Head, M, F, Db) end, Db2,
-		[
-		 %%{{app,{1},{2},{3}},user_pl,app_3},
-		 %%{{rev,{1},{2}},user_pl,rev_2},
-		 %%{{mem,{1},{2}},user_pl,mem_2}
-		]),
-    %% Finally some interpreted common list library.
-    foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db3,
+    foldl(fun (Head, Db) -> add_built_in(Head, Db) end, Db0,
 	  [
-	   %% append([], L, L). append([H|T], L, [H|L1]) :- append(T, L, L1).
-	   {append,[],{1},{1}},
-	   {':-',{append,[{1}|{2}],{3},[{1}|{4}]},{append,{2},{3},{4}}},
-	   %% insert(L, X, [X|L]). insert([H|T], X, [H|T1]) :- insert(T, X, T1).
-	   {insert,{1},{2},[{2}|{1}]},
-	   {':-',{insert,[{1}|{2}],{3},[{1}|{4}]},{insert,{2},{3},{4}}},
-	   %% delete([X|T], X, T). delete([H|T], X, [H|T1]) :- delete(T, X, T1).
-	   {delete,[{1}|{2}],{1},{2}},
-	   {':-',{delete,[{1}|{2}],{3},[{1}|{4}]},{delete,{2},{3},{4}}},
-	   %% member(X, [X|_]). member(X, [_|T]) :- member(X, T).
-	   {member,{1},[{1}|{2}]},
-	   {':-',{member,{1},[{2}|{3}]},{member,{1},{3}}},
-	   %% perm([], []).
-	   %% perm([X|Xs], Ys1) :- perm(Xs, Ys), insert(Ys, X, Ys1).
-	   {perm,[],[]},
-	   {':-',{perm,[{1}|{2}],{3}},{',',{perm,{2},{4}},{insert,{4},{1},{3}}}}
-	  ]).
+	   %% Term unification and comparison
+	   {'=',{1},{2}},
+	   {'\\=',{1},{2}},
+	   {'@>',{1},{2}},
+	   {'@>=',{1},{2}},
+	   {'==',{1},{2}},
+	   {'\\==',{1},{2}},
+	   {'@<',{1},{2}},
+	   {'@=<',{1},{2}},
+	   %% Term creation and decomposition.
+	   {arg,{1},{2},{3}},
+	   {copy_term,{1},{2}},
+	   {functor,{1},{2},{3}},
+	   {'=..',{1},{2}},
+	   %% Type testing.
+	   {atom,{1}},
+	   {atomic,{1}},
+	   {compound,{1}},
+	   {integer,{1}},
+	   {float,{1}},
+	   {number,{1}},
+	   {nonvar,{1}},
+	   {var,{1}},
+	   %% Atom processing.
+	   {atom_chars,{1},{2}},
+	   {atom_length,{1},{2}},
+	   %% Arithmetic evaluation and comparison
+	   {'is',{1},{2}},
+	   {'>',{1},{2}},
+	   {'>=',{1},{2}},
+	   {'=:=',{1},{2}},
+	   {'=\\=',{1},{2}},
+	   {'<',{1},{2}},
+	   {'=<',{1},{2}}
+	   ]).
 
 %% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
@@ -410,7 +378,5 @@ eval_int(E0, Bs, Db) ->
     if  is_integer(E) -> E;
 	true -> erlog_int:type_error(integer, E, Db)
     end.
-
-pred_ind({N,A}) -> {'/',N,A}.
 
 pred_ind(N, A) -> {'/',N,A}.

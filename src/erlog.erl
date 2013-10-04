@@ -57,7 +57,8 @@ new() ->
     Db0 = erlog_int:built_in_db(),		%Basic interpreter predicates
     Db1 = foldl(fun (Mod, Db) -> Mod:load(Db) end, Db0,
 		[erlog_bips,			%Built in predicates
-		 erlog_dcg			%DCG predicates
+		 erlog_dcg,			%DCG predicates
+		 erlog_lists			%Common lists library
 		]),
     fun (Cmd) -> top_cmd(Cmd, Db1) end.
 
