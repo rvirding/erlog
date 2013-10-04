@@ -22,6 +22,8 @@
 
 -module(user_pl).
 
+-include("erlog_int.hrl").
+
 -export([assert/1,app_3/6,rev_2/6,mem_2/6]).
 
 -import(erlog_int, [add_binding/3,
@@ -34,17 +36,16 @@
 		    add_compiled_proc/4]).
 -import(lists, [foldl/3]).
 
-%% Define the choice point record
--record(cp, {type,label,data,next,bs,vn}).
-%%-record(cut, {label,next}).
+%% assert(Database) -> Database.
+%%  Assert predicates into the database.
 
 assert(Db) ->
     foldl(fun ({Head,M,F}, LDb) -> 
 		  add_compiled_proc(Head, M, F, LDb) end, Db,
 	  [
-	   {{app,{1},{2},{3}},?MODULE,app_3},
-	   {{rev,{1},{2}},?MODULE,rev_2},
-	   {{mem,{1},{2}},?MODULE,mem_2}
+	   {{app,3},?MODULE,app_3},
+	   {{rev,3},?MODULE,rev_2},
+	   {{mem,2},?MODULE,mem_2}
 	  ]).
 
 %% app_3(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.

@@ -170,33 +170,33 @@ built_in_db() ->
     Db1 = foldl(fun (Head, Db) -> add_built_in(Head, Db) end, Db0,
 		[
 		 %% Logic and control.
-		 {call,{1}},
-		 {',',{1},{2}},
-		 '!',
-		 {';',{1},{2}},
-		 fail,
-		 {'->',{1},{2}},
-		 {'\\+',{1}},
-		 {once,{1}},
-		 repeat,
-		 true,
+		 {call,1},
+		 {',',2},
+		 {'!',0},
+		 {';',2},
+		 {fail,0},
+		 {'->',2},
+		 {'\\+',1},
+		 {once,1},
+		 {repeat,0},
+		 {true,0},
 		 %% Clause creation and destruction.
-		 {abolish,{1}},
-		 {assert,{1}},
-		 {asserta,{1}},
-		 {assertz,{1}},
-		 {retract,{1}},
-		 {retractall,{1}},
+		 {abolish,1},
+		 {assert,1},
+		 {asserta,1},
+		 {assertz,1},
+		 {retract,1},
+		 {retractall,1},
 		 %% Clause retrieval and information.
-		 {clause,{1},{2}},
-		 {current_predicate,{1}},
-		 {predicate_property,{1},{2}},
+		 {clause,2},
+		 {current_predicate,1},
+		 {predicate_property,2},
 		 %% All solutions
 		 %% External interface
-		 {ecall,{1},{2}},
+		 {ecall,2},
 		 %% Non-standard but useful
-		 {sort,{1},{2}},
-		 {display,{1}}
+		 {sort,2},
+		 {display,1}
 		]),
     Db1.
 
@@ -717,19 +717,17 @@ erlog_error(E) -> throw({erlog_error,E}).
 
 new_db() -> ?DB:new().
 
-%% add_built_in(Head, Database) -> NewDatabase.
-%% Add Head as a built-in in the database.
+%% add_built_in(Functor, Database) -> NewDatabase.
+%% Add Functor as a built-in in the database.
 
-add_built_in(H, Db) ->
-    Functor = functor(H),
+add_built_in(Functor, Db) ->
     ?DB:store(Functor, built_in, Db).
 
-%% add_compiled_proc(Head, Module, Function, Database) -> NewDatabase.
-%% Add Head as a compiled procedure with code in Module:Function. No
+%% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
+%% Add Functor as a compiled procedure with code in Module:Function. No
 %% checking.
 
-add_compiled_proc(H, M, F, Db) ->
-    Functor = functor(H),
+add_compiled_proc(Functor, M, F, Db) ->
     ?DB:update(Functor,
 	       fun (built_in) ->
 		       permission_error(modify, static_procedure, pred_ind(Functor), Db);
@@ -852,20 +850,18 @@ get_interp_functors(Db) ->
 
 new_db() -> ets:new(erlog_database, [set,protected,{keypos,1}]).
 
-%% add_built_in(Head, Database) -> NewDatabase.
-%% Add Head as a built-in in the database.
+%% add_built_in(Functor, Database) -> NewDatabase.
+%% Add Functor as a built-in in the database.
 
-add_built_in(H, Db) ->
-    Functor = functor(H),
+add_built_in(Functor, Db) ->
     ets:insert(Db, {Functor,built_in}),
     Db.
 
-%% add_compiled_proc(Head, Module, Function, Database) -> NewDatabase.
-%% Add Head as a compiled procedure with code in Module:Function. No
+%% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
+%% Add Functor as a compiled procedure with code in Module:Function. No
 %% checking.
 
-add_compiled_proc(H, M, F, Db) ->
-    Functor = functor(H),
+add_compiled_proc(Functor, M, F, Db) ->
     case ets:lookup(Db, Functor) of
 	[{_,built_in}] ->
 	    permission_error(modify, static_procedure, pred_ind(Functor), Db);
@@ -1226,7 +1222,7 @@ body_conj(L, R) -> {',',L,R}.
 
 pred_ind({N,A}) -> {'/',N,A}.
 
-pred_ind(N, A) -> {'/',N,A}.
+%% pred_ind(N, A) -> {'/',N,A}.
 
 %% Bindings
 %% Bindings are kept in a dict where the key is the variable name.

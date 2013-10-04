@@ -50,9 +50,9 @@ load(Db0) ->
     Db1 = foldl(fun ({Head,M,F}, Db) ->
 			add_compiled_proc(Head, M, F, Db) end, Db0,
 		[
-		 {{member,{1},{2}},?MODULE,member_2},
-		 {{insert,{1},{2},{3}},?MODULE,insert_3},
-		 {{append,{1},{2},{3}},?MODULE,append_3}
+		 {{member,2},?MODULE,member_2},
+		 {{insert,3},?MODULE,insert_3},
+		 {{append,3},?MODULE,append_3}
 		]),
     %% Finally interpreted common list library.
     foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
