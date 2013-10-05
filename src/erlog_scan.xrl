@@ -34,7 +34,7 @@ Rules.
 %% We need whitespace first so /**/ is interpreted as comment.
 %% Must separate ( preceded by white space from those that aren't.
 {WS}+\(		:	{token,{' (',TokenLine}}.
-\.{WS}		:	{end_token,{dot,TokenLine}}.
+\.{WS}		:	{end_token,{'.',TokenLine}}.
 {WS}+		:	skip_token.
 
 %% Numbers.

@@ -29,7 +29,7 @@
 -export([term/1,term/2,format_error/1]).
 -export([prefix_op/1,infix_op/1,postfix_op/1]).
 
--compile({nowarn_unused_function, [val/1]}).
+-compile({nowarn_unused_function,[type/1,line/1,val/1]}).
 %% -compile(export_all).
 
 term(Toks) -> term(Toks, 1).
@@ -40,9 +40,9 @@ term(Toks, _) ->
 	{fail,{Line,Error}} -> {error,{Line,?MODULE,Error}}
     end.
 
-all_read([{dot,_}], Term) -> {succeed,Term};
-all_read([{T,L}|_], _) -> syntax_error(L, {operator_expected,{ar,T}});
-all_read([{_,L,V}|_], _) -> syntax_error(L, {operator_expected,{ar,V}});
+all_read([{'.',_}], Term) -> {succeed,Term};
+all_read([{T,L}|_], _) -> syntax_error(L, {operator_expected,T});
+all_read([{_,L,V}|_], _) -> syntax_error(L, {operator_expected,V});
 all_read([], _) -> syntax_error(9999, premature_end).
 
 syntax_error(Line, Error) -> {fail,{Line,Error}}.
@@ -121,7 +121,8 @@ term([{atom,L,Op}|Toks0], Prec, Next) ->
 	    syntax_error(L, {op_priority,Op});
 	no -> rest_term(Toks0, Op, 0, Prec, Next)
     end;
-term([T|_], _, _) -> syntax_error(line(T), {illegal,T});
+term([{T,L}|_], _, _) -> syntax_error(L, {illegal,T});
+term([{_,L,V}|_], _, _) -> syntax_error(L, {illegal,V});
 term([], _, _) -> syntax_error(9999, no_term).
 
 %% possible_right_operand(Tokens) -> true | false.
@@ -221,7 +222,7 @@ arg_list([{',',_}|Toks0], RAs, Next) ->
 arg_list(Toks, RAs, Next) ->
     expect(Toks, ')', lists:reverse(RAs), Next).
 
-%% expect(Tokens, Token, Term, Next) -> {succeed,Term} | {fail,Error}.
+%% expect(Tokens, TokenType, Term, Next) -> {succeed,Term} | {fail,Error}.
 
 expect([T|Toks], Tok, Term, Next) ->
     case type(T) of

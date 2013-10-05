@@ -1,4 +1,4 @@
--file("/usr/lib/erlang/lib/parsetools-2.0.7/include/leexinc.hrl", 0).
+-file("/usr/local/lib/erlang/lib/parsetools-2.0.9/include/leexinc.hrl", 0).
 %% The source of this file is part of leex distribution, as such it
 %% has the same Copyright as the other files in the leex
 %% distribution. The Copyright is defined in the accompanying file
@@ -94,7 +94,7 @@ escape_char($s) -> $\s;				%\s = SPC
 escape_char($d) -> $\d;				%\d = DEL
 escape_char(C) -> C.
 
--file("/usr/lib/erlang/lib/parsetools-2.0.7/include/leexinc.hrl", 14).
+-file("/usr/local/lib/erlang/lib/parsetools-2.0.9/include/leexinc.hrl", 14).
 
 format_error({illegal,S}) -> ["illegal characters ",io_lib:write_string(S)];
 format_error({user,S}) -> S.
@@ -1550,7 +1550,7 @@ yyaction_0(TokenLine) ->
 -compile({inline,yyaction_1/1}).
 -file("src/erlog_scan.xrl", 35).
 yyaction_1(TokenLine) ->
-     { end_token, { dot, TokenLine } } .
+     { end_token, { '.', TokenLine } } .
 
 -compile({inline,yyaction_2/0}).
 -file("src/erlog_scan.xrl", 36).
@@ -1632,4 +1632,4 @@ yyaction_15(TokenChars, TokenLen, TokenLine) ->
 yyaction_16(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 
--file("/usr/lib/erlang/lib/parsetools-2.0.7/include/leexinc.hrl", 282).
+-file("/usr/local/lib/erlang/lib/parsetools-2.0.9/include/leexinc.hrl", 282).
