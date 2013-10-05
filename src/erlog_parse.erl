@@ -95,12 +95,11 @@ term([{atom,_,F},{'(',_}|Toks0], Prec, Next) ->
 	 fun (Toks1, A) ->
 		 arg_list(Toks1, [A],
 			  fun (Toks2, Args) ->
-				  Term = list_to_tuple([F|Args]),
-%				  %% Equivalence of '.'/2 and lists.
-% 				  Term = case list_to_tuple([F|Args]) of
-% 					     {'.',H,T} -> [H|T];
-% 					     Other -> Other
-% 					 end,
+				  %% Equivalence of '.'/2 and lists.
+				  Term = case {F,Args} of
+					     {'.',[H,T]} -> [H|T];
+					     _ -> list_to_tuple([F|Args])
+					 end,
 				  rest_term(Toks2, Term, 0, Prec, Next)
 			  end)
 	 end);
