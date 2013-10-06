@@ -66,7 +66,7 @@ server_loop(P0) ->
     end.
 
 reconsult_files([F|Fs], Db0) ->
-    case erlog:reconsult_file(F, Db0) of
+    case erlog_file:reconsult(F, Db0) of
 	{ok,Db1} -> reconsult_files(Fs, Db1);
 	{erlog_error,Error} -> {erlog_error,Error};
 	{error,Error} -> {error,Error}
@@ -95,8 +95,8 @@ show_bindings([], P) ->
     server_loop(P);
 show_bindings(Vs, P) ->
     foreach(fun ({Name,Val}) ->
-		    Out = erlog_io:write1(Val),	%Write Erlog term
-		    io:fwrite("~s = ~s\n", [Name,Out])
+		    Out = erlog_io:writeq1({'=',{Name},Val}),
+		    io:fwrite("~s\n", [Out])
 	    end, Vs),
     Line = io:get_line(': '),
     case string:chr(Line, $;) of

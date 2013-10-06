@@ -67,7 +67,7 @@ top_cmd({prove,Goal}, Db) ->
 top_cmd(next_solution, Db) ->
     {fail,fun (Cmd) -> top_cmd(Cmd, Db) end};
 top_cmd({consult,File}, Db0) ->
-    case erlog_consult:consult(File, Db0) of
+    case erlog_file:consult(File, Db0) of
 	{ok,Db1} -> {ok,fun (Cmd) -> top_cmd(Cmd, Db1) end};
 	{erlog_error,Error} ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end};
@@ -75,7 +75,7 @@ top_cmd({consult,File}, Db0) ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end}
     end;
 top_cmd({reconsult,File}, Db0) ->
-    case erlog_consult:reconsult(File, Db0) of
+    case erlog_file:reconsult(File, Db0) of
 	{ok,Db1} -> {ok,fun (Cmd) -> top_cmd(Cmd, Db1) end};
 	{erlog_error,Error} ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end};
