@@ -127,17 +127,17 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 %% halt(Erlog) -> ok.
 %%  Interface functions to server.
 
-prove(Erl, Goal) -> gen_server:call(Erl, {prove,Goal}).
+prove(Erl, Goal) -> gen_server:call(Erl, {prove,Goal}, infinity).
 
-next_solution(Erl) -> gen_server:call(Erl, next_solution).
+next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
 
-consult(Erl, File) -> gen_server:call(Erl, {consult,File}).
+consult(Erl, File) -> gen_server:call(Erl, {consult,File}, infinity).
 
-reconsult(Erl, File) -> gen_server:call(Erl, {reconsult,File}).
+reconsult(Erl, File) -> gen_server:call(Erl, {reconsult,File}, infinity).
 
-get_db(Erl) -> gen_server:call(Erl, get_db).
+get_db(Erl) -> gen_server:call(Erl, get_db, infinity).
 
-set_db(Erl, Db) -> gen_server:call(Erl, {set_db,Db}).
+set_db(Erl, Db) -> gen_server:call(Erl, {set_db,Db}, infinity).
 
 halt(Erl) -> gen_server:cast(Erl, halt).
 
