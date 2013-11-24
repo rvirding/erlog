@@ -29,7 +29,7 @@
 -export([load/1]).
 
 %% Library functions.
--export([append_3/6,insert_3/6,member_2/6,reverse_2/6]).
+-export([append_3/6,insert_3/6,member_2/6,reverse_2/6,sort_2/6]).
 
 %%-compile(export_all).
 
@@ -54,7 +54,8 @@ load(Db0) ->
 		 {{reverse,2},?MODULE,reverse_2},
 		 {{member,2},?MODULE,member_2},
 		 {{insert,3},?MODULE,insert_3},
-		 {{append,3},?MODULE,append_3}
+		 {{append,3},?MODULE,append_3},
+		 {{sort,2},?MODULE,sort_2}
 		]),
     %% Finally interpreted common list library.
     foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
@@ -176,3 +177,11 @@ fail_reverse_2(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, Db, A1, A2) ->
     %%prove_body(Next1, Cps, Bs1, Vn+3, Db).
     Next1 = [{append,L,[H],L1}|Next],
     reverse_2({reverse,T,L}, Next1, Cps, Bs1, Vn+3, Db).
+
+%% sort_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% sort(List, SortedList).
+
+sort_2({sort,L0,S}, Next, Cps, Bs, Vn, Db) ->
+    %% This may throw an erlog error, we don't catch it here.
+    L1 = lists:usort(dderef_list(L0, Bs)),
+    unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db).

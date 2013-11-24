@@ -30,14 +30,17 @@ Type testing
 atom/1, atomic/1, compound/1, integer/1, float/1, number/1,
 nonvar/1, var/1
 
+Atom processing
+atom_chars/2, atom_length/2
+
 Erlang interface
 ecall/2
 
 Useful but non-standard
-expand_term/2, sort/2, 'C'/3, phrase/2, phrase/3
+expand_term/2, phrase/2, phrase/3
 
 Common library
-append/3, insert/3, member/2
+append/3, insert/3, delete/3, member/2, reverse/2, perm/2, sort/2
 
 The following arithmetic operators are implemented:
 
@@ -191,15 +194,10 @@ Erlog supports DCGs. Expansion of -->/2 terms is done through the
 procedure expand_term/2 which can be called explicitly and is called
 automatically when consulting files. At present there is no support
 for a user defined term_expansion/2 procedure. The expansion uses
-'C'/3 to match tokens and phrase/3 to handle variable terms. These are
-defined by:
-
-    'C'([Token|Tokens], Token, Tokens).
+phrase/3 to handle variable terms. This is defined by:
 
     phrase(Term, S0, S1) :-
 	Term =.. L, append(L, [S0,S1], L1), Call =.. L1, Call.
-
-Both are interpreted procedures and can be redefined as needed.
 
 PROLOG SYNTAX
 

@@ -130,7 +130,7 @@
 -export([unify_prove_body/7,unify_prove_body/9]).
 %% Bindings, unification and dereferncing.
 -export([new_bindings/0,add_binding/3,make_vars/2]).
--export([deref/2,dderef/2,dderef_list/2,unify/3,functor/1]).
+-export([deref/2,deref_list/2,dderef/2,dderef_list/2,unify/3,functor/1]).
 %% Creating term and body instances.
 -export([term_instance/2]).
 %% Adding to database.
@@ -139,7 +139,8 @@
 -export([new_db/0,built_in_db/0]).
 
 %% Error types.
--export([type_error/2,type_error/3,instantiation_error/1,permission_error/4]).
+-export([erlog_error/1,erlog_error/2,type_error/2,type_error/3,
+	 instantiation_error/0,instantiation_error/1,permission_error/4]).
 
 %%-compile(export_all).
 
@@ -195,7 +196,6 @@ built_in_db() ->
 		 %% External interface
 		 {ecall,2},
 		 %% Non-standard but useful
-		 {sort,2},
 		 {display,1}
 		]),
     Db1.
@@ -339,11 +339,6 @@ prove_goal({ecall,C0,Val}, Next, Cps, Bs, Vn, Db) ->
 	   end,
     prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db);
 %% Non-standard but useful.
-prove_goal({sort,L0,S}, Next, Cps, Bs, Vn, Db) ->
-    case catch lists:usort(dderef_list(L0, Bs)) of
-	{erlog_error,E} -> erlog_error(E, Db);
-	L1 -> unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db)
-    end;
 prove_goal({display,T}, Next, Cps, Bs, Vn, Db) ->
     %% A very simple display procedure.
     io:fwrite("~p\n", [dderef(T, Bs)]),
@@ -832,7 +827,7 @@ get_procedure_type(Func, Db) ->
 
 get_interp_functors(Db) ->
     ?DB:fold(fun (_Func, built_in, Fs) -> Fs;
-		 (_Func, {code,_}, Fs) -> Fs;
+		 (Func, {code,_}, Fs) -> [Func|Fs];
 		 (Func, {clauses,_,_}, Fs) -> [Func|Fs]
 	     end, [], Db).
 -endif.
@@ -972,7 +967,7 @@ get_procedure_type(Func, Db) ->
 
 get_interp_functors(Db) ->
     ets:foldl(fun ({_,built_in}, Fs) -> Fs;
-		  ({_,code,_}, Fs) -> Fs;
+		  ({Func,code,_}, Fs) -> [Func|Fs];
 		  ({Func,clauses,_,_}, Fs) -> [Func|Fs]
 	      end, [], Db).
 -endif.
@@ -1246,6 +1241,18 @@ deref({V}=T0, Bs) ->
 	error -> T0
     end;
 deref(T, _) -> T.				%Not a variable, return it.
+
+%% deref_list(List, Bindings) -> List.
+%%  Dereference the top-level checking that it is a list.
+
+deref_list([], _) -> [];			%It already is a list
+deref_list([_|_]=L, _) -> L;
+deref_list({V}, Bs) ->
+    case ?BIND:find(V, Bs) of
+	{ok,L} -> deref_list(L, Bs);
+	error -> instantiation_error()
+    end;
+deref_list(Other, _) -> type_error(list, Other).
 
 %% dderef(Term, Bindings) -> Term.
 %% Do a deep dereference. Completely dereference all the variables
