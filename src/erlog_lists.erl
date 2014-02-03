@@ -29,7 +29,7 @@
 -export([load/1]).
 
 %% Library functions.
--export([append_3/6,insert_3/6,member_2/6,reverse_2/6,sort_2/6]).
+-export([append_3/6,insert_3/6,member_2/6,memberchk_2/6,reverse_2/6,sort_2/6]).
 
 %%-compile(export_all).
 
@@ -54,6 +54,7 @@ load(Db0) ->
 		 {{append,3},?MODULE,append_3},
 		 {{insert,3},?MODULE,insert_3},
 		 {{member,2},?MODULE,member_2},
+		 {{memberchk,2},?MODULE,memberchk_2},
 		 {{reverse,2},?MODULE,reverse_2},
 		 {{sort,2},?MODULE,sort_2}
 		]),
@@ -135,6 +136,25 @@ fail_member_2(#cp{next=Next0,bs=Bs,vn=Vn}, Cps, Db, A1, A2) ->
     T = {Vn+1},
     Next1 = [{member,A1,T}|Next0],
     unify_prove_body(A2, [H|T], Next1, Cps, Bs, Vn+2, Db).
+
+%% memberchk_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% memberchk(X, [X|_]) :- !.
+%% memberchk(X, [_|T]) :- member(X, T).
+%%  We don't build the list and we never backtrack so we can be smart
+%%  and match directly. Should we give a type error?
+
+memberchk_2({memberchk,A1,A2}, Next, Cps, Bs0, Vn, Db) ->
+    case deref(A2, Bs0) of
+	[H|T] ->
+	    case unify(A1, H, Bs0) of
+		{succeed,Bs1} ->
+		    prove_body(Next, Cps, Bs1, Vn, Db);
+		fail ->
+		    memberchk_2({memberchk,A1,T}, Next, Cps, Bs0, Vn, Db)
+	    end;
+	{_} -> erlog_int:instantiation_error();
+	_ -> fail(Cps, Db)
+    end.
 
 %% reverse_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% reverse([], []).

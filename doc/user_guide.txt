@@ -39,8 +39,9 @@ ecall/2
 Useful but non-standard
 expand_term/2, phrase/2, phrase/3
 
-Common library
-append/3, insert/3, delete/3, member/2, reverse/2, perm/2, sort/2
+Common lists library
+append/3, insert/3, delete/3, member/2, memberchk/2, reverse/2,
+perm/2, sort/2
 
 The following arithmetic operators are implemented:
 
