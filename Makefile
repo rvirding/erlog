@@ -1,24 +1,45 @@
-EBIN_DIR=ebin
-SOURCE_DIR=src
-INCLUDE_DIR=include
-DOC_DIR=doc
+# Makefile for Erlog
+# This simple Makefile uses rebar to compile/clean if it
+# exists, else does it explicitly.
 
-ERLC_FLAGS=-W0 -Ddebug +debug_info
-ERLC=erlc -I $(INCLUDE_DIR) -o $(EBIN_DIR) $(ERLC_FLAGS) $(SOURCE_DIR)
-ERL=erl -I -pa ebin -noshell -eval
+EBINDIR = ebin
+SRCDIR = src
+INCDIR = include
+DOC_DIR = doc
+
+ERLCFLAGS = -W1
+ERLC = erlc
+
+## The .erl, .xrl and .beam files
+ESRCS = $(notdir $(wildcard $(SRCDIR)/*.erl))
+XSRCS = $(notdir $(wildcard $(SRCDIR)/*.xrl))
+EBINS = $(ESRCS:.erl=.beam) $(XSRCS:.xrl=.beam)
+
+.SUFFIXES: .erl .beam
+
+$(EBINDIR)/%.beam: $(SRCDIR)/%.erl
+	$(ERLC) -I $(INCDIR) -o $(EBINDIR) $(ERLCFLAGS) $<
+
+%.erl: %.xrl
+	$(ERLC) -o $(SRCDIR) $<
 
 all: compile docs
 
+.PHONY: compile erlc_compile docs clean
+
+## Compile using rebar if it exists else using make
 compile:
-	mkdir -p $(EBIN_DIR)
-	$(ERLC)/*.erl
+	if which rebar > /dev/null; \
+	then rebar compile; \
+	else $(MAKE) $(MFLAGS) erlc_compile; \
+	fi
+
+## Compile using erlc
+erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))
 
 docs:
-	#$(ERL) -noshell -run edoc file $(SOURCE_DIR)/leex.erl -run init stop
-	#$(ERL) -noshell -run edoc_run application "'Leex'" '"."' '[no_packages]'
-	#mv $(SOURCE_DIR)/*.html $(DOC_DIR)/
 
 clean:
 	rm -rf erl_crash.dump 
-	rm -rf $(EBIN_DIR)/*.beam
+	rm -rf $(EBINDIR)/*.beam
 	rm -rf $(DOC_DIR)/*.html

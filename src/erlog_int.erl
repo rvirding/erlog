@@ -97,6 +97,8 @@
 %%     MANY bindings. This is a BIG WIN!
 %% body_instance/5 - creates a new code body instance from the
 %%     database format.
+%% term_instance/2/3 - creates a new instance of a term with new
+%%     variables.
 %% body_term/3 - creates a copy of a body as a legal Erlog term.
 %%
 %% Choicepoints/Cuts
@@ -123,15 +125,22 @@
 
 -module(erlog_int).
 
-%% Main interface functions.
+%% Main execution functions.
 -export([prove_goal/2,prove_body/5,fail/2]).
--export([built_in_db/0]).
-%% Utilities.
--export([new_bindings/0,deref/2,dderef/2,dderef_list/2,functor/1]).
--export([add_binding/3,unify/3,unify_prove_body/7]).
+-export([unify_prove_body/7,unify_prove_body/9]).
+%% Bindings, unification and dereferncing.
+-export([new_bindings/0,add_binding/3,make_vars/2]).
+-export([deref/2,deref_list/2,dderef/2,dderef_list/2,unify/3,functor/1]).
+%% Creating term and body instances.
+-export([term_instance/2]).
+%% Adding to database.
 -export([asserta_clause/2,assertz_clause/2,abolish_clauses/2]).
--export([add_compiled_proc/4]).
--export([expand_term/1]).
+-export([add_built_in/2,add_compiled_proc/4]).
+-export([new_db/0,built_in_db/0]).
+
+%% Error types.
+-export([erlog_error/1,erlog_error/2,type_error/2,type_error/3,
+	 instantiation_error/0,instantiation_error/1,permission_error/4]).
 
 %%-compile(export_all).
 
@@ -143,7 +152,8 @@
 -define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
 
 %% -define(IS_ATOMIC(T), (is_atom(T) orelse is_number(T) orelse (T == []))).
-%% -define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
+-define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
+-define(IS_FUNCTOR(T), ((tuple_size(T) >= 2) andalso is_atom(element(1, T)))).
 
 %% Define the database to use. ONE of the follwing must be defined.
 
@@ -161,96 +171,34 @@ built_in_db() ->
     Db1 = foldl(fun (Head, Db) -> add_built_in(Head, Db) end, Db0,
 		[
 		 %% Logic and control.
-		 {call,{1}},
-		 {',',{1},{2}},
-		 '!',
-		 {';',{1},{2}},
-		 fail,
-		 {'->',{1},{2}},
-		 {'\\+',{1}},
-		 {once,{1}},
-		 repeat,
-		 true,
-		 %% Term creation and decomposition.
-		 {arg,{1},{2},{3}},
-		 {copy_term,{1},{2}},
-		 {functor,{1},{2},{3}},
-		 {'=..',{1},{2}},
-		 %% Arithmetic evaluation and comparison
-		 {'>',{1},{2}},
-		 {'>=',{1},{2}},
-		 {'=:=',{1},{2}},
-		 {'=\\=',{1},{2}},
-		 {'<',{1},{2}},
-		 {'=<',{1},{2}},
-		 {'is',{1},{2}},
-		 %% Atom processing.
-		 {atom_chars,{1},{2}},
-		 {atom_length,{1},{2}},
+		 {call,1},
+		 {',',2},
+		 {'!',0},
+		 {';',2},
+		 {fail,0},
+		 {'->',2},
+		 {'\\+',1},
+		 {once,1},
+		 {repeat,0},
+		 {true,0},
 		 %% Clause creation and destruction.
-		 {abolish,{1}},
-		 {assert,{1}},
-		 {asserta,{1}},
-		 {assertz,{1}},
-		 {retract,{1}},
-		 {retractall,{1}},
+		 {abolish,1},
+		 {assert,1},
+		 {asserta,1},
+		 {assertz,1},
+		 {retract,1},
+		 {retractall,1},
 		 %% Clause retrieval and information.
-		 {clause,{1},{2}},
-		 {current_predicate,{1}},
-		 {predicate_property,{1},{2}},
-		 %% Type testing.
-		 {atom,{1}},
-		 {atomic,{1}},
-		 {compound,{1}},
-		 {integer,{1}},
-		 {float,{1}},
-		 {number,{1}},
-		 {nonvar,{1}},
-		 {var,{1}},
+		 {clause,2},
+		 {current_predicate,1},
+		 {predicate_property,2},
 		 %% All solutions
-		 %% Term unification and comparison
-		 {'@>',{1},{2}},
-		 {'@>=',{1},{2}},
-		 {'==',{1},{2}},
-		 {'\\==',{1},{2}},
-		 {'@<',{1},{2}},
-		 {'@=<',{1},{2}},
-		 {'=',{1},{2}},
-		 {'\\=',{1},{2}},
 		 %% External interface
-		 {ecall,{1},{2}},
+		 {ecall,2},
 		 %% Non-standard but useful
-		 {sort,{1},{2}},
-		 {expand_term,{1},{2}},
-		 {display,{1}}
+		 {display,1}
 		]),
-    %% Next the interpreted built-ins.
-    Db2 = foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
- 		[
-		 {'C',[{1}|{2}],{1},{2}},		%For DCGs
-		 {':-',{phrase,{1},{2}},{phrase,{1},{2},[]}},
-		 {':-',{phrase,{1},{2},{3}},
-		  {',',{'=..',{1},{4}},{',',{append,{4},[{2},{3}],{5}},
-					{',',{'=..',{6},{5}},{6}}}}}
- 		]),
-    %% Compiled built-ins and common libray.
-    Db3 = foldl(fun ({Head,M,F}, Db) ->
-			add_compiled_proc(Head, M, F, Db) end, Db2,
-		[
-		 %%{{app,{1},{2},{3}},user_pl,app_3},
-		 %%{{rev,{1},{2}},user_pl,rev_2},
-		 %%{{mem,{1},{2}},user_pl,mem_2}
-		]),
-    %% Finally some interpreted common library.
-    foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db3,
-	  [
-	   {append,[],{1},{1}},
-	   {':-',{append,[{1}|{2}],{3},[{1}|{4}]},{append,{2},{3},{4}}},
-	   {insert,{1},{2},[{2}|{1}]},
-	   {':-',{insert,[{1}|{2}],{3},[{1}|{4}]},{insert,{2},{3},{4}}},
-	   {member,{1},[{1}|{2}]},
-	   {':-',{member,{1},[{2}|{3}]},{member,{1},{3}}}
-	  ]).
+    Db1.
 
 %% Define the choice point record
 -record(cp, {type,label,data,next,bs,vn}).
@@ -337,135 +285,6 @@ prove_goal({{once},Label}, Next, Cps, Bs, Vn, Db) ->
 prove_goal(repeat, Next, Cps, Bs, Vn, Db) ->
     Cp = #cp{type=disjunction,next=[repeat|Next],bs=Bs,vn=Vn},
     prove_body(Next, [Cp|Cps], Bs, Vn, Db);
-%% Term unification and comparison
-prove_goal({'@>',L,R}, Next, Cps, Bs, Vn, Db) ->
-    term_test_prove_body('>', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'@>=',L,R}, Next, Cps, Bs, Vn, Db) ->
-    term_test_prove_body('>=', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'==',L,R}, Next, Cps, Bs, Vn, Db) ->
-    term_test_prove_body('==', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'\\==',L,R}, Next, Cps, Bs, Vn, Db) ->
-    term_test_prove_body('/=', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'@<',L,R}, Next, Cps, Bs, Vn, Db) ->
-    term_test_prove_body('<', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'@=<',L,R}, Next, Cps, Bs, Vn, Db) ->
-    term_test_prove_body('=<', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'=',L,R}, Next, Cps, Bs, Vn, Db) ->
-    unify_prove_body(L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'\\=',L,R}, Next, Cps, Bs0, Vn, Db) ->
-    case unify(L, R, Bs0) of
-	{succeed,_Bs1} -> ?FAIL(_Bs1, Cps, Db);
-	fail -> prove_body(Next, Cps, Bs0, Vn, Db)
-    end;
-%% Type testing.
-prove_goal({atom,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	T when is_atom(T) -> prove_body(Next, Cps, Bs, Vn, Db);
-	_Other -> ?FAIL(Bs, Cps, Db)
-    end;
-prove_goal({atomic,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	T when ?IS_CONSTANT(T) ; T == [] -> prove_body(Next, Cps, Bs, Vn, Db);
-	_Other -> ?FAIL(Bs, Cps, Db)
-    end;
-prove_goal({compound,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	T when ?IS_CONSTANT(T) ; T == [] -> ?FAIL(Bs, Cps, Db);
-	_Other -> prove_body(Next, Cps, Bs, Vn, Db)
-    end;
-prove_goal({integer,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	T when is_integer(T) -> prove_body(Next, Cps, Bs, Vn, Db);
-	_Other -> ?FAIL(Bs, Cps, Db)
-    end;
-prove_goal({float,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	T when is_float(T) -> prove_body(Next, Cps, Bs, Vn, Db);
-	_Other -> ?FAIL(Bs, Cps, Db)
-    end;
-prove_goal({number,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	T when is_number(T) -> prove_body(Next, Cps, Bs, Vn, Db);
-	_Other -> ?FAIL(Bs, Cps, Db)
-    end;
-prove_goal({nonvar,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	{_} -> ?FAIL(Bs, Cps, Db);
-	_Other -> prove_body(Next, Cps, Bs, Vn, Db)
-    end;
-prove_goal({var,T0}, Next, Cps, Bs, Vn, Db) ->
-    case deref(T0, Bs) of
-	{_} -> prove_body(Next, Cps, Bs, Vn, Db);
-	_Other -> ?FAIL(Bs, Cps, Db)
-    end;
-%% Arithmetic evalution and comparison.
-prove_goal({'>',L,R}, Next, Cps, Bs, Vn, Db) ->
-    arith_test_prove_body('>', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'>=',L,R}, Next, Cps, Bs, Vn, Db) ->
-    arith_test_prove_body('>=', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'=:=',L,R}, Next, Cps, Bs, Vn, Db) ->
-    arith_test_prove_body('==', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'=\\=',L,R}, Next, Cps, Bs, Vn, Db) ->
-    arith_test_prove_body('/=', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'<',L,R}, Next, Cps, Bs, Vn, Db) ->
-    arith_test_prove_body('<', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({'=<',L,R}, Next, Cps, Bs, Vn, Db) ->
-    arith_test_prove_body('=<', L, R, Next, Cps, Bs, Vn, Db);
-prove_goal({is,N,E0}, Next, Cps, Bs, Vn, Db) ->
-    E = eval_arith(deref(E0, Bs), Bs, Db),
-    unify_prove_body(N, E, Next, Cps, Bs, Vn, Db);
-%% Term creation and decomposition.
-prove_goal({copy_term,T0,C}, Next, Cps, Bs, Vn0, Db) ->
-    %% Use term_instance to create the copy, can ignore orddict it creates.
-    {T,_Nbs,Vn1} = term_instance(dderef(T0, Bs), Vn0),
-    unify_prove_body(T, C, Next, Cps, Bs, Vn1, Db);
-prove_goal({arg,I,Ct,A}, Next, Cps, Bs, Vn, Db) ->
-    prove_arg(deref(I, Bs), deref(Ct, Bs), A, Next, Cps, Bs, Vn, Db);
-prove_goal({functor,T,F,A}, Next, Cps, Bs, Vn, Db) ->
-    prove_functor(dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
-prove_goal({'=..',T,L}, Next, Cps, Bs, Vn, Db) ->
-    prove_univ(dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
-%% Atom processing.
-prove_goal({atom_chars,A,L}, Next, Cps, Bs, Vn, Db) ->
-    %% After a suggestion by Sean Cribbs.
-    case dderef(A, Bs) of
-        Atom when is_atom(Atom) ->
-            AtomList = [ list_to_atom([C]) || C <- atom_to_list(Atom) ],
-            unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
-        {_}=Var ->
-            %% Error #3: List is neither a list nor a partial list.
-            %% Handled in dderef_list/2.
-            List = dderef_list(L, Bs),
-            %% Error #1, #4: List is a list or partial list with an
-            %% element which is a variable or not one char atom.
-	    Fun = fun ({_}) -> instantiation_error(Db);
-		      (Atom) ->
-			  case is_atom(Atom) andalso atom_to_list(Atom) of
-			      [C] -> C;
-			      _ -> type_error(character, Atom)
-			  end
-		  end,
-	    Chars = lists:map(Fun, List),
-	    Atom = list_to_atom(Chars),
-	    unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
-	Other ->
-	    %% Error #2: Atom is neither a variable nor an atom
-	    type_error(atom, Other)
-    end;
-prove_goal({atom_length,A0,L0}, Next, Cps, Bs, Vn, Db) ->
-    case dderef(A0, Bs) of
-	A when is_atom(A) ->
-	    Alen = length(atom_to_list(A)),	%No of chars in atom
-	    case dderef(L0, Bs) of
-		L when is_integer(L) ->
-		    unify_prove_body (Alen, L, Next, Cps, Bs, Vn, Db);
-		{_}=Var ->
-		    unify_prove_body (Alen, Var, Next, Cps, Bs, Vn, Db);
-		Other -> type_error(integer, Other)
-	    end;
-	{_} -> instantiation_error(Db);
-	Other -> type_error(atom, Other)
-    end;
 %% Clause creation and destruction.
 prove_goal({abolish,Pi0}, Next, Cps, Bs, Vn, Db) ->
     case dderef(Pi0, Bs) of
@@ -512,24 +331,14 @@ prove_goal({ecall,C0,Val}, Next, Cps, Bs, Vn, Db) ->
 		   fun () -> M:F(A) end;
 	       {':',M,{F,A1,A2}} when is_atom(M), is_atom(F) ->
 		   fun () -> M:F(A1,A2) end;
-	       {':',M,T} when is_atom(M), is_tuple(T), size(T) >= 2,
-			      is_atom(element(1, T)) ->
-			  L = tuple_to_list(T),
+	       {':',M,T} when is_atom(M), ?IS_FUNCTOR(T) ->
+		   L = tuple_to_list(T),
 		   fun () -> apply(M, hd(L), tl(L)) end;
 	       Fun when is_function(Fun) -> Fun;
 	       Other -> type_error(callable, Other, Db)
 	   end,
     prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db);
 %% Non-standard but useful.
-prove_goal({sort,L0,S}, Next, Cps, Bs, Vn, Db) ->
-    case catch lists:usort(dderef_list(L0, Bs)) of
-	{erlog_error,E} -> erlog_error(E, Db);
-	L1 -> unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db)
-    end;
-prove_goal({expand_term,T0,Exp}, Next, Cps, Bs, Vn0, Db) ->
-    T1 = dderef(T0, Bs),
-    {E,Vn1} = expand_term(T1, Vn0),
-    unify_prove_body(E, Exp, Next, Cps, Bs, Vn1, Db);
 prove_goal({display,T}, Next, Cps, Bs, Vn, Db) ->
     %% A very simple display procedure.
     io:fwrite("~p\n", [dderef(T, Bs)]),
@@ -538,6 +347,7 @@ prove_goal({display,T}, Next, Cps, Bs, Vn, Db) ->
 prove_goal(G, Next, Cps, Bs, Vn, Db) ->
     %%io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
     case catch get_procedure(functor(G), Db) of
+	built_in -> erlog_bips:prove_goal(G, Next, Cps, Bs, Vn, Db);
 	{code,{Mod,Func}} -> Mod:Func(G, Next, Cps, Bs, Vn, Db);
 	{clauses,Cs} -> prove_goal_clauses(G, Cs, Next, Cps, Bs, Vn, Db);
 	undefined -> ?FAIL(Bs, Cps, Db);
@@ -554,9 +364,9 @@ fail_if_then_else(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
 %% fail(ChoicePoints, Database) -> {fail,Database}.
 %% cut(Label, Last, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%
-%% The functions which manipulate the choice point stack.
-%% fail backtracks to next choicepoint skipping cut labels
-%% cut steps backwards over choice points until matching cut.
+%%  The functions which manipulate the choice point stack.  fail
+%%  backtracks to next choicepoint skipping cut labels cut steps
+%%  backwards over choice points until matching cut.
 
 fail([#cp{type=goal_clauses}=Cp|Cps], Db) ->
     fail_goal_clauses(Cp, Cps, Db);
@@ -643,103 +453,6 @@ unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db) ->
 	{succeed,Bs1} -> unify_prove_body(A2, B2, Next, Cps, Bs1, Vn, Db);
 	fail -> ?FAIL(Bs0, Cps, Db)
     end.
-
-%% term_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, Varnum, Database) ->
-%%      void.
-
-term_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
-    case erlang:Test(dderef(L, Bs), dderef(R, Bs)) of
-	true -> prove_body(Next, Cps, Bs, Vn, Db);
-	false -> ?FAIL(Bs, Cps, Db)
-    end.
-
-%% arith_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-
-arith_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
-    case erlang:Test(eval_arith(deref(L, Bs), Bs, Db),
-		     eval_arith(deref(R, Bs), Bs, Db)) of
-	true -> prove_body(Next, Cps, Bs, Vn, Db);
-	false -> ?FAIL(Bs, Cps, Db)
-    end.
-
-%% prove_arg(Index, Term, Arg, Next, ChoicePoints, VarNum, Database) -> void.
-%%  Prove the goal arg(I, Ct, Arg), Index and Term have been dereferenced.
-
-prove_arg(I, [H|T], A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
-    %% He, he, he!
-    if  I == 1 -> unify_prove_body(H, A, Next, Cps, Bs, Vn, Db);
-	I == 2 -> unify_prove_body(T, A, Next, Cps, Bs, Vn, Db);
-	true -> {fail,Db}
-    end;
-prove_arg(I, Ct, A, Next, Cps, Bs, Vn, Db)
-  when is_integer(I), is_tuple(Ct), size(Ct) >= 2 ->
-    if  I > 1, I + 1 =< size(Ct) ->
-	    unify_prove_body(element(I+1, Ct), A, Next, Cps, Bs, Vn, Db);
-	true -> {fail,Db}
-    end;
-prove_arg(I, Ct, _, _, _, _, _, Db) ->
-    %%Type failure just generates an error.
-    if  not(is_integer(I)) -> type_error(integer, I, Db);
-	true -> type_error(compound, Ct, Db)
-    end.
-
-%% prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
-%%  Prove the call functor(T, F, A), Term has been dereferenced.
-
-prove_functor(T, F, A, Next, Cps, Bs, Vn, Db)
-  when is_tuple(T), size(T) >= 2 ->
-    unify_prove_body(F, element(1, T), A, size(T)-1, Next, Cps, Bs, Vn, Db);
-prove_functor(T, F, A, Next, Cps, Bs, Vn, Db)
-  when ?IS_CONSTANT(T) ; T == [] ->
-    unify_prove_body(F, T, A, 0, Next, Cps, Bs, Vn, Db);
-prove_functor([_|_], F, A, Next, Cps, Bs, Vn, Db) ->
-    %% Just the top level here.
-    unify_prove_body(F, '.', A, 2, Next, Cps, Bs, Vn, Db);
-prove_functor({_}=Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
-    case {dderef(F0, Bs0),dderef(A0, Bs0)} of
-	{'.',2} ->				%He, he, he!
-	    Bs1 = add_binding(Var, [{Vn0}|{Vn0+1}], Bs0),
-	    prove_body(Next, Cps, Bs1, Vn0+2, Db);
-	{F1,0} when ?IS_CONSTANT(F1) ->
-	    Bs1 = add_binding(Var, F1, Bs0),
-	    prove_body(Next, Cps, Bs1, Vn0, Db);
-	{F1,A1} when is_atom(F1), is_integer(A1), A1 > 0 ->
-	    As = make_vars(A1, Vn0),
-	    Bs1 = add_binding(Var, list_to_tuple([F1|As]), Bs0),
-	    prove_body(Next, Cps, Bs1, Vn0+A1, Db); %!!!
-	%% Now the error cases.
-	{{_},_} -> instantiation_error(Db);
-	{F1,A1} when is_atom(F1) -> type_error(integer, A1, Db);
-	{F1,_} -> type_error(atom, F1, Db)
-    end.
-
-%% prove_univ(Term, List, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
-%%  Prove the goal Term =.. List, Term has already been dereferenced.
-
-prove_univ(T, L, Next, Cps, Bs, Vn, Db) when is_tuple(T), size(T) >= 2 ->
-    Es = tuple_to_list(T),
-    unify_prove_body(Es, L, Next, Cps, Bs, Vn, Db);
-prove_univ(T, L, Next, Cps, Bs, Vn, Db) when ?IS_CONSTANT(T) ; T == [] ->
-    unify_prove_body([T], L, Next, Cps, Bs, Vn, Db);
-prove_univ([Lh|Lt], L, Next, Cps, Bs, Vn, Db) ->
-    %% He, he, he!
-    unify_prove_body(['.',Lh,Lt], L, Next, Cps, Bs, Vn, Db);
-prove_univ({_}=Var, L, Next, Cps, Bs0, Vn, Db) ->
-    case dderef(L, Bs0) of
-	['.',Lh,Lt] ->				%He, he, he!
-	    Bs1 = add_binding(Var, [Lh|Lt], Bs0),
-	    prove_body(Next, Cps, Bs1, Vn, Db);
-	[A] when ?IS_CONSTANT(A) ->
-	    Bs1 = add_binding(Var, A, Bs0),
-	    prove_body(Next, Cps, Bs1, Vn, Db);
-	[F|As] when is_atom(F), length(As) > 0 ->
-	    Bs1 = add_binding(Var, list_to_tuple([F|As]), Bs0),
-	    prove_body(Next, Cps, Bs1, Vn, Db);
-	%% Now the error cases.
-	[{_}|_] -> instantiation_error(Db);
-	Other -> type_error(list, Other, Db)
-end.
 
 %% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
@@ -943,9 +656,9 @@ unify(T10, T20, Bs0) ->
 		fail -> fail
 	    end;
 	{[],[]} -> {succeed,Bs0};
-	{T1,T2} when is_tuple(T1), is_tuple(T2), size(T1) == size(T2),
+	{T1,T2} when tuple_size(T1) == tuple_size(T2),
 		     element(1, T1) == element(1, T2) ->
-	    unify_args(T1, T2, Bs0, 2, size(T1));
+	    unify_args(T1, T2, Bs0, 2, tuple_size(T1));
 	_Other -> fail
     end.
 
@@ -956,63 +669,6 @@ unify_args(S1, S2, Bs0, I, S) ->
 	fail -> fail
     end.
 
-%% eval_arith(ArithExpr, Bindings, Database) -> Number.
-%% Evaluate an arithmetic expression, include the database for errors.
-%% Dereference each level as we go, might fail so save some work.
-%% Must be called deferenced.
-
-eval_arith({'+',A,B}, Bs, Db) ->
-    eval_arith(deref(A, Bs), Bs, Db) + eval_arith(deref(B, Bs), Bs, Db);
-eval_arith({'-',A,B}, Bs, Db) ->
-    eval_arith(deref(A, Bs), Bs, Db) - eval_arith(deref(B, Bs), Bs, Db);
-eval_arith({'*',A,B}, Bs, Db) ->
-    eval_arith(deref(A, Bs), Bs, Db) * eval_arith(deref(B, Bs), Bs, Db);
-eval_arith({'/',A,B}, Bs, Db) ->
-    eval_arith(deref(A, Bs), Bs, Db) / eval_arith(deref(B, Bs), Bs, Db);
-eval_arith({'**',A,B}, Bs, Db) ->
-    math:pow(eval_arith(deref(A, Bs), Bs, Db),
-	     eval_arith(deref(B, Bs), Bs, Db));
-eval_arith({'//',A,B}, Bs, Db) ->
-    eval_int(deref(A, Bs), Bs, Db) div eval_int(deref(B, Bs), Bs, Db);
-eval_arith({'mod',A,B}, Bs, Db) ->
-    eval_int(deref(A, Bs), Bs, Db) rem eval_int(deref(B, Bs), Bs, Db);
-eval_arith({'/\\',A,B}, Bs, Db) ->
-    eval_int(deref(A, Bs), Bs, Db) band eval_int(deref(B, Bs), Bs, Db);
-eval_arith({'\\/',A,B}, Bs, Db) ->
-    eval_int(deref(A, Bs), Bs, Db) bor eval_int(deref(B, Bs), Bs, Db);
-eval_arith({'<<',A,B}, Bs, Db) ->
-    eval_int(deref(A, Bs), Bs, Db) bsl eval_int(deref(B, Bs), Bs, Db);
-eval_arith({'>>',A,B}, Bs, Db) ->
-    eval_int(deref(A, Bs), Bs, Db) bsr eval_int(deref(B, Bs), Bs, Db);
-eval_arith({'\\',A}, Bs, Db) ->
-    bnot eval_int(deref(A, Bs), Bs, Db);
-eval_arith({'+',A}, Bs, Db) ->
-    + eval_arith(deref(A, Bs), Bs, Db);
-eval_arith({'-',A}, Bs, Db) ->
-    - eval_arith(deref(A, Bs), Bs, Db);
-eval_arith({'abs',A}, Bs, Db) ->
-    abs(eval_arith(deref(A, Bs), Bs, Db));
-eval_arith({'float',A}, Bs, Db) ->
-    float(eval_arith(deref(A, Bs), Bs, Db));
-eval_arith({'truncate',A}, Bs, Db) ->
-    trunc(eval_arith(deref(A, Bs), Bs, Db));
-eval_arith(N, _Bs, _Db) when is_number(N) -> N;	%Just a number
-%% Error cases.
-eval_arith({_}, _Bs, Db) -> instantiation_error(Db);
-eval_arith(N, _Bs, Db) when is_tuple(N) ->
-    type_error(evaluable, pred_ind(element(1, N), size(N)-1), Db);
-eval_arith([_|_], _Bs, Db) -> type_error(evaluable, pred_ind('.', 2), Db);
-eval_arith(O, _Bs, Db) -> type_error(evaluable, O, Db).
-
-%% eval_int(IntegerExpr, Bindings, Database) -> Integer.
-%% Evaluate an integer expression, include the database for errors.
-
-eval_int(E0, Bs, Db) ->
-    E = eval_arith(E0, Bs, Db),
-    if  is_integer(E) -> E;
-	true -> type_error(integer, E, Db)
-    end.
-
 %% make_vars(Count, VarNum) -> [Var].
 %% Make a list of new variables starting at VarNum.
 
@@ -1021,6 +677,14 @@ make_vars(I, Vn) ->
     [{Vn}|make_vars(I-1, Vn+1)].
 
 %% Errors
+%% To keep dialyzer quiet.
+-spec type_error(_, _) -> no_return().
+-spec type_error(_, _, _) -> no_return().
+-spec instantiation_error() -> no_return().
+-spec instantiation_error(_) -> no_return().
+-spec permission_error(_, _, _, _) -> no_return().
+-spec erlog_error(_) -> no_return().
+-spec erlog_error(_, _) -> no_return().
 
 type_error(Type, Value, Db) -> erlog_error({type_error,Type,Value}, Db).
 type_error(Type, Value) -> erlog_error({type_error,Type,Value}).
@@ -1048,19 +712,17 @@ erlog_error(E) -> throw({erlog_error,E}).
 
 new_db() -> ?DB:new().
 
-%% add_built_in(Head, Database) -> NewDatabase.
-%% Add Head as a built-in in the database.
+%% add_built_in(Functor, Database) -> NewDatabase.
+%% Add Functor as a built-in in the database.
 
-add_built_in(H, Db) ->
-    Functor = functor(H),
+add_built_in(Functor, Db) ->
     ?DB:store(Functor, built_in, Db).
 
-%% add_compiled_proc(Head, Module, Function, Database) -> NewDatabase.
-%% Add Head as a compiled procedure with code in Module:Function. No
+%% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
+%% Add Functor as a compiled procedure with code in Module:Function. No
 %% checking.
 
-add_compiled_proc(H, M, F, Db) ->
-    Functor = functor(H),
+add_compiled_proc(Functor, M, F, Db) ->
     ?DB:update(Functor,
 	       fun (built_in) ->
 		       permission_error(modify, static_procedure, pred_ind(Functor), Db);
@@ -1165,7 +827,7 @@ get_procedure_type(Func, Db) ->
 
 get_interp_functors(Db) ->
     ?DB:fold(fun (_Func, built_in, Fs) -> Fs;
-		 (_Func, {code,_}, Fs) -> Fs;
+		 (Func, {code,_}, Fs) -> [Func|Fs];
 		 (Func, {clauses,_,_}, Fs) -> [Func|Fs]
 	     end, [], Db).
 -endif.
@@ -1183,20 +845,18 @@ get_interp_functors(Db) ->
 
 new_db() -> ets:new(erlog_database, [set,protected,{keypos,1}]).
 
-%% add_built_in(Head, Database) -> NewDatabase.
-%% Add Head as a built-in in the database.
+%% add_built_in(Functor, Database) -> NewDatabase.
+%% Add Functor as a built-in in the database.
 
-add_built_in(H, Db) ->
-    Functor = functor(H),
+add_built_in(Functor, Db) ->
     ets:insert(Db, {Functor,built_in}),
     Db.
 
-%% add_compiled_proc(Head, Module, Function, Database) -> NewDatabase.
-%% Add Head as a compiled procedure with code in Module:Function. No
+%% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
+%% Add Functor as a compiled procedure with code in Module:Function. No
 %% checking.
 
-add_compiled_proc(H, M, F, Db) ->
-    Functor = functor(H),
+add_compiled_proc(Functor, M, F, Db) ->
     case ets:lookup(Db, Functor) of
 	[{_,built_in}] ->
 	    permission_error(modify, static_procedure, pred_ind(Functor), Db);
@@ -1307,22 +967,22 @@ get_procedure_type(Func, Db) ->
 
 get_interp_functors(Db) ->
     ets:foldl(fun ({_,built_in}, Fs) -> Fs;
-		  ({_,code,_}, Fs) -> Fs;
+		  ({Func,code,_}, Fs) -> [Func|Fs];
 		  ({Func,clauses,_,_}, Fs) -> [Func|Fs]
 	      end, [], Db).
 -endif.
 
 %% functor(Goal) -> {Name,Arity}.
 
-functor(T) when is_tuple(T), size(T) > 1, is_atom(element(1, T)) ->
-    {element(1, T),size(T)-1};
+functor(T) when ?IS_FUNCTOR(T) ->
+    {element(1, T),tuple_size(T)-1};
 functor(T) when is_atom(T) -> {T,0};
 functor(T) -> type_error(callable, T).
 
 %% well_form_body(Body, HasCutAfter, CutLabel) -> {Body,HasCut}.
 %% well_form_body(Body, Tail, HasCutAfter, CutLabel) -> {Body,HasCut}.
-%% Check that Body is well-formed, flatten conjunctions, fix cuts and
-%% add explicit call to top-level variables.
+%%  Check that Body is well-formed, flatten conjunctions, fix cuts and
+%%  add explicit call to top-level variables.
 
 well_form_body(Body, Cut, Label) -> well_form_body(Body, [], Cut, Label).
 
@@ -1359,8 +1019,8 @@ well_form_body(Goal, Tail, Cut, _Label) ->
     {[Goal|Tail],Cut}.
 
 %% well_form_goal(Goal, Tail, HasCutAfter, CutLabel) -> {Body,HasCut}.
-%% Check that Goal is well-formed, flatten conjunctions, fix cuts and
-%% add explicit call to top-level variables. 
+%%  Check that Goal is well-formed, flatten conjunctions, fix cuts and
+%%  add explicit call to top-level variables.
 
 well_form_goal({',',L,R}, Tail0, Cut0, Label) ->
     {Tail1,Cut1} = well_form_goal(R, Tail0, Cut0, Label),
@@ -1431,9 +1091,9 @@ term_instance(A, Rs, Vn) -> {A,Rs,Vn}.		%Constant
 
 %% unify_head(Goal, Head, Bindings, VarNum) ->
 %%      {succeed,Repls,NewBindings,NewVarNum} | fail
-%% Unify a goal with a head without creating an instance of the
-%% head. This saves us creating many variables which are local to the
-%% clause and saves many variable bindings.
+%%  Unify a goal with a head without creating an instance of the
+%%  head. This saves us creating many variables which are local to the
+%%  clause and saves many variable bindings.
 
 unify_head(Goal, Head, Bs, Vn) ->
     unify_head(deref(Goal, Bs), Head, orddict:new(), Bs, Vn).
@@ -1462,9 +1122,9 @@ unify_head([GH|GT], [HH|HT], Rs0, Bs0, Vn0) ->
 	fail -> fail
     end;
 unify_head([], [], Rs, Bs, Vn) -> {succeed,Rs,Bs,Vn};
-unify_head(G, H, Rs, Bs, Vn) when is_tuple(G), is_tuple(H), size(G) == size(H),
+unify_head(G, H, Rs, Bs, Vn) when tuple_size(G) == tuple_size(H),
 				  element(1, G) == element(1, H) ->
-    unify_head_args(G, H, Rs, Bs, Vn, 2, size(G));
+    unify_head_args(G, H, Rs, Bs, Vn, 2, tuple_size(G));
 unify_head(_G, _H, _Rs, _Bs, _Vn) -> fail.
 
 unify_head_args(_G, _H, Rs, Bs, Vn, I, S) when I > S ->
@@ -1557,7 +1217,7 @@ body_conj(L, R) -> {',',L,R}.
 
 pred_ind({N,A}) -> {'/',N,A}.
 
-pred_ind(N, A) -> {'/',N,A}.
+%% pred_ind(N, A) -> {'/',N,A}.
 
 %% Bindings
 %% Bindings are kept in a dict where the key is the variable name.
@@ -1581,6 +1241,18 @@ deref({V}=T0, Bs) ->
 	error -> T0
     end;
 deref(T, _) -> T.				%Not a variable, return it.
+
+%% deref_list(List, Bindings) -> List.
+%%  Dereference the top-level checking that it is a list.
+
+deref_list([], _) -> [];			%It already is a list
+deref_list([_|_]=L, _) -> L;
+deref_list({V}, Bs) ->
+    case ?BIND:find(V, Bs) of
+	{ok,L} -> deref_list(L, Bs);
+	error -> instantiation_error()
+    end;
+deref_list(Other, _) -> type_error(list, Other).
 
 %% dderef(Term, Bindings) -> Term.
 %% Do a deep dereference. Completely dereference all the variables
@@ -1635,67 +1307,9 @@ initial_goal([H0|T0], Bs0, Vn0) ->
     {T1,Bs2,Vn2} = initial_goal(T0, Bs1, Vn1),
     {[H1|T1],Bs2,Vn2};
 initial_goal([], Bs, Vn) -> {[],Bs,Vn};
-initial_goal(S, Bs0, Vn0)
-  when is_tuple(S), size(S) >= 2, is_atom(element(1, S)) ->
+initial_goal(S, Bs0, Vn0) when ?IS_FUNCTOR(S) ->
     As0 = tl(tuple_to_list(S)),
     {As1,Bs1,Vn1} = initial_goal(As0, Bs0, Vn0),
     {list_to_tuple([element(1, S)|As1]),Bs1,Vn1};
-initial_goal(T, Bs, Vn) when ?IS_CONSTANT(T) -> {T,Bs,Vn};
+initial_goal(T, Bs, Vn) when ?IS_ATOMIC(T) -> {T,Bs,Vn};
 initial_goal(T, _Bs, _Vn) -> type_error(callable, T).
-
-%% expand_term(Term) -> {ExpTerm}.
-%% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
-%% expand_head(Head, Var1, Var2) -> ExpHead.
-%% expand_body(Body, Var1, VarNum) -> {ExpBody,Var2,NewVarNum}.
-%% Handle DCG expansion. We do NOT work backwards.
-
-expand_term(Term) ->
-    {Exp,_} = expand_term(Term, 0),
-    Exp.
-
-expand_term({'-->',H0,B0}, Vn0) ->
-    V1 = {Vn0},					%Top-level chaining variable
-    {B1,V2,Vn1} = expand_body(B0, V1, Vn0+1),
-    H1 = expand_head(H0, V1, V2),
-    {{':-',H1,B1},Vn1+1};
-expand_term(T, Vn) -> {T,Vn}.			%Do nothing
-
-expand_head(A, V1, V2) when is_atom(A) -> {A,V1,V2};
-expand_head(T, V1, V2) when is_tuple(T), size(T) >= 2, is_atom(element(1, T)) ->
-    list_to_tuple(tuple_to_list(T) ++ [V1,V2]);
-expand_head(Other, _V1, _V2) -> type_error(callable, Other).
-
-expand_body('!', V1, Vn) -> {'!',V1,Vn};	%No chaining
-expand_body({_}=V, V1, Vn) -> V2 = {Vn}, {{phrase,V,V1,V2},V2,Vn+1};
-expand_body({'{}',T}, V1, Vn) -> {T,V1,Vn};	%No chaining
-expand_body({'\\+',G0}, V1, Vn0) ->		%No chaining
-    {G1,_V2,Vn1} = expand_body(G0, V1, Vn0),
-    {{'\\+',G1},V1,Vn1};
-expand_body({',',L0,R0}, V1, Vn0) ->
-    {L1,V2,Vn1} = expand_body(L0, V1, Vn0),
-    {R1,V3,Vn2} = expand_body(R0, V2, Vn1),
-    {{',',L1,R1},V3,Vn2};
-expand_body({'->',L0,R0}, V1, Vn0) ->
-    {L1,V2,Vn1} = expand_body(L0, V1, Vn0),
-    {R1,V3,Vn2} = expand_body(R0, V2, Vn1),
-    {{'->',L1,R1},V3,Vn2};
-expand_body({';',L0,R0}, V1, Vn0) ->
-    {L1,V2,Vn1} = expand_body(L0, V1, Vn0),
-    {R1,V3,Vn2} = expand_body(R0, V1, Vn1),
-    {{';',L1,{',',R1,{'=',V3,V2}}},V2,Vn2};
-expand_body([], V1, Vn) ->			%Chain but do nothing
-    V2 = {Vn},
-    {{'=',V1,V2},V2,Vn+1};
-expand_body(Lits, V1, Vn) when is_list(Lits) ->
-    expand_lits(Lits, V1, Vn);
-expand_body(Goal, V1, Vn) ->
-    V2 = {Vn},
-    {expand_head(Goal, V1, V2),V2,Vn+1}.
-
-expand_lits([Lit], V1, Vn) ->
-    V2 = {Vn},
-    {{'C',V1,Lit,V2},V2,Vn+1};
-expand_lits([Lit|Lits0], V1, Vn0) ->
-    V2 = {Vn0},
-    {Lits1,V3,Vn1} = expand_lits(Lits0, V2, Vn0+1),
-    {{',',{'C',V1,Lit,V2},Lits1},V3,Vn1}.
