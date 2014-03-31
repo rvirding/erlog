@@ -1,45 +1,109 @@
-# Makefile for Erlog
-# This simple Makefile uses rebar to compile/clean if it
-# exists, else does it explicitly.
+# Copyright 2012 Erlware, LLC. All Rights Reserved.
+#
+# This file is provided to you under the Apache License,
+# Version 2.0 (the "License"); you may not use this file
+# except in compliance with the License.  You may obtain
+# a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
 
-EBINDIR = ebin
-SRCDIR = src
-INCDIR = include
-DOC_DIR = doc
+ERLFLAGS= -pa $(CURDIR)/.eunit -pa $(CURDIR)/ebin -pa $(CURDIR)/deps/*/ebin
 
-ERLCFLAGS = -W1
-ERLC = erlc
+DEPS_PLT=$(CURDIR)/.deps_plt
+DEPS=erts kernel stdlib
 
-## The .erl, .xrl and .beam files
-ESRCS = $(notdir $(wildcard $(SRCDIR)/*.erl))
-XSRCS = $(notdir $(wildcard $(SRCDIR)/*.xrl))
-EBINS = $(ESRCS:.erl=.beam) $(XSRCS:.xrl=.beam)
+# =============================================================================
+# Verify that the programs we need to run are installed on this system
+# =============================================================================
+ERL = $(shell which erl)
 
-.SUFFIXES: .erl .beam
+ifeq ($(ERL),)
+$(error "Erlang not available on this system")
+endif
 
-$(EBINDIR)/%.beam: $(SRCDIR)/%.erl
-	$(ERLC) -I $(INCDIR) -o $(EBINDIR) $(ERLCFLAGS) $<
+REBAR=$(shell which rebar)
 
-%.erl: %.xrl
-	$(ERLC) -o $(SRCDIR) $<
+ifeq ($(REBAR),)
+$(error "Rebar not available on this system")
+endif
 
-all: compile docs
+.PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
+  update-deps clean-common-test-data rebuild
 
-.PHONY: compile erlc_compile docs clean
+all: deps compile dialyzer test frontend
 
-## Compile using rebar if it exists else using make
+# =============================================================================
+# Rules to build the system
+# =============================================================================
+
+frontend:
+	`rm -rf deps/xray_web_frontend/.git`
+	`cp -r deps/xray_web_frontend .`
+
+deps:
+	$(REBAR) get-deps
+	$(REBAR) compile
+
+update-deps:
+	$(REBAR) update-deps
+	$(REBAR) compile
+
 compile:
-	if which rebar > /dev/null; \
-	then rebar compile; \
-	else $(MAKE) $(MFLAGS) erlc_compile; \
-	fi
+	$(REBAR) skip_deps=true compile
 
-## Compile using erlc
-erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))
+doc:
+	$(REBAR) skip_deps=true doc
 
-docs:
+eunit: compile clean-common-test-data
+	$(REBAR) skip_deps=true eunit 
+ct: compile 
+	$(REBAR) skip_deps=true ct
+
+test: compile eunit dialyzer
+
+start: compile 
+	erl -name erlog  -pa ebin  -pa deps/*/ebin -s reloader 
+
+$(DEPS_PLT):
+	@echo Building local plt at $(DEPS_PLT)
+	@echo
+	dialyzer --output_plt $(DEPS_PLT) --build_plt \
+	   --apps $(DEPS) 
+
+dialyzer: $(DEPS_PLT)
+	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions  -r ./ebin
+
+typer:
+	typer --plt $(DEPS_PLT) -r ./src
+
+shell: deps compile
+# You often want *rebuilt* rebar tests to be available to the
+# shell you have to call eunit (to get the tests
+# rebuilt). However, eunit runs the tests, which probably
+# fails (thats probably why You want them in the shell). This
+# runs eunit but tells make to ignore the result.
+	- @$(REBAR) skip_deps=true eunit
+	@$(ERL) $(ERLFLAGS)
+
+pdf:
+	pandoc README.md -o README.pdf
 
 clean:
-	rm -rf erl_crash.dump 
-	rm -rf $(EBINDIR)/*.beam
-	rm -rf $(DOC_DIR)/*.html
+	- rm -rf $(CURDIR)/test/*.beam
+	- rm -rf $(CURDIR)/logs
+	- rm -rf $(CURDIR)/ebin
+	$(REBAR) skip_deps=true clean
+
+distclean: clean
+	- rm -rf $(DEPS_PLT)
+	- rm -rvf $(CURDIR)/deps
+
+rebuild: distclean deps compile escript dialyzer test
