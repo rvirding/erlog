@@ -127,6 +127,10 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 %% halt(Erlog) -> ok.
 %%  Interface functions to server.
 
+prove(Erl, Goal) when is_list(Goal) ->
+    {ok, TS, _ } = erlog_scan:string(Goal ++ " "),
+    {ok, G}      = erlog_parse:term(TS),
+    prove(Erl, G);
 prove(Erl, Goal) -> gen_server:call(Erl, {prove,Goal}, infinity).
 
 next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
