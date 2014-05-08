@@ -26,8 +26,13 @@ erlog:new() -> Erlog()
 	Goal can also be a list of goals here to simplify writing
 	conjunctions.
 
-	Erlog({consult,FileName} -> {ok,Erlog()} | {Error,Erlog()}.
-	Erlog({reconsult,FileName} -> {ok,Erlog()} | {Error,Erlog()}.
+	Erlog({consult,FileName}) -> {ok,Erlog()} | {Error,Erlog()}.
+	Erlog({reconsult,FileName}) -> {ok,Erlog()} | {Error,Erlog()}.
+
+	Erlog({load,Mod}) -> {ok,Erlog()}.
+
+	Load a compiled Erlang module and call its load/1 function to
+	add procedures/clauses to the database.
 
 	Erlog(get_db) -> {{ok,Database},Erlog()}.
 	Erlog({set_db,Database}) -> {ok,Erlog()}.
@@ -45,6 +50,7 @@ erlog:prove(Eint, Goal) -> {succeed,VarBindings} | fail | Error.
 erlog:next_solution(Eint) -> {succeed,VarBindings} | fail | Error.
 erlog:consult(Eint, FileName) -> ok | Error.
 erlog:reconsult(Eint, FileName) -> ok | Error.
+erlog:load(Eint, Module) -> ok.
 erlog:get_db(Eint) -> {ok,Database}.
 erlog:set_db(Eint, Database) -> ok.
 erlog:halt(Eint) -> ok.
