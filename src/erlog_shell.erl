@@ -58,6 +58,13 @@ server_loop(P0) ->
 		    io:fwrite("Error: ~p\n", [Error]),
 		    server_loop(P0)
 	    end;
+	{ok,{load,Mod}} ->
+	    case P0({load,Mod}) of
+		{ok,P1} -> show_bindings([], P1);
+		{{error,Error},P1} ->
+		    io:fwrite("Error: ~p\n", [Error]),
+		    server_loop(P1)
+	    end;
 	{ok,Goal} ->
 	    shell_prove_result(P0({prove,Goal}));
 	{error,{_,Em,E}} ->

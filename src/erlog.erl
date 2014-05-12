@@ -1,4 +1,4 @@
-%% Copyright (c) 2008-2013 Robert Virding
+%% Copyright (c) 2008-2014 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -35,7 +35,8 @@
 %% Interface to server.
 -export([start/0,start_link/0]).
 -export([prove/2,next_solution/1,
-	 consult/2,reconsult/2,get_db/1,set_db/2,halt/1]).
+	 consult/2,reconsult/2,load/2,
+	 get_db/1,set_db/2,halt/1]).
 -export([init/1,handle_call/3,handle_cast/2,handle_info/2,terminate/2,
 	 code_change/3]).
 %% User utilities.
@@ -80,6 +81,14 @@ top_cmd({reconsult,File}, Db0) ->
 	{erlog_error,Error} ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end};
 	{error,Error} ->
+	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end}
+    end;
+top_cmd({load,Mod}, Db0) ->
+    try
+	Db1 = Mod:load(Db0),			%Load the module
+	{ok,fun (Cmd) -> top_cmd(Cmd, Db1) end}
+    catch
+	_:Error ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end}
     end;
 top_cmd(get_db, Db) ->
@@ -138,6 +147,8 @@ next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
 consult(Erl, File) -> gen_server:call(Erl, {consult,File}, infinity).
 
 reconsult(Erl, File) -> gen_server:call(Erl, {reconsult,File}, infinity).
+
+load(Erl, Mod) -> gen_server:call(Erl, {load,Mod}, infinity).
 
 get_db(Erl) -> gen_server:call(Erl, get_db, infinity).
 

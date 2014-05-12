@@ -142,6 +142,8 @@ write1({V}, _, _) -> atom_to_list(V);		%Variable
 write1([H|T], _, Ops) ->
     [$[,write1(H, 999, Ops),write1_tail(T, Ops),$]];
 write1([], _, _) -> "[]";
+write1({'{}',A}, _, #ops{op=true}=Ops) ->
+    [${,write1(A, 1200, Ops),$}];
 write1({F,A}, Prec, #ops{op=true}=Ops) ->
     case erlog_parse:prefix_op(F) of
 	{yes,OpP,ArgP} ->
