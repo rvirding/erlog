@@ -70,7 +70,7 @@ ct: compile
 test: compile eunit dialyzer
 
 start: compile 
-	erl -name erlog  -pa ebin  -pa deps/*/ebin -s reloader 
+	erl -name erlog  -pa ebin  -pa deps/*/ebin   #-s reloader 
 
 $(DEPS_PLT):
 	@echo Building local plt at $(DEPS_PLT)
