@@ -3,6 +3,10 @@ language: erlang
 notifications:
   disabled: true
 
+install:
+  - wget http://www.quviq.com/downloads/eqcmini.zip
+  - unzip eqcmini.zip
+  - export ERL_LIBS=.
 script: 
   - make deps_eunit 
   - make eunit

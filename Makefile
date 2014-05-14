@@ -60,7 +60,7 @@ endif
 .PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
   update-deps clean-common-test-data rebuild
 
-all: deps compile dialyzer test frontend
+all: deps compile test
 
 # =============================================================================
 # Rules to build the system
@@ -106,7 +106,7 @@ doc:
 ct: compile 
 	$(REBAR) -C rebar_test.config  skip_deps=true ct
 
-test: compile eunit dialyzer
+test: compile eunit #dialyzer
 
 start: compile 
 	erl -name erlog  -pa ebin  -pa deps/*/ebin   #-s reloader 
