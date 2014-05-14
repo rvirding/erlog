@@ -66,7 +66,11 @@ server_loop(P0) ->
     end.
 
 reconsult_files([F|Fs], Db0) ->
-    case erlog_file:reconsult(F, Db0) of
+    F1 = case filename:extension(F) of
+             [] -> [F, ".pl"];
+             _ -> F
+         end,
+    case erlog_file:reconsult(F1, Db0) of
 	{ok,Db1} -> reconsult_files(Fs, Db1);
 	{erlog_error,Error} -> {erlog_error,Error};
 	{error,Error} -> {error,Error}
