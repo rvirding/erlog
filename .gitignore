@@ -5,3 +5,5 @@
 .eunit/*
 doc/*
 src/erlog_scan.erl
+deps/*
+.rebar/*

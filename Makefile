@@ -16,6 +16,28 @@
 #
 
 ERLFLAGS= -pa $(CURDIR)/.eunit -pa $(CURDIR)/ebin -pa $(CURDIR)/deps/*/ebin
+EBINDIR = ebin
+SRCDIR = src
+INCDIR = include
+DOC_DIR = doc
+
+ERLCFLAGS = -W1
+ERLC = erlc
+
+## The .erl, .xrl and .beam files
+ESRCS = $(notdir $(wildcard $(SRCDIR)/*.erl))
+XSRCS = $(notdir $(wildcard $(SRCDIR)/*.xrl))
+EBINS = $(ESRCS:.erl=.beam) $(XSRCS:.xrl=.beam)
+
+.SUFFIXES: .erl .beam
+
+$(EBINDIR)/%.beam: $(SRCDIR)/%.erl
+	$(ERLC) -I $(INCDIR) -o $(EBINDIR) $(ERLCFLAGS) $<
+
+%.erl: %.xrl
+	$(ERLC) -o $(SRCDIR) $<
+
+
 
 DEPS_PLT=$(CURDIR)/.deps_plt
 DEPS=erts kernel stdlib
@@ -48,6 +70,10 @@ frontend:
 	`rm -rf deps/xray_web_frontend/.git`
 	`cp -r deps/xray_web_frontend .`
 
+deps_eunit: 
+	$(REBAR) -C rebar_test.config get-deps
+	$(REBAR) -C rebar_test.config compile
+
 deps:
 	$(REBAR) get-deps
 	$(REBAR) compile
@@ -56,16 +82,29 @@ update-deps:
 	$(REBAR) update-deps
 	$(REBAR) compile
 
+eunit:
+	$(REBAR) -C rebar_test.config get-deps
+	$(REBAR) -C rebar_test.config compile
+	$(REBAR) -C rebar_test.config eunit skip_deps=true
+
+
+
+
 compile:
-	$(REBAR) skip_deps=true compile
+	if which rebar > /dev/null; \
+	then $(REBAR) compile; \
+	else $(MAKE) $(MFLAGS) erlc_compile; \
+	fi
+
+## Compile using erlc
+erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))
 
 doc:
 	$(REBAR) skip_deps=true doc
 
-eunit: compile clean-common-test-data
-	$(REBAR) skip_deps=true eunit 
+
 ct: compile 
-	$(REBAR) skip_deps=true ct
+	$(REBAR) -C rebar_test.config  skip_deps=true ct
 
 test: compile eunit dialyzer
 
