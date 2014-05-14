@@ -35,15 +35,29 @@ option() ->
 value() ->
     {model, oneof(keys()), int()}.
 
-prop_assert_retract() ->
+prop_assert() ->
     ?FORALL({Op, Value},
             {option(), value()},
             begin
-                {ok, PID} = erlog:start_link(),
+                {ok, PID}   = erlog:start_link(),
                 {succeed,_} = erlog:prove(PID, {Op, Value}),
                 case  erlog:prove(PID, Value) of
                     {succeed,_} -> true;
                     _           -> false
+                end
+            end).
+
+prop_retract() ->
+    ?FORALL({Op, Value},
+            {oneof([retract]), value()},
+            begin
+                {ok, PID} = erlog:start_link(),
+                {succeed,_} = erlog:prove(PID, {asserta, Value}),
+
+                {succeed,_} = erlog:prove(PID, {Op, Value}),
+                case  erlog:prove(PID, Value) of
+                    {succeed,_} -> false;
+                    _           -> true
                 end
             end).
               
@@ -53,7 +67,8 @@ out(P) ->
 
 run_test_() ->
     Props = [
-             fun prop_assert_retract/0
+             fun prop_assert/0,
+             fun prop_retract/0
              ],    
     [
      begin
