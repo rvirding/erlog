@@ -77,8 +77,7 @@ prop_reverse_list_invalid() ->
 
 prop_last_list() ->
     ?FORALL(L, 
-            list(int()),
-            ?IMPLIES(length(L) > 0,
+            non_empty(list(int())),
             begin
                 Term =  {last, lists:last(L),L},
                 {ok, PID} = erlog:start_link(),
@@ -88,7 +87,7 @@ prop_last_list() ->
                     fail ->
                         true
                 end
-            end)).
+            end).
 
 prop_member_list() ->
     ?FORALL({M,L},
@@ -106,6 +105,9 @@ prop_member_list() ->
 
             end).
 
+out(P) ->
+   on_output(fun(S,F) -> io:format(user, S, F) end,P).
+
 run_test_() ->
     Props = [fun prop_append_list/0,
              fun prop_append_lists/0,
@@ -117,7 +119,7 @@ run_test_() ->
              ],    
     [
      begin
-         P = Prop(),
+         P = out(Prop()),
          ?_assert(quickcheck(numtests(500,P)))
      end
      || Prop <- Props].
