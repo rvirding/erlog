@@ -2,6 +2,19 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+prop_equals() ->
+    ?FORALL(I, int(),
+            begin
+                {ok, PID}    = erlog:start_link(),
+                {succeed, [{'X',I}]} =:= erlog:prove(PID, {'=', I, {'X'}})
+            end).
+prop_not_equals() ->
+    ?FORALL(I, int(),
+            begin
+                {ok, PID}    = erlog:start_link(),
+                fail =:= erlog:prove(PID, {'=', I, I + 1})
+            end).
+
 prop_float()->
     ?FORALL(I,real(),
             begin
@@ -56,7 +69,10 @@ run_test_() ->
     Props = [
              fun prop_integer/0,
              fun prop_number/0,
-             fun prop_float/0
+             fun prop_float/0,
+             fun prop_equals/0,
+             fun prop_not_equals/0
+
 %             fun prop_compound/0
              ],    
     [
