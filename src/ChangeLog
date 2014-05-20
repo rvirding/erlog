@@ -1,0 +1,34 @@
+2009-08-23  Robert Virding  <rv@stanislaw.local>
+
+	* erlog_io.erl (write1_tail): Fixed missing '|' in improper lists.
+
+	* erlog_int.erl (prove_arg, prove_functor, prove_univ): Broke code
+	out of prove_goal.
+
+2009-08-22  Robert Virding  <rv@stanislaw.local>
+
+	* erlog_int.erl (check_goal): Cleaned up doc and args in calls.
+
+	* erlog.erl, erlog_int.erl: Define IS_CONSTANT macro to replace
+	now defunct type test.
+
+	* erlog.erl, erlog_int.erl: Upgraded old style type tests in
+	guards.
+
+2008-08-22    <rv@DOUGLAS>
+
+	* erlog_parse.erl (term): Better line numbers on errors.
+
+	* erlog_io.erl: New file containing all io functions.
+
+	* All files: Added new copyright.
+
+2008-08-02    <rv@DOUGLAS>
+
+	* erlog_parse.erl (term): Does better job of reporting the right
+	error and giving good line number. Back-tracking still means that
+	best error is not always reported.
+
+2006-09-01    <rv@DOUGLAS>
+
+	* All files: Released erlog v5.

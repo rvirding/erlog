@@ -1,0 +1,9 @@
+*~
+.DS_Store
+*.beam
+.deps_plt
+.eunit/*
+doc/*
+src/erlog_scan.erl
+deps/*
+.rebar/*
