@@ -45,6 +45,7 @@ scan_file(File) ->
 		file:close(Fd)
 	    end;
 	Error -> Error
+
     end.
 
 scan_stream(Fd, L0) ->

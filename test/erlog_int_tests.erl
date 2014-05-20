@@ -51,9 +51,9 @@ prop_retract() ->
     ?FORALL({Op, Value},
             {oneof([retract]), value()},
             begin
-                {ok, PID} = erlog:start_link(),
+                {ok, PID}   = erlog:start_link(),
                 {succeed,_} = erlog:prove(PID, {asserta, Value}),
-
+                {succeed,_} = erlog:prove(PID, Value),
                 {succeed,_} = erlog:prove(PID, {Op, Value}),
                 case  erlog:prove(PID, Value) of
                     {succeed,_} -> false;

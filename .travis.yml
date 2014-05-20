@@ -7,11 +7,11 @@ install:
   - wget http://www.quviq.com/downloads/eqcmini.zip
   - unzip eqcmini.zip
   - export ERL_LIBS=eqcmini
+
 script: 
   - make deps_eunit 
   - make eunit
-
-
+  - make dialyzer
 otp_release:
   - 17.0
   - R16B03-1

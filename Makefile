@@ -116,7 +116,7 @@ $(DEPS_PLT):
 	   --apps $(DEPS) 
 
 dialyzer: $(DEPS_PLT)
-	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions  -r ./ebin
+	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -Wno_improper_lists -Wno_match -r ./ebin
 
 typer:
 	typer --plt $(DEPS_PLT) -r ./src
