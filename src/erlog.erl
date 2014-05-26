@@ -136,11 +136,14 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 %% halt(Erlog) -> ok.
 %%  Interface functions to server.
 
-prove(Erl, Goal) when is_list(Goal) ->
-    {ok, TS, _ } = erlog_scan:string(Goal ++ " "),
-    {ok, G}      = erlog_parse:term(TS),
-    prove(Erl, G);
-prove(Erl, Goal) -> gen_server:call(Erl, {prove,Goal}, infinity).
+prove(Erl, Goal0) ->
+    case io_lib:char_list(Goal0) of		%Export Goal1
+	true ->
+	    {ok,Ts,_} = erlog_scan:string(Goal0 ++ " "),
+	    {ok,Goal1} = erlog_parse:term(Ts);
+	false -> Goal1 = Goal0
+    end,
+    gen_server:call(Erl, {prove,Goal1}, infinity).
 
 next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
 
