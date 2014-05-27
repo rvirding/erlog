@@ -121,13 +121,14 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
 handle_info({tcp, _, CommandRaw}, State) ->
-%% 	try
-		process_command(CommandRaw, State);
-%% 	catch
-%% 		_:Msg ->
-%% 			gen_tcp:send(State#state.socket, io_lib:format("Error occurred: ~p~n| ? -", [Msg])),
-%% 			{noreply, State}
-%% 	end;
+	try
+		process_command(CommandRaw, State)
+	catch
+		_:Msg ->
+			gen_tcp:send(State#state.socket, io_lib:format("Error occurred: ~p~n| ? -", [Msg])),
+			erlang:display(erlang:get_stacktrace()),
+			{noreply, State#state{line = []}}
+	end;
 handle_info({tcp_error, _}, State) ->
 	{stop, normal, State};
 handle_info({tcp_closed, _}, State) ->
@@ -181,14 +182,13 @@ process_command(CommandRaw, State = #state{line = Line, socket = Socket}) ->
 			{noreply, State#state{line = lists:append(Line, CommandRaw)}}
 	end.
 run_command(Command, State = #state{core = Logic, socket = Socket}) ->
-	io:format("run command ~p~n", [Command]),
 	case erlog_parse:parse_prolog_term(Command) of
-		halt ->
+		{ok, halt} ->
 			gen_tcp:send(Socket, <<"Ok.\n">>),
 			{stop, normal, State};
 		PrologCmd ->
 			{NewCore, Res} = erlog_shell_logic:process_command(Logic, PrologCmd),
 			gen_tcp:send(Socket, Res),
-			gen_tcp:send(Socket, <<"| ?- ">>),
+			gen_tcp:send(Socket, <<"\n| ?- ">>),
 			{noreply, State#state{core = NewCore}}
 	end.

@@ -21,19 +21,18 @@
 -export([process_command/2]).
 
 % Gets prolog function and command, executes it.
-process_command(Core, Command) when is_list(Command) ->
-	io:format("Process comand ~p~n", [Command]),
+process_command(Core, {ok, Command}) when is_list(Command) ->
 	{{ok, Db0}, P1} = Core(get_db),
 	case reconsult_files(Command, Db0) of
 		{ok, Db1} ->
 			{ok, P2} = P1({set_db, Db1}),
-			{P2, <<"Yes\n">>};
+			{P2, <<"Yes">>};
 		{error, {L, Pm, Pe}} ->
 			{Core, erlog_io:format_error([L, Pm:format_error(Pe)])};
 		{Error, Message} when Error == error; Error == erlog_error ->
 			{Core, erlog_io:format_error([Message])}
 	end;
-process_command(Core, Command) ->
+process_command(Core, {ok, Command}) ->
 	shell_prove_result(Core({prove, Command})).
 
 reconsult_files([F | Fs], Db0) ->
@@ -46,7 +45,7 @@ reconsult_files([], Db) -> {ok, Db};
 reconsult_files(Other, _Db) -> {error, {type_error, list, Other}}.
 
 shell_prove_result({{succeed, Vs}, P}) -> show_bindings(Vs, P);
-shell_prove_result({fail, P}) -> {P, <<"No\n">>};
+shell_prove_result({fail, P}) -> {P, <<"No">>};
 %% Errors from the Erlog interpreters.
 shell_prove_result({{error, Error}, P}) -> {P, erlog_io:format_error([Error])};
 %Errors and exits from user code. No new database here
@@ -54,17 +53,19 @@ shell_prove_result({{'EXIT', Error}, P}) -> {P, erlog_io:format_error("EXIT", [E
 
 %% show_bindings(VarList, Prolog())
 %% Show the bindings and query user for next solution.
-show_bindings([], P) -> {P, <<"Yes\n">>};
+show_bindings([], P) -> {P, <<"Yes">>};
 show_bindings(Vs, P) ->
+	io:format("show_bindings ~p", [Vs]),
 	Out = lists:foldr(
 		fun({Name, Val}, Acc) ->
 			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
 		end, [], Vs), %format reply
-
+	io:format("Out = ~p~n", [Out]),
+	io:format("fun changed~n"),
 	F = fun(Selection) -> %TODO test me!
 		case string:chr(Selection, $;) of
 			0 ->
-				{P, <<"Yes\n">>};
+				{P, <<"Yes">>};
 			_ ->
 				shell_prove_result(P(next_solution))
 		end
