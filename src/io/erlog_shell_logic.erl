@@ -33,7 +33,8 @@ process_command(Core, {ok, Command}) when is_list(Command) ->
 			{Core, erlog_io:format_error([Message])}
 	end;
 process_command(Core, {ok, Command}) -> shell_prove_result(Core({prove, Command}));
-process_command(Core, {error, {_, Em, E}}) -> {Core, erlog_io:format_error([Em:format_error(E)])}.
+process_command(Core, {error, {_, Em, E}}) -> {Core, erlog_io:format_error([Em:format_error(E)])};
+process_command(Core, {select, Value}) -> select_bindings(Value, Core).
 
 reconsult_files([F | Fs], Db0) ->
 	case erlog_file:reconsult(F, Db0) of
@@ -57,15 +58,12 @@ show_bindings([], P) -> {P, <<"Yes">>};
 show_bindings(Vs, P) ->
 	Out = lists:foldr(
 		fun({Name, Val}, Acc) ->
-			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
+			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]  %TODO better format
 		end, [], Vs), %format reply
+	{P, Out, select}.
 
-	F = fun(Selection) ->
-		case string:chr(Selection, $;) of
-			0 ->
-				{P, <<"Yes">>};
-			_ ->
-				shell_prove_result(P(next_solution))
-		end
-	end,
-	{F, Out}.
+select_bindings(Selection, P) ->
+	case string:chr(Selection, $;) of
+		0 -> {P, <<"Yes">>};
+		_ -> shell_prove_result(P(next_solution))
+	end.

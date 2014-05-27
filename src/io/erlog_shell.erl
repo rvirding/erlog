@@ -29,7 +29,8 @@
 {
 	socket, % client's socket
 	core, % erlog function
-	line = []  % current line (not separated with dot).
+	line = [],  % current line (not separated with dot).
+	spike = normal % this is just a temporary spike, to handle erlog_shell_logic:show_bindings selection
 }).
 
 %%%===================================================================
@@ -172,6 +173,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 % processes command and send it to prolog
+process_command(CommandRaw, State = #state{spike = select, core = Core}) ->
+	Reply = erlog_shell_logic:process_command(Core, {select, CommandRaw}),
+	process_reply(State, Reply);
 process_command(CommandRaw, State = #state{line = Line}) when Line /= [] -> %TODO handle ^C
 	process_command(lists:append(Line, CommandRaw), State#state{line = []});  % collect all preceeding dot chunks
 process_command(CommandRaw, State = #state{line = Line, socket = Socket}) ->
@@ -181,14 +185,22 @@ process_command(CommandRaw, State = #state{line = Line, socket = Socket}) ->
 			gen_tcp:send(Socket, <<"| ?- ">>),
 			{noreply, State#state{line = lists:append(Line, CommandRaw)}}
 	end.
+% run full scanned command
 run_command(Command, State = #state{core = Logic, socket = Socket}) ->
 	case erlog_parse:parse_prolog_term(Command) of
 		{ok, halt} ->
 			gen_tcp:send(Socket, <<"Ok.\n">>),
 			{stop, normal, State};
 		PrologCmd ->
-			{NewCore, Res} = erlog_shell_logic:process_command(Logic, PrologCmd),
-			gen_tcp:send(Socket, Res),
-			gen_tcp:send(Socket, <<"\n| ?- ">>),
-			{noreply, State#state{core = NewCore}}
+			Reply = erlog_shell_logic:process_command(Logic, PrologCmd),
+			process_reply(State, Reply)
 	end.
+% process reply from prolog %TODO find better way to handle erlog_shell_logic:show_bindings selection
+process_reply(State = #state{socket = Socket}, {NewCore, Res}) ->
+	gen_tcp:send(Socket, Res),
+	gen_tcp:send(Socket, <<"\n| ?- ">>),
+	{noreply, State#state{core = NewCore, spike = normal}};
+process_reply(State = #state{socket = Socket}, {NewCore, Res, select}) ->
+	gen_tcp:send(Socket, Res),
+	gen_tcp:send(Socket, <<"\n: ">>),
+	{noreply, State#state{core = NewCore, spike = select}}.
