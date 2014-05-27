@@ -34,10 +34,8 @@
 -export([new/0]).
 %% Interface to server.
 -export([start/0, start_link/0]).
--export([prove/2, next_solution/1,
-	consult/2, reconsult/2, get_db/1, set_db/2, halt/1]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
-	code_change/3]).
+-export([prove/2, next_solution/1, consult/2, reconsult/2, get_db/1, set_db/2, halt/1]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 %% User utilities.
 -export([is_legal_term/1, vars_in/1]).
 
@@ -59,7 +57,7 @@ new() ->
 			erlog_lists      %Common lists library
 		]),
 	fun(Cmd) -> top_cmd(Cmd, Db1) end.
-
+%TODO OTP me?
 top_cmd({prove, Goal}, Db) ->
 	prove_goal(Goal, Db);
 top_cmd(next_solution, Db) ->

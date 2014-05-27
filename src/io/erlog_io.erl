@@ -28,7 +28,7 @@
 
 -module(erlog_io).
 
--export([scan_file/1, read_file/1, read/1, read/2]).
+-export([scan_file/1, read_file/1, read/1, read/2, format_error/1, format_error/2, trim_command/1]).
 -export([write/1, write/2, write1/1, writeq/1, writeq/2, writeq1/1,
 	write_canonical/1, write_canonical/2, write_canonical1/1]).
 
@@ -246,3 +246,18 @@ alpha_char($_) -> true;
 alpha_char(C) when C >= $A, C =< $Z -> true;
 alpha_char(C) when C >= $0, C =< $9 -> true;
 alpha_char(C) -> lower_case(C).
+
+format_error(Params) -> format_error("Error", Params).
+format_error(Type, Params) ->
+	B = lists:foldr(
+		fun(Param, Acc) when is_list(Param) ->
+			[Param | Acc];
+			(Param, Acc) ->
+				[io_lib:format("~p", [Param]) | Acc]
+		end, ["\n"], [Type | Params]),
+	string:join(B, ": ").
+
+% removes result "\n\r" from a Command (in case it was get through telnet)
+trim_command(Command) ->
+	Nned = string:strip(Command, right, $\n),
+	string:strip(Nned, right, $\r).

@@ -37,6 +37,9 @@ compile:
 ## Compile using erlc
 erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))
 
+rel: compile
+	rebar generate
+
 docs:
 
 clean:

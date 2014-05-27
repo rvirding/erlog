@@ -5,3 +5,5 @@ ebin
 .idea
 *.iml
 erlog_scan.erl
+*.dump
+rel/erlog
