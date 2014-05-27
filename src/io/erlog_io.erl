@@ -28,7 +28,7 @@
 
 -module(erlog_io).
 
--export([scan_file/1, read_file/1, read/1, read/2, format_error/1, format_error/2, trim_command/1]).
+-export([scan_file/1, read_file/1, format_error/1, format_error/2]).
 -export([write/1, write/2, write1/1, writeq/1, writeq/2, writeq1/1,
 	write_canonical/1, write_canonical/2, write_canonical1/1]).
 
@@ -74,34 +74,7 @@ read_file(File) ->
 	end.
 
 read_stream(Fd, L0) ->
-	case scan_erlog_term(Fd, '', L0) of
-		{ok, Toks, L1} ->
-			case erlog_parse:term(Toks, L0) of
-				{ok, end_of_file} -> [];    %Prolog does this.
-				{ok, Term} ->
-					[Term | read_stream(Fd, L1)];
-				{error, What} -> throw({error, What})
-			end;
-		{error, Error, _} -> throw({error, Error});
-		{eof, _} -> []
-	end.
-
-%% read([IoDevice], Prompt) -> Term.
-%%  A very simple read function. Returns the direct representation of
-%%  the term without variable processing.
-
-read(P) -> read(standard_io, P).
-
-read(Io, P) ->
-	case scan_erlog_term(Io, P, 1) of
-		{ok, Ts, _} ->
-			case erlog_parse:term(Ts) of
-				{ok, T} -> {ok, T};
-				{error, Pe} -> {error, Pe}
-			end;
-		{error, Se, _} -> {error, Se};
-		{eof, _} -> {ok, end_of_file}    %Prolog does this
-	end.
+	erlog_parse:parse_prolog_term(scan_erlog_term(Fd, '', L0)).
 
 scan_erlog_term(Io, Prompt, Line) ->
 	io:request(Io, {get_until, Prompt, erlog_scan, tokens, [Line]}).
@@ -256,8 +229,3 @@ format_error(Type, Params) ->
 				[io_lib:format("~p", [Param]) | Acc]
 		end, ["\n"], [Type | Params]),
 	string:join(B, ": ").
-
-% removes result "\n\r" from a Command (in case it was get through telnet)
-trim_command(Command) ->
-	Nned = string:strip(Command, right, $\n),
-	string:strip(Nned, right, $\r).

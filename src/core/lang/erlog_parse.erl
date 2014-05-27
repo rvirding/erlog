@@ -26,7 +26,7 @@
 
 -module(erlog_parse).
 
--export([term/1, term/2, format_error/1]).
+-export([term/1, term/2, format_error/1, parse_prolog_term/1]).
 -export([prefix_op/1, infix_op/1, postfix_op/1]).
 
 -compile({nowarn_unused_function, [type/1, line/1, val/1]}).
@@ -311,3 +311,19 @@ infix_op('>>') -> {yes, 400, 400, 399};    %yfx 400
 infix_op('**') -> {yes, 199, 200, 199};    %xfx 200
 infix_op('^') -> {yes, 199, 200, 200};    %xfy 200
 infix_op(_Op) -> no.
+
+parse_prolog_term(Commands) ->
+	case Commands of
+		{ok, Ts} ->
+			case erlog_parse:term(Ts) of
+				{ok, T} -> {ok, T};
+				{error, Pe} -> {error, Pe}
+			end;
+		{ok, Ts, _} ->  % TODO remove me. This is for erlog_io:read_stream.
+			case erlog_parse:term(Ts) of
+				{ok, T} -> {ok, T};
+				{error, Pe} -> {error, Pe}
+			end;
+		{error, Se, _} -> {error, Se};
+		{eof, _} -> {ok, end_of_file}    %Prolog does this
+	end.

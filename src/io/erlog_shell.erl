@@ -25,7 +25,12 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {socket, core}).
+-record(state,
+{
+	socket, % client's socket
+	core, % erlog function
+	line = []  % current line (not separated with dot).
+}).
 
 %%%===================================================================
 %%% API
@@ -115,22 +120,14 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_info({tcp, Socket, CommandRaw}, State = #state{core = Logic}) ->
-	CommandStr = erlog_io:trim_command(CommandRaw),
-	try list_to_existing_atom(CommandStr) of
-		halt ->
-			gen_tcp:send(Socket, <<"Ok.\n">>),
-			{stop, normal, State};
-		Command ->
-			{NewCore, Res} = erlog_shell_logic:process_command(Logic, Command),
-			gen_tcp:send(Socket, Res),
-			gen_tcp:send(Socket, <<"| ?- ">>),
-			{noreply, State#state{core = NewCore}}
-	catch
-		error:badarg ->
-			gen_tcp:send(Socket, <<"No\n| ?- ">>),
-			{noreply, State}
-	end;
+handle_info({tcp, _, CommandRaw}, State) ->
+%% 	try
+		process_command(CommandRaw, State);
+%% 	catch
+%% 		_:Msg ->
+%% 			gen_tcp:send(State#state.socket, io_lib:format("Error occurred: ~p~n| ? -", [Msg])),
+%% 			{noreply, State}
+%% 	end;
 handle_info({tcp_error, _}, State) ->
 	{stop, normal, State};
 handle_info({tcp_closed, _}, State) ->
@@ -173,3 +170,25 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+% processes command and send it to prolog
+process_command(CommandRaw, State = #state{line = Line}) when Line /= [] -> %TODO handle ^C
+	process_command(lists:append(Line, CommandRaw), State#state{line = []});  % collect all preceeding dot chunks
+process_command(CommandRaw, State = #state{line = Line, socket = Socket}) ->
+	case erlog_scan:tokens([], CommandRaw, 1) of
+		{done, Result, _Rest} -> run_command(Result, State); % command is finished
+		{more, _} ->  % unfinished command. Save chunk and ask for next.
+			gen_tcp:send(Socket, <<"| ?- ">>),
+			{noreply, State#state{line = lists:append(Line, CommandRaw)}}
+	end.
+run_command(Command, State = #state{core = Logic, socket = Socket}) ->
+	io:format("run command ~p~n", [Command]),
+	case erlog_parse:parse_prolog_term(Command) of
+		halt ->
+			gen_tcp:send(Socket, <<"Ok.\n">>),
+			{stop, normal, State};
+		PrologCmd ->
+			{NewCore, Res} = erlog_shell_logic:process_command(Logic, PrologCmd),
+			gen_tcp:send(Socket, Res),
+			gen_tcp:send(Socket, <<"| ?- ">>),
+			{noreply, State#state{core = NewCore}}
+	end.

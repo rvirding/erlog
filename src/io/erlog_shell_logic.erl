@@ -22,6 +22,7 @@
 
 % Gets prolog function and command, executes it.
 process_command(Core, Command) when is_list(Command) ->
+	io:format("Process comand ~p~n", [Command]),
 	{{ok, Db0}, P1} = Core(get_db),
 	case reconsult_files(Command, Db0) of
 		{ok, Db1} ->
@@ -60,7 +61,7 @@ show_bindings(Vs, P) ->
 			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
 		end, [], Vs), %format reply
 
-	F = fun(Selection) ->
+	F = fun(Selection) -> %TODO test me!
 		case string:chr(Selection, $;) of
 			0 ->
 				{P, <<"Yes\n">>};
