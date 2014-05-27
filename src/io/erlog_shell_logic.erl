@@ -32,8 +32,8 @@ process_command(Core, {ok, Command}) when is_list(Command) ->
 		{Error, Message} when Error == error; Error == erlog_error ->
 			{Core, erlog_io:format_error([Message])}
 	end;
-process_command(Core, {ok, Command}) ->
-	shell_prove_result(Core({prove, Command})).
+process_command(Core, {ok, Command}) -> shell_prove_result(Core({prove, Command}));
+process_command(Core, {error, {_, Em, E}}) -> {Core, erlog_io:format_error([Em:format_error(E)])}.
 
 reconsult_files([F | Fs], Db0) ->
 	case erlog_file:reconsult(F, Db0) of
@@ -48,21 +48,19 @@ shell_prove_result({{succeed, Vs}, P}) -> show_bindings(Vs, P);
 shell_prove_result({fail, P}) -> {P, <<"No">>};
 %% Errors from the Erlog interpreters.
 shell_prove_result({{error, Error}, P}) -> {P, erlog_io:format_error([Error])};
-%Errors and exits from user code. No new database here
+%% Errors and exits from user code. No new database here
 shell_prove_result({{'EXIT', Error}, P}) -> {P, erlog_io:format_error("EXIT", [Error])}.
 
 %% show_bindings(VarList, Prolog())
 %% Show the bindings and query user for next solution.
 show_bindings([], P) -> {P, <<"Yes">>};
 show_bindings(Vs, P) ->
-	io:format("show_bindings ~p", [Vs]),
 	Out = lists:foldr(
 		fun({Name, Val}, Acc) ->
 			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
 		end, [], Vs), %format reply
-	io:format("Out = ~p~n", [Out]),
-	io:format("fun changed~n"),
-	F = fun(Selection) -> %TODO test me!
+
+	F = fun(Selection) ->
 		case string:chr(Selection, $;) of
 			0 ->
 				{P, <<"Yes">>};
