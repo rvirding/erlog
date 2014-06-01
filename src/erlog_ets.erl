@@ -22,7 +22,7 @@
 
 -compile(export_all).
 
--export([load/1,all_1/6,keys_2/6,match_2/6]).
+-export([load/1, all_1/6, keys_2/6, match_2/6]).
 
 -import(lists, [foldl/3]).
 -import(erlog_int, [add_compiled_proc/4,dderef/2,unify/3,
@@ -35,9 +35,9 @@ load(Db0) ->
     Db1 = foldl(fun ({Head,M,F}, LDb) -> 
 			add_compiled_proc(Head, M, F, LDb) end, Db0,
 		[
-		 {{ets_all,1},?MODULE,all_1},
-		 {{ets_keys,2},?MODULE,keys_2},
-		 {{ets_match,2},?MODULE,match_2}
+		 {{ets_all,1},   ?MODULE,all_1},
+		 {{ets_keys,2},  ?MODULE,keys_2},
+		 {{ets_match,2}, ?MODULE,match_2}
 		]),
     Db1.
 
@@ -136,6 +136,7 @@ find(V, [{V,Ev}|_Vs]) -> {yes,Ev};
 find(V, [_P|Vs]) -> find(V, Vs);
 find(_V, []) -> no.
 
+-spec(ets_var(1..16) -> atom()).
 ets_var(1) -> '$1';
 ets_var(2) -> '$2';
 ets_var(3) -> '$3';
