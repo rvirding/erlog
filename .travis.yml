@@ -9,7 +9,7 @@ install:
   - export ERL_LIBS=eqcmini
 
 script: 
-  - make deps_eunit 
+  - echo $TRAVIS_OTP_RELEASE
   - make eunit
   - |
      if [$TRAVIS_OTP_RELEASE == "17.0"]
