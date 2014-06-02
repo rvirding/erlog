@@ -10,7 +10,7 @@ install:
 
 script: 
   - make eunit
-  - "[ $TRAVIS_OTP_RELEASE == 17.0 ] && make dialyzer"
+  - "[ $TRAVIS_OTP_RELEASE == 17.0 ] && make dialyzer|| true"
 
 
 
