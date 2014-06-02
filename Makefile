@@ -113,7 +113,7 @@ $(DEPS_PLT):
 	@echo Building local plt at $(DEPS_PLT)
 	@echo
 	dialyzer --output_plt $(DEPS_PLT) --build_plt \
-	   --apps $(DEPS) crypto compile
+	   --apps $(DEPS) 
 
 dialyzer: $(DEPS_PLT)
 	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -Wno_improper_lists -Wno_match -r ./ebin
