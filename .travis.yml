@@ -9,13 +9,9 @@ install:
   - export ERL_LIBS=eqcmini
 
 script: 
-  - echo $TRAVIS_OTP_RELEASE
   - make eunit
-  - |
-     if [$TRAVIS_OTP_RELEASE == "17.0"]
-      then 
-        make dialyzer
-     fi
+  -  [ $TRAVIS_OTP_RELEASE == 17.0 ] && make dialyzer
+
 
 
 otp_release:
