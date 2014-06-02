@@ -37,7 +37,7 @@ run_test_() ->
     [
      begin
          P = out(Prop()),
-         ?_assert(quickcheck(numtests(500,P)))
+         ?_assert(quickcheck(numtests(250,P)))
      end
      || Prop <- Props].
 
