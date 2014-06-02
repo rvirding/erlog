@@ -11,12 +11,21 @@ install:
 script: 
   - make deps_eunit 
   - make eunit
-  - make dialyzer
+  - |
+     if [$TRAVIS_OTP_RELEASE == "17.0"]
+      then 
+        make dialyzer
+     fi
+
+
 otp_release:
-  - 17.0
-  - R16B03-1
-  - R16B02
-  - R16B01
-  - R15B03	
-  - R15B02
-  - R15B01
+   - 17.0
+   - R16B03-1
+   - R16B02
+   - R16B01
+   - R15B03
+   - R15B02
+   - R15B01
+   - R14B04
+   - R14B03
+   - R14B02
