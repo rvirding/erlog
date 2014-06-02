@@ -10,11 +10,13 @@ install:
 
 script: 
   - make eunit
-  - "if [ $TRAVIS_OTP_RELEASE == 17.0 ] 
+  - |
+if [ $TRAVIS_OTP_RELEASE == 17.0 ] 
   then
     make dialyzer 
-  else true
-fi"
+  else 
+    true
+fi
 
 
 
