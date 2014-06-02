@@ -11,7 +11,37 @@ gnode() ->
 gnodes() ->
     non_empty(list(gnode())).
 
-prop_load_ets() ->
+prop_ets_keys() ->
+    ?FORALL({Nodes},
+            {gnodes()},
+            begin
+                {ok, PID}   = erlog:start_link(),
+		ok = erlog:load(PID,erlog_ets),
+		TabId = ets:new(test_ets_table, [bag, {keypos,2}]),
+		ets:insert(TabId, Nodes),
+		lists:all(fun({edge,S,_E})->
+				  {succeed, []} =:= erlog:prove(PID, {ets_keys, TabId, S})
+
+			  end, Nodes)
+		end).
+
+
+prop_ets_match_all() ->
+    ?FORALL({Nodes},
+            {gnodes()},
+            begin
+                {ok, PID}   = erlog:start_link(),
+		ok = erlog:load(PID,erlog_ets),
+		TabId = ets:new(test_ets_table, [bag]),
+		ets:insert(TabId, Nodes),
+
+		true = lists:all(fun(Edge = {edge,_,_})->
+				  {succeed, []} =:= erlog:prove(PID, {ets_match, TabId, Edge})
+
+			  end, Nodes)
+		end).
+
+prop_ets_match() ->
     ?FORALL({Nodes},
             {gnodes()},
             begin
@@ -23,7 +53,7 @@ prop_load_ets() ->
                 case  erlog:prove(PID, {ets_match, TabId, {'X'}}) of
                     {succeed,[{'X', M}]} -> 
 			lists:member(M,Nodes);
-                    R           -> 
+                    _R           -> 
 			false
                 end
             end).
@@ -34,7 +64,9 @@ out(P) ->
 
 run_test_() ->
     Props = [
-	     fun prop_load_ets/0
+	     fun prop_ets_match/0,
+	     fun prop_ets_match_all/0,
+	     fun prop_ets_keys/0
              ],    
     [
      begin
