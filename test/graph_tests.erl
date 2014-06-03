@@ -2,6 +2,18 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+partially_ordered_set_test() ->
+    {ok, PID}   =				erlog:start_link(),
+    ok          =				erlog:consult(PID, "../test/po_set.pl"),    
+    ?assertEqual({succeed, []},			erlog:prove(PID, {connected, a, b})),
+    ?assertEqual(fail,				erlog:prove(PID, {connected, b,c})),
+    ?assertEqual({succeed, []},			erlog:prove(PID, {ancestor, a, f})),
+    ?assertEqual({succeed, [{'Ancestor', d}]},	erlog:prove(PID, {ancestor, {'Ancestor'}, f})),
+    ?assertEqual({succeed, [{'Ancestor', b}]},	erlog:next_solution(PID)),
+    ?assertEqual({succeed, [{'p', [a,b,f]}]},	erlog:prove(PID,{path, a, f, {p}})),
+    ?assertEqual({succeed, [{'p', [a,c,d,f]}]}, erlog:next_solution(PID)),
+    ok.
+
 gnode() ->
     {edge, char(),char()}.
 
