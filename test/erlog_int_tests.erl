@@ -2,6 +2,17 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+fail_test() ->
+    {ok, PID}   = erlog:start_link(),
+    ?assertEqual(fail,erlog:prove(PID, fail)),
+    ok.
+
+not_equal_test() ->
+    {ok, PID}   = erlog:start_link(),
+    ?assertEqual(fail,erlog:prove(PID, {'\=', 1,2})),
+    ok.
+
+
 keys() ->
     [
      "AAAAAAAA",

@@ -32,7 +32,6 @@ out(P) ->
 run_test_() ->
     Props = [
 	     fun prop_travel/0
-
              ],    
     [
      begin

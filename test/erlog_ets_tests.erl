@@ -3,6 +3,22 @@
 -include_lib("eunit/include/eunit.hrl").
 
 
+
+% erlog_ets_all_test() ->
+%     {ok, PID}   = erlog:start_link(),
+%     ok = erlog:load(PID,erlog_ets),
+%     TabId = ets:new(test_ets_table, [bag, {keypos,2}, named_table]),
+%     ?assertEqual({succeed,[]},erlog:prove(PID, {ets_all, test_ets_table})),
+%     ok.
+
+erlog_empty_ets_test() ->
+    {ok, PID}   = erlog:start_link(),
+    ok = erlog:load(PID,erlog_ets),
+    TabId = ets:new(test_ets_table, [bag, {keypos,2}]),
+    ?assertEqual(fail,erlog:prove(PID, {ets_keys, TabId, {'S'}})),
+    ?assertEqual(fail,erlog:prove(PID, {ets_match, TabId,{'S'}})),
+
+    ok.
     
      
 gnode() ->
