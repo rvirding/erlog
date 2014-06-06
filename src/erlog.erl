@@ -139,25 +139,25 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 prove(Erl, Goal0) ->
     case io_lib:char_list(Goal0) of		%Export Goal1
 	true ->
-	    {ok,Ts,_} = erlog_scan:string(Goal0 ++ " "),
+	    {ok,Ts,_}  = erlog_scan:string(Goal0 ++ " "),
 	    {ok,Goal1} = erlog_parse:term(Ts);
 	false -> Goal1 = Goal0
     end,
     gen_server:call(Erl, {prove,Goal1}, infinity).
 
-next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
+next_solution(Erl)	-> gen_server:call(Erl, next_solution, infinity).
 
-consult(Erl, File) -> gen_server:call(Erl, {consult,File}, infinity).
+consult(Erl, File)	-> gen_server:call(Erl, {consult,File}, infinity).
 
-reconsult(Erl, File) -> gen_server:call(Erl, {reconsult,File}, infinity).
+reconsult(Erl, File)	-> gen_server:call(Erl, {reconsult,File}, infinity).
 
-load(Erl, Mod) -> gen_server:call(Erl, {load,Mod}, infinity).
+load(Erl, Mod)		-> gen_server:call(Erl, {load,Mod}, infinity).
 
-get_db(Erl) -> gen_server:call(Erl, get_db, infinity).
+get_db(Erl)		-> gen_server:call(Erl, get_db, infinity).
 
-set_db(Erl, Db) -> gen_server:call(Erl, {set_db,Db}, infinity).
+set_db(Erl, Db)		-> gen_server:call(Erl, {set_db,Db}, infinity).
 
-halt(Erl) -> gen_server:cast(Erl, halt).
+halt(Erl)		-> gen_server:cast(Erl, halt).
 
 %% Erlang server code.
 -record(state, {erlog}).			%Erlog state
