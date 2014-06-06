@@ -2,6 +2,40 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+cops() ->
+    oneof([{'=:=', fun (I,J) ->
+			   I =:= J
+		   end},
+	   {'=\\=', fun(I,J) ->
+			   I =/= J
+		   end},
+	   {'<', fun(I, J) ->
+			 I < J
+		 end},
+	   {'>', fun(I,J) ->
+			 I > J
+		 end},
+	   {'>=', fun(I, J) ->
+			  I >= J
+		  end},
+	   {'=<', fun(I,J) ->
+			  I =< J
+		  end}]).
+
+prop_comp() ->
+    ?FORALL({I, J, {Op,C}},
+	    {int(), int(), cops()},
+	    begin
+                {ok, PID}    = erlog:start_link(),
+                case erlog:prove(PID, {Op, I, J}) of
+		    {succeed, _} -> 
+			C(I,J);
+		    fail ->
+			not(C(I,J))
+		    end
+		end).
+
+
 prop_equals() ->
     ?FORALL(I, int(),
             begin
@@ -71,10 +105,10 @@ run_test_() ->
              fun prop_number/0,
              fun prop_float/0,
              fun prop_equals/0,
-             fun prop_not_equals/0
-
+             fun prop_not_equals/0,
+	     fun prop_comp/0
 %             fun prop_compound/0
-             ],    
+             ],
     [
      begin
          P = out(Prop()),
