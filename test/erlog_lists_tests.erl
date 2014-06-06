@@ -93,10 +93,10 @@ prop_last_list() ->
             end).
 
 prop_member_list() ->
-    ?FORALL({M,L},
-            {int(), list(int())},
+    ?FORALL({M,L,C},
+            {int(), list(int()), oneof([member, memberchk])},
             begin
-                Term =  {member, M, L},
+                Term =  {C, M, L},
                 {ok, PID} = erlog:start_link(),
                 case  erlog:prove(PID,Term) of
                     {succeed, _} ->

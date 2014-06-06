@@ -11,10 +11,14 @@ edge(b,f).
 connected(A,B) :-
 	edge(A,B).
 
+child(A) :-
+	\+edge(A,_).
+
 sib(A,B) :-
 	path(C,A,_),
 	path(C,B,_),
-	\+path(A,B,_).
+	\+path(A,B,_),
+	\+path(B,A,_).
 
 ancestor(A,B) :-
 	path(A,B,_).

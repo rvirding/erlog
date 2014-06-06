@@ -4,10 +4,10 @@
 
 cops() ->
     oneof([{'=:=', fun (I,J) ->
-			   I =:= J
+			   I == J
 		   end},
 	   {'=\\=', fun(I,J) ->
-			   I =/= J
+			   I /= J
 		   end},
 	   {'<', fun(I, J) ->
 			 I < J
@@ -24,7 +24,7 @@ cops() ->
 
 prop_comp() ->
     ?FORALL({I, J, {Op,C}},
-	    {int(), int(), cops()},
+	    {oneof([int(),real()]), int(), cops()},
 	    begin
                 {ok, PID}    = erlog:start_link(),
                 case erlog:prove(PID, {Op, I, J}) of
@@ -72,29 +72,6 @@ prop_number()->
                 true
             end).
 
-any() ->
-    oneof([int(),
-           real(),
-           char(),
-           binary(),
-           bitstring(),
-           bool()
-           ]).
-
-prop_compound() ->
-    ?FORALL(V,
-            oneof([list(any()),
-                   {any()},
-                   {any(), any()},
-                   {any(), any(), any()},
-                   {any(), any(), any(), any()}
-                  ]),
-            begin
-                {ok, PID}    = erlog:start_link(),
-                {succeed, _} = erlog:prove(PID, {compound, V}),
-                true
-            end).
-       
 
 out(P) ->
    on_output(fun(S,F) -> io:format(user, S, F) end,P).
@@ -107,7 +84,7 @@ run_test_() ->
              fun prop_equals/0,
              fun prop_not_equals/0,
 	     fun prop_comp/0
-%             fun prop_compound/0
+
              ],
     [
      begin
