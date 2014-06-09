@@ -1,0 +1,3 @@
+%-*-Erlang-*-
+{build, "make"}.
+{test_path, "test"}.
