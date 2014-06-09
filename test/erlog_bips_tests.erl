@@ -1,7 +1,7 @@
 -module(erlog_bips_tests).
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
-
+-compile(export_all).
 cops() ->
     oneof([{'=:=', fun (I,J) ->
 			   I == J
