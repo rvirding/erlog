@@ -85,7 +85,7 @@ update-deps:
 eunit: deps_eunit
 	$(REBAR) -C rebar_test.config eunit skip_deps=true --verbose
 
-
+qc: compile eunit 
 
 
 compile:
