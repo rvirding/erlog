@@ -1,6 +1,7 @@
 -module(erlog_lists_tests).
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
+-compile(export_all).
 
 prop_append_lists() ->
     ?FORALL(

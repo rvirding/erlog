@@ -1,7 +1,7 @@
 -module(graph_tests).
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
-
+-compile(export_all).
 partially_ordered_set_test() ->
     {ok, PID}   =				erlog:start_link(),
     ok          =				erlog:consult(PID, "../test/po_set.pl"),    

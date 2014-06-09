@@ -1,7 +1,7 @@
 -module(erlog_int_tests).
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
-
+-compile(export_all).
 fail_test() ->
     {ok, PID}   = erlog:start_link(),
     ?assertEqual(fail,erlog:prove(PID, fail)),

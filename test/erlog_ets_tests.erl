@@ -2,6 +2,8 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
+-compile(export_all).
+
 
 
 % erlog_ets_all_test() ->
