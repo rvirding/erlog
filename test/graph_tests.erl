@@ -24,20 +24,20 @@ gnodes() ->
 prop_travel() ->
         ?FORALL({Nodes},
 		{gnodes()},
-		?TIMEOUT(1000,
-			 begin
-			     {ok, PID}   = erlog:start_link(),
-			     ok          = erlog:consult(PID, "../test/graph.pl"),
-			     [erlog:prove(PID, {assertz, Node})|| Node <- Nodes],
-			     
-			     true = lists:all(fun({edge,Start,_})->
-						      {succeed, R} = erlog:prove(PID, {path, Start, {'End'},{'Path'}}),
-						      End  = proplists:get_value('End',  R),
-						      Path = proplists:get_value('Path', R ),
-						      {succeed, []} =:= erlog:prove(PID, {path, Start, End, Path})
-					      
-					      end, Nodes)
-			 end)).
+		
+		begin
+		    {ok, PID}   = erlog:start_link(),
+		    ok          = erlog:consult(PID, "../test/graph.pl"),
+		    [erlog:prove(PID, {assertz, Node})|| Node <- Nodes],
+		    
+		    true = lists:all(fun({edge,Start,_})->
+					     {succeed, R} = erlog:prove(PID, {path, Start, {'End'},{'Path'}}),
+					     End  = proplists:get_value('End',  R),
+					     Path = proplists:get_value('Path', R ),
+					     {succeed, []} =:= erlog:prove(PID, {path, Start, End, Path})
+				     
+				     end, Nodes)
+			 end).
 
 
 out(P) ->
