@@ -15,8 +15,8 @@
 -spec execute(Command :: string(), Mode :: atom(), Core :: pid) -> any().
 execute(Command, select, Core) -> % selection of solution
 	process_command(Core, {select, Command});
-execute(Command, normal, Core) ->
-	case erlog_scan:tokens([], Command, 1) of  % processing command in normal mode
+execute(Command, normal, Core) -> % processing command in normal mode
+	case erlog_scan:tokens([], Command, 1) of
 		{done, Result, _Rest} -> run_command(Result, Core); % command is finished, run.
 		{more, _} -> {ok, more} % unfinished command. Ask for ending.
 	end.
@@ -43,6 +43,6 @@ process_command(Core, {ok, Command}) when is_list(Command) ->
 		{Error, Message} when Error == error; Error == erlog_error ->
 			erlog_io:format_error([Message])
 	end;
-process_command(Core, {ok, Command}) -> erlog_logic:shell_prove_result(gen_server:call(Core, {prove, Command}));
+process_command(Core, {ok, Command}) -> erlog_logic:shell_prove_result(Core, {prove, Command});
 process_command(_Core, {error, {_, Em, E}}) -> erlog_io:format_error([Em:format_error(E)]);
 process_command(Core, {select, Value}) -> erlog_logic:select_bindings(Value, Core).

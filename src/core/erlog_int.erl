@@ -169,7 +169,7 @@ built_in_db() ->
 	Db0 = new_db(),
 	%% First add the Erlang built-ins.
 	foldl(fun(Head, Db) -> add_built_in(Head, Db) end, Db0,
-		[
+		[ %TODO move me to hrl
 			%% Logic and control.
 			{call, 1},
 			{',', 2},

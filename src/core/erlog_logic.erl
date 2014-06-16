@@ -20,38 +20,39 @@
 
 -include("erlog_int.hrl").
 
--export([vars_in/1, is_legal_term/1, reconsult_files/2, shell_prove_result/1, select_bindings/2]).
+-export([vars_in/1, is_legal_term/1, reconsult_files/2, shell_prove_result/2, select_bindings/2]).
 
+reconsult_files([], Db) -> {ok, Db};
 reconsult_files([F | Fs], Db0) ->
 	case erlog_file:reconsult(F, Db0) of
 		{ok, Db1} -> reconsult_files(Fs, Db1);
 		{erlog_error, Error} -> {erlog_error, Error};
 		{error, Error} -> {error, Error}
 	end;
-reconsult_files([], Db) -> {ok, Db};
 reconsult_files(Other, _Db) -> {error, {type_error, list, Other}}.
 
-shell_prove_result({{succeed, Vs}, P}) -> show_bindings(Vs, P);
-shell_prove_result({fail, P}) -> {P, <<"No">>};
-%% Errors from the Erlog interpreters.
-shell_prove_result({{error, Error}, P}) -> {P, erlog_io:format_error([Error])};
-%% Errors and exits from user code. No new database here
-shell_prove_result({{'EXIT', Error}, P}) -> {P, erlog_io:format_error("EXIT", [Error])}.
+shell_prove_result(Core, Command) ->
+	case gen_server:call(Core, Command) of
+		{succeed, Vs} -> show_bindings(Vs);
+		fail -> <<"No">>;
+		{error, Error} -> erlog_io:format_error([Error]);
+		{'EXIT', Error} -> erlog_io:format_error("EXIT", [Error])
+	end.
 
-%% show_bindings(VarList, Prolog())
+%% show_bindings(VarList, Pid)
 %% Show the bindings and query user for next solution.
-show_bindings([], P) -> {P, <<"Yes">>};
-show_bindings(Vs, P) ->
+show_bindings([]) -> <<"Yes">>;
+show_bindings(Vs) ->
 	Out = lists:foldr(
 		fun({Name, Val}, Acc) ->
 			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
 		end, [], Vs), %format reply
-	{P, Out, select}.
+	{Out, select}.
 
 select_bindings(Selection, Core) ->
 	case string:chr(Selection, $;) of
 		0 -> {Core, <<"Yes">>};
-		_ -> shell_prove_result(gen_server:call(Core, next_solution))
+		_ -> shell_prove_result(Core, gen_server:call(Core, next))
 	end.
 
 %% vars_in(Term) -> [{Name,Var}].

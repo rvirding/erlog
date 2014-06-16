@@ -35,9 +35,6 @@
 %% Interface to server.
 -export([start_link/0]).
 
-%% Api for calling prolog core via erlang
--export([prove/2, next/1, consult/2, reconsult/2, get_db/1, set_db/2, halt/1]).
-
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -47,32 +44,6 @@
 	db, %database
 	state = normal :: normal | list() %state for solution selecting. atom or list of params.
 }).
-
-%% prove(Erlog, Goal) -> {succeed,Bindings} | fail.
-%% next(Erlog) -> {succeed,Bindings} | fail.
-%% consult(Erlog, File) -> ok | {error,Error}.
-%% reconsult(Erlog, File) -> ok | {error,Error}.
-%% get_db(Erlog) -> {ok,Database}.
-%% set_db(Erlog, Database) -> ok.
-%% halt(Erlog) -> ok.
-%%  Interface functions to server.
-prove(Erl, Goal) when is_list(Goal) ->
-	{ok, TS, _} = erlog_scan:string(Goal ++ " "),
-	{ok, G} = erlog_parse:term(TS),
-	prove(Erl, G);
-prove(Erl, Goal) -> gen_server:call(Erl, {prove, Goal}, infinity).
-
-next(Erl) -> gen_server:call(Erl, next, infinity).
-
-consult(Erl, File) -> gen_server:call(Erl, {consult, File}, infinity).
-
-reconsult(Erl, File) -> gen_server:call(Erl, {reconsult, File}, infinity).
-
-get_db(Erl) -> gen_server:call(Erl, get_db, infinity).
-
-set_db(Erl, Db) -> gen_server:call(Erl, {set_db, Db}, infinity).
-
-halt(Erl) -> gen_server:cast(Erl, halt).
 
 start_link() ->
 	gen_server:start_link(?MODULE, [], []).
