@@ -16,7 +16,7 @@
 %% Author  : Robert Virding
 %% Purpose : A simple Erlog shell.
 
--module(erlog_shell_logic).
+-module(erlog_logic).
 
 -export([process_command/2]).
 
@@ -58,7 +58,7 @@ show_bindings([], P) -> {P, <<"Yes">>};
 show_bindings(Vs, P) ->
 	Out = lists:foldr(
 		fun({Name, Val}, Acc) ->
-			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]  %TODO better format
+			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
 		end, [], Vs), %format reply
 	{P, Out, select}.
 

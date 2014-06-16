@@ -103,7 +103,7 @@ handle_cast(accept, State = #state{socket = ListenSocket}) ->
 	erlog_shell_sup:start_socket(),
 	Version = list_to_binary(erlang:system_info(version)),
 	gen_tcp:send(AcceptSocket, [<<<<"Erlog Shell V">>/binary, Version/binary, <<" (abort with ^G)\n| ?- ">>/binary>>]),
-	{noreply, State#state{socket = AcceptSocket, core = erlog:new()}};
+	{noreply, State#state{socket = AcceptSocket, core = erlog_core:new()}};
 handle_cast(_Request, State) ->
 	{noreply, State}.
 
@@ -121,9 +121,15 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_info({tcp, _, CommandRaw}, State) ->
-	try
-		process_command(CommandRaw, State)
+handle_info({tcp, _, CommandRaw}, State = #state{line = Line, core = Core, spike = Spike, socket = Socket}) ->
+	try erlog:process_command(CommandRaw, Spike, Core) of
+		{ok, halt} ->
+			gen_tcp:send(Socket, <<"Ok.\n">>),
+			{stop, normal, State};
+		{ok, more} ->
+			gen_tcp:send(Socket, <<"| ?- ">>),
+			{noreply, State#state{line = lists:append(Line, CommandRaw)}};
+		Reply -> process_reply(State, Reply)
 	catch
 		_:Msg ->
 			gen_tcp:send(State#state.socket, io_lib:format("Error occurred: ~p~n| ? -", [Msg])),
@@ -172,35 +178,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-% processes command and send it to prolog
-process_command(CommandRaw, State = #state{spike = select, core = Core}) ->
-	Reply = erlog_shell_logic:process_command(Core, {select, CommandRaw}),
-	process_reply(State, Reply);
-process_command(CommandRaw, State = #state{line = Line}) when Line /= [] -> %TODO handle ^C
-	process_command(lists:append(Line, CommandRaw), State#state{line = []});  % collect all preceeding dot chunks
-process_command(CommandRaw, State = #state{line = Line, socket = Socket}) ->
-	case erlog_scan:tokens([], CommandRaw, 1) of
-		{done, Result, _Rest} -> run_command(Result, State); % command is finished
-		{more, _} ->  % unfinished command. Save chunk and ask for next.
-			gen_tcp:send(Socket, <<"| ?- ">>),
-			{noreply, State#state{line = lists:append(Line, CommandRaw)}}
-	end.
-% run full scanned command
-run_command(Command, State = #state{core = Logic, socket = Socket}) ->
-	case erlog_parse:parse_prolog_term(Command) of
-		{ok, halt} ->
-			gen_tcp:send(Socket, <<"Ok.\n">>),
-			{stop, normal, State};
-		PrologCmd ->
-			Reply = erlog_shell_logic:process_command(Logic, PrologCmd),
-			process_reply(State, Reply)
-	end.
 % process reply from prolog %TODO find better way to handle erlog_shell_logic:show_bindings selection
 process_reply(State = #state{socket = Socket}, {NewCore, Res}) ->
 	gen_tcp:send(Socket, Res),
 	gen_tcp:send(Socket, <<"\n| ?- ">>),
-	{noreply, State#state{core = NewCore, spike = normal}};
+	{noreply, State#state{core = NewCore, spike = normal, line = []}};
 process_reply(State = #state{socket = Socket}, {NewCore, Res, select}) ->
 	gen_tcp:send(Socket, Res),
 	gen_tcp:send(Socket, <<"\n: ">>),
-	{noreply, State#state{core = NewCore, spike = select}}.
+	{noreply, State#state{core = NewCore, spike = select, line = []}}.

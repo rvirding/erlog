@@ -26,7 +26,7 @@
 %% to test for, and create new variables with than using funny atom
 %% names like '$1' (yuch!), and we need LOTS of variables.
 
--module(erlog).
+-module(erlog_core).
 
 -include("erlog_int.hrl").
 
@@ -49,7 +49,7 @@
 %%  top-level command and returns the result and the continutation in
 %%  a new fun.
 
-new() ->
+new() ->  %TODO link with spawning process to die with it
 	Db0 = erlog_int:built_in_db(),    %Basic interpreter predicates
 	Db1 = foldl(fun(Mod, Db) -> Mod:load(Db) end, Db0,
 		[erlog_bips,      %Built in predicates
