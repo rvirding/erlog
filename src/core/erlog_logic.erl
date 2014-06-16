@@ -18,7 +18,9 @@
 
 -module(erlog_logic).
 
--export([process_command/2]).
+-include("erlog_int.hrl").
+
+-export([process_command/2, vars_in/1, is_legal_term/1]).
 
 % Gets prolog function and command, executes it.
 process_command(Core, {ok, Command}) when is_list(Command) ->
@@ -67,3 +69,37 @@ select_bindings(Selection, P) ->
 		0 -> {P, <<"Yes">>};
 		_ -> shell_prove_result(P(next_solution))
 	end.
+
+%% vars_in(Term) -> [{Name,Var}].
+%% Returns an ordered list of {VarName,Variable} pairs.
+vars_in(Term) -> vars_in(Term, orddict:new()).
+
+vars_in({'_'}, Vs) -> Vs;      %Never in!
+vars_in({Name} = Var, Vs) -> orddict:store(Name, Var, Vs);
+vars_in(Struct, Vs) when is_tuple(Struct) ->
+	vars_in_struct(Struct, 2, size(Struct), Vs);
+vars_in([H | T], Vs) ->
+	vars_in(T, vars_in(H, Vs));
+vars_in(_, Vs) -> Vs.
+
+vars_in_struct(_Str, I, S, Vs) when I > S -> Vs;
+vars_in_struct(Str, I, S, Vs) ->
+	vars_in_struct(Str, I + 1, S, vars_in(element(I, Str), Vs)).
+
+%% is_legal_term(Goal) -> true | false.
+%% Test if a goal is a legal Erlog term. Basically just check if
+%% tuples are used correctly as structures and variables.
+is_legal_term({V}) -> is_atom(V);
+is_legal_term([H | T]) ->
+	is_legal_term(H) andalso is_legal_term(T);
+is_legal_term(T) when is_tuple(T) ->
+	if tuple_size(T) >= 2, is_atom(element(1, T)) ->
+		are_legal_args(T, 2, size(T));  %The right tuples.
+		true -> false
+	end;
+is_legal_term(T) when ?IS_ATOMIC(T) -> true;  %All constants, including []
+is_legal_term(_T) -> false.
+
+are_legal_args(_T, I, S) when I > S -> true;
+are_legal_args(T, I, S) ->
+	is_legal_term(element(I, T)) andalso are_legal_args(T, I + 1, S).

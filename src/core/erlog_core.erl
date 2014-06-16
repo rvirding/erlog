@@ -36,10 +36,6 @@
 -export([start/0, start_link/0]).
 -export([prove/2, next_solution/1, consult/2, reconsult/2, get_db/1, set_db/2, halt/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-%% User utilities.
--export([is_legal_term/1, vars_in/1]).
-
--import(lists, [foldl/3, foreach/2]).
 
 -behaviour(gen_server).
 -vsn('0.6').
@@ -51,7 +47,7 @@
 
 new() ->  %TODO link with spawning process to die with it
 	Db0 = erlog_int:built_in_db(),    %Basic interpreter predicates
-	Db1 = foldl(fun(Mod, Db) -> Mod:load(Db) end, Db0,
+	Db1 = lists:foldl(fun(Mod, Db) -> Mod:load(Db) end, Db0,
 		[erlog_bips,      %Built in predicates
 			erlog_dcg,      %DCG predicates
 			erlog_lists      %Common lists library
@@ -85,7 +81,7 @@ top_cmd({set_db, NewDb}, _Db) ->
 top_cmd(halt, _Db) -> ok.
 
 prove_goal(Goal0, Db) ->
-	Vs = vars_in(Goal0),
+	Vs = erlog_logic:vars_in(Goal0),
 	%% Goal may be a list of goals, ensure proper goal.
 	Goal1 = unlistify(Goal0),
 	%% Must use 'catch' here as 'try' does not do last-call
@@ -122,7 +118,6 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 %% set_db(Erlog, Database) -> ok.
 %% halt(Erlog) -> ok.
 %%  Interface functions to server.
-
 prove(Erl, Goal) when is_list(Goal) ->
 	{ok, TS, _} = erlog_scan:string(Goal ++ " "),
 	{ok, G} = erlog_parse:term(TS),
@@ -167,39 +162,3 @@ terminate(_, St) ->
 	(St#state.erlog)(halt).
 
 code_change(_, _, St) -> {ok, St}.
-
-%% vars_in(Term) -> [{Name,Var}].
-%% Returns an ordered list of {VarName,Variable} pairs.
-
-vars_in(Term) -> vars_in(Term, orddict:new()).
-
-vars_in({'_'}, Vs) -> Vs;      %Never in!
-vars_in({Name} = Var, Vs) -> orddict:store(Name, Var, Vs);
-vars_in(Struct, Vs) when is_tuple(Struct) ->
-	vars_in_struct(Struct, 2, size(Struct), Vs);
-vars_in([H | T], Vs) ->
-	vars_in(T, vars_in(H, Vs));
-vars_in(_, Vs) -> Vs.
-
-vars_in_struct(_Str, I, S, Vs) when I > S -> Vs;
-vars_in_struct(Str, I, S, Vs) ->
-	vars_in_struct(Str, I + 1, S, vars_in(element(I, Str), Vs)).
-
-%% is_legal_term(Goal) -> true | false.
-%% Test if a goal is a legal Erlog term. Basically just check if
-%% tuples are used correctly as structures and variables.
-
-is_legal_term({V}) -> is_atom(V);
-is_legal_term([H | T]) ->
-	is_legal_term(H) andalso is_legal_term(T);
-is_legal_term(T) when is_tuple(T) ->
-	if tuple_size(T) >= 2, is_atom(element(1, T)) ->
-		are_legal_args(T, 2, size(T));  %The right tuples.
-		true -> false
-	end;
-is_legal_term(T) when ?IS_ATOMIC(T) -> true;  %All constants, including []
-is_legal_term(_T) -> false.
-
-are_legal_args(_T, I, S) when I > S -> true;
-are_legal_args(T, I, S) ->
-	is_legal_term(element(I, T)) andalso are_legal_args(T, I + 1, S).

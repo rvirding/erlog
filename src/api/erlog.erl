@@ -12,7 +12,7 @@
 %% API
 -export([process_command/3]).
 
--spec process_command(CommandRaw :: string(), Spike :: atom(), Core :: pid()) -> any().
+-spec process_command(CommandRaw :: string(), Spike :: atom(), Core :: fun()) -> any().
 process_command(CommandRaw, select, Core) ->  % selecting variants of solutions
 	erlog_logic:process_command(Core, {select, CommandRaw});
 process_command(CommandRaw, normal, Core) ->

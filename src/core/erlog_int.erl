@@ -697,7 +697,7 @@ permission_error(Op, Type, Value, Db) ->
 erlog_error(E, Db) -> throw({erlog_error, E, Db}).
 erlog_error(E) -> throw({erlog_error, E}).
 
--ifdef(DB).
+-ifdef(DB). %TODO resolve me
 %% Database
 %% The database is a dict where the key is the functor pair {Name,Arity}.
 %% The value is: built_in |
