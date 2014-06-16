@@ -14,29 +14,13 @@
 
 %% File    : erlog_shell.erl
 %% Author  : Robert Virding
-%% Purpose : A simple Erlog shell.
+%% Purpose : Module with functions realisation of erlog module api
 
 -module(erlog_logic).
 
 -include("erlog_int.hrl").
 
--export([process_command/2, vars_in/1, is_legal_term/1]).
-
-% Gets prolog function and command, executes it.
-process_command(Core, {ok, Command}) when is_list(Command) ->
-	{{ok, Db0}, P1} = Core(get_db),
-	case reconsult_files(Command, Db0) of
-		{ok, Db1} ->
-			{ok, P2} = P1({set_db, Db1}),
-			{P2, <<"Yes">>};
-		{error, {L, Pm, Pe}} ->
-			{Core, erlog_io:format_error([L, Pm:format_error(Pe)])};
-		{Error, Message} when Error == error; Error == erlog_error ->
-			{Core, erlog_io:format_error([Message])}
-	end;
-process_command(Core, {ok, Command}) -> shell_prove_result(Core({prove, Command}));
-process_command(Core, {error, {_, Em, E}}) -> {Core, erlog_io:format_error([Em:format_error(E)])};
-process_command(Core, {select, Value}) -> select_bindings(Value, Core).
+-export([vars_in/1, is_legal_term/1, reconsult_files/2, shell_prove_result/1, select_bindings/2]).
 
 reconsult_files([F | Fs], Db0) ->
 	case erlog_file:reconsult(F, Db0) of
@@ -64,10 +48,10 @@ show_bindings(Vs, P) ->
 		end, [], Vs), %format reply
 	{P, Out, select}.
 
-select_bindings(Selection, P) ->
+select_bindings(Selection, Core) ->
 	case string:chr(Selection, $;) of
-		0 -> {P, <<"Yes">>};
-		_ -> shell_prove_result(P(next_solution))
+		0 -> {Core, <<"Yes">>};
+		_ -> shell_prove_result(gen_server:call(Core, next_solution))
 	end.
 
 %% vars_in(Term) -> [{Name,Var}].

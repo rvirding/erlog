@@ -37,7 +37,7 @@ consult(File, Db0) ->
 
 consult_assert(Term0, Db) ->
 	Term1 = erlog_dcg:expand_term(Term0),
-	{ok, erlog_int:assertz_clause(Term1, Db)}.
+	{ok, erlog_int:assertz_clause(Term1, Db)}.  %TODO redefining database?
 
 reconsult(File, Db0) ->
 	case erlog_io:read_file(File) of
@@ -64,7 +64,6 @@ reconsult_assert(Term0, {Db0, Seen}) ->
 %%      {ok,NewDatabase} | {erlog_error,Error}.
 %% Add terms to the database using InsertFun. Ignore directives and
 %% queries.
-
 consult_terms(Ifun, Db, [{':-', _} | Ts]) ->
 	consult_terms(Ifun, Db, Ts);
 consult_terms(Ifun, Db, [{'?-', _} | Ts]) ->

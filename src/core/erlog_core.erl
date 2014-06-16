@@ -27,91 +27,29 @@
 %% names like '$1' (yuch!), and we need LOTS of variables.
 
 -module(erlog_core).
+-behaviour(gen_server).
+-vsn('0.7').
 
 -include("erlog_int.hrl").
 
-%% Basic evaluator interface.
--export([new/0]).
 %% Interface to server.
--export([start/0, start_link/0]).
--export([prove/2, next_solution/1, consult/2, reconsult/2, get_db/1, set_db/2, halt/1]).
+-export([start_link/0]).
+
+%% Api for calling prolog core via erlang
+-export([prove/2, next/1, consult/2, reconsult/2, get_db/1, set_db/2, halt/1]).
+
+%% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--behaviour(gen_server).
--vsn('0.6').
-
-%% new() -> erlog().
-%%  Define an Erlog instance. This is a fun which is called with the
-%%  top-level command and returns the result and the continutation in
-%%  a new fun.
-
-new() ->  %TODO link with spawning process to die with it
-	Db0 = erlog_int:built_in_db(),    %Basic interpreter predicates
-	Db1 = lists:foldl(fun(Mod, Db) -> Mod:load(Db) end, Db0,
-		[erlog_bips,      %Built in predicates
-			erlog_dcg,      %DCG predicates
-			erlog_lists      %Common lists library
-		]),
-	fun(Cmd) -> top_cmd(Cmd, Db1) end.
-%TODO OTP me?
-top_cmd({prove, Goal}, Db) ->
-	prove_goal(Goal, Db);
-top_cmd(next_solution, Db) ->
-	{fail, fun(Cmd) -> top_cmd(Cmd, Db) end};
-top_cmd({consult, File}, Db0) ->
-	case erlog_file:consult(File, Db0) of
-		{ok, Db1} -> {ok, fun(Cmd) -> top_cmd(Cmd, Db1) end};
-		{erlog_error, Error} ->
-			{{error, Error}, fun(Cmd) -> top_cmd(Cmd, Db0) end};
-		{error, Error} ->
-			{{error, Error}, fun(Cmd) -> top_cmd(Cmd, Db0) end}
-	end;
-top_cmd({reconsult, File}, Db0) ->
-	case erlog_file:reconsult(File, Db0) of
-		{ok, Db1} -> {ok, fun(Cmd) -> top_cmd(Cmd, Db1) end};
-		{erlog_error, Error} ->
-			{{error, Error}, fun(Cmd) -> top_cmd(Cmd, Db0) end};
-		{error, Error} ->
-			{{error, Error}, fun(Cmd) -> top_cmd(Cmd, Db0) end}
-	end;
-top_cmd(get_db, Db) ->
-	{{ok, Db}, fun(Cmd) -> top_cmd(Cmd, Db) end};
-top_cmd({set_db, NewDb}, _Db) ->
-	{ok, fun(Cmd) -> top_cmd(Cmd, NewDb) end};
-top_cmd(halt, _Db) -> ok.
-
-prove_goal(Goal0, Db) ->
-	Vs = erlog_logic:vars_in(Goal0),
-	%% Goal may be a list of goals, ensure proper goal.
-	Goal1 = unlistify(Goal0),
-	%% Must use 'catch' here as 'try' does not do last-call
-	%% optimisation.
-	prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs, Db).
-
-unlistify([G]) -> G;
-unlistify([G | Gs]) -> {',', G, unlistify(Gs)};
-unlistify([]) -> true;
-unlistify(G) -> G.        %In case it wasn't a list.
-
-prove_result({succeed, Cps, Bs, Vn, Db1}, Vs, _Db0) ->
-	{{succeed, erlog_int:dderef(Vs, Bs)},
-		fun(Cmd) -> prove_cmd(Cmd, Vs, Cps, Bs, Vn, Db1) end};
-prove_result({fail, Db1}, _Vs, _Db0) ->
-	{fail, fun(Cmd) -> top_cmd(Cmd, Db1) end};
-prove_result({erlog_error, Error, Db1}, _Vs, _Db0) ->
-	{{error, Error}, fun(Cmd) -> top_cmd(Cmd, Db1) end};
-prove_result({erlog_error, Error}, _Vs, Db) ->  %No new database
-	{{error, Error}, fun(Cmd) -> top_cmd(Cmd, Db) end};
-prove_result({'EXIT', Error}, _Vs, Db) ->
-	{{'EXIT', Error}, fun(Cmd) -> top_cmd(Cmd, Db) end}.
-
-prove_cmd(next_solution, Vs, Cps, _Bs, _Vn, Db) ->
-	prove_result(catch erlog_int:fail(Cps, Db), Vs, Db);
-prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
-	top_cmd(Cmd, Db).
+%% Erlang server code.
+-record(state,
+{
+	db, %database
+	state = normal :: normal | list() %state for solution selecting. atom or list of params.
+}).
 
 %% prove(Erlog, Goal) -> {succeed,Bindings} | fail.
-%% next_solution(Erlog) -> {succeed,Bindings} | fail.
+%% next(Erlog) -> {succeed,Bindings} | fail.
 %% consult(Erlog, File) -> ok | {error,Error}.
 %% reconsult(Erlog, File) -> ok | {error,Error}.
 %% get_db(Erlog) -> {ok,Database}.
@@ -124,7 +62,7 @@ prove(Erl, Goal) when is_list(Goal) ->
 	prove(Erl, G);
 prove(Erl, Goal) -> gen_server:call(Erl, {prove, Goal}, infinity).
 
-next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
+next(Erl) -> gen_server:call(Erl, next, infinity).
 
 consult(Erl, File) -> gen_server:call(Erl, {consult, File}, infinity).
 
@@ -136,21 +74,21 @@ set_db(Erl, Db) -> gen_server:call(Erl, {set_db, Db}, infinity).
 
 halt(Erl) -> gen_server:cast(Erl, halt).
 
-%% Erlang server code.
--record(state, {erlog}).      %Erlog state
-
-start() ->
-	gen_server:start(?MODULE, [], []).
-
 start_link() ->
 	gen_server:start_link(?MODULE, [], []).
 
 init(_) ->
-	{ok, #state{erlog = new()}}.
+	Db0 = erlog_int:built_in_db(),    %Basic interpreter predicates
+	Db1 = lists:foldl(fun(Mod, Db) -> Mod:load(Db) end, Db0,
+		[erlog_bips,      %Built in predicates
+			erlog_dcg,      %DCG predicates
+			erlog_lists      %Common lists library
+		]),
+	{ok, #state{db = Db1}}.
 
-handle_call(Req, _, St) ->
-	{Res, Erl} = (St#state.erlog)(Req),
-	{reply, Res, St#state{erlog = Erl}}.
+handle_call(Command, _From, State) ->
+	{Res, NewState} = process_command(Command, State),
+	{reply, Res, NewState}.
 
 handle_cast(halt, St) ->
 	{stop, normal, St}.
@@ -158,7 +96,70 @@ handle_cast(halt, St) ->
 handle_info(_, St) ->
 	{noreply, St}.
 
-terminate(_, St) ->
-	(St#state.erlog)(halt).
+terminate(_, _) ->
+	ok.
 
 code_change(_, _, St) -> {ok, St}.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+%% @private
+%% Process command, modify state. Return {Result, NewState}
+-spec process_command(tuple() | atom(), State :: #state{}) -> tuple().
+process_command({prove, Goal}, State) ->
+	prove_goal(Goal, State);
+process_command(next, State = #state{state = normal}) ->
+	{fail, State};
+process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
+	{prove_result(catch erlog_int:fail(Cps, Db), Vs), State};
+process_command({consult, File}, State = #state{db = Db}) ->
+	case erlog_file:consult(File, Db) of
+		{ok, Db1} -> ok;  %TODO Db1?
+		{Err, Error} when Err == erlog_error; Err == error ->
+			{{error, Error}, State}
+	end;
+process_command({reconsult, File}, State = #state{db = Db}) ->
+	case erlog_file:reconsult(File, Db) of
+		{ok, Db1} -> ok;  %TODO Db1?
+		{Err, Error} when Err == erlog_error; Err == error ->
+			{{error, Error}, State}
+	end;
+process_command(get_db, State = #state{db = Db}) ->
+	{Db, State};
+process_command({set_db, NewDb}, State = #state{db = Db}) -> % set new db, return old
+	{{ok, Db}, State#state{db = NewDb}};
+process_command(halt, State) ->
+	gen_server:cast(self(), halt),
+	{ok, State}.
+
+%% @private
+prove_goal(Goal0, State = #state{db = Db}) ->
+	Vs = erlog_logic:vars_in(Goal0),
+	%% Goal may be a list of goals, ensure proper goal.
+	Goal1 = unlistify(Goal0),
+	%% Must use 'catch' here as 'try' does not do last-call
+	%% optimisation.
+	case prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs) of
+		{succeed, Res, Args} ->
+			{{succeed, Res}, State#state{state = Args}};
+		OtherRes -> {OtherRes, State#state{state = normal}}
+	end.
+
+%% @private
+unlistify([G]) -> G;
+unlistify([G | Gs]) -> {',', G, unlistify(Gs)};
+unlistify([]) -> true;
+unlistify(G) -> G.        %In case it wasn't a list.
+
+%% @private
+prove_result({succeed, Cps, Bs, _Vn, _Db1}, Vs) ->
+	{succeed, erlog_int:dderef(Vs, Bs), [Vs, Cps]};
+prove_result({fail, _Db1}, _Vs) ->
+	fail;
+prove_result({erlog_error, Error, _Db1}, _Vs) ->
+	{error, Error};
+prove_result({erlog_error, Error}, _Vs) ->  %No new database
+	{error, Error};
+prove_result({'EXIT', Error}, _Vs) ->
+	{'EXIT', Error}.
