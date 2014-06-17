@@ -18,15 +18,11 @@ And connect to it via console:
 #### Processing prolog code from erlang:
 Spawn new logic core: 
 
-    Logic = erlog_core:new().
+    {ok, Pid} = erlog_core:start_link().
 Process prolog terms, using your core:
 
-    erlog:process_command(CommandRaw, Spike, Core).
-Where `CommandRaw` is a command, ended with dot, `Spike` is used for selecting variants of solutions, 
+    erlog:execute(CommandRaw, Spike, Core).
+Where:  
+`CommandRaw` is a command, ended with dot,  
+`Spike` is used for selecting variants of solutions, it can be `normal` for operating in normal mode and `select` for selecting solutions,  
 `Core` is a pid of your prolog logic core.
-
-#### Calling erlang functions from erlang:
-Spawn new logic core: 
-
-    Logic = erlog_core:new().
-Use functions from `erlog_core`: prove/2, next_solution/1, consult/2, reconsult/2, get_db/1, set_db/2, halt/1 then.
