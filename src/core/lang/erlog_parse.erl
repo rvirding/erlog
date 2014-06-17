@@ -314,16 +314,14 @@ infix_op(_Op) -> no.
 
 parse_prolog_term(Commands) ->
 	case Commands of
-		{ok, Ts} ->
-			case erlog_parse:term(Ts) of
-				{ok, T} -> {ok, T};
-				{error, Pe} -> {error, Pe}
-			end;
-		{ok, Ts, _} ->  % TODO remove me. This is for erlog_io:read_stream.
-			case erlog_parse:term(Ts) of
-				{ok, T} -> {ok, T};
-				{error, Pe} -> {error, Pe}
-			end;
+		{ok, Ts} -> parse(Ts);
+		{ok, Ts, _} -> parse(Ts);
 		{error, Se, _} -> {error, Se};
 		{eof, _} -> {ok, end_of_file}    %Prolog does this
+	end.
+
+parse(Ts) ->
+	case erlog_parse:term(Ts) of
+		{ok, T} -> {ok, T};
+		{error, Pe} -> {error, Pe}
 	end.

@@ -103,7 +103,7 @@ handle_cast(accept, State = #state{socket = ListenSocket}) ->
 	erlog_shell_sup:start_socket(),
 	Version = list_to_binary(erlang:system_info(version)),
 	gen_tcp:send(AcceptSocket, [<<<<"Erlog Shell V">>/binary, Version/binary, <<" (abort with ^G)\n| ?- ">>/binary>>]),
-	{ok, Pid} = erlog_core:start_link(),
+	{ok, Pid} = erlog:start_link(),
 	{noreply, State#state{socket = AcceptSocket, core = Pid}};
 handle_cast(_Request, State) ->
 	{noreply, State}.
@@ -122,8 +122,8 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_info({tcp, _, CommandRaw}, State = #state{line = Line, core = Core, spike = Spike, socket = Socket}) ->
-	try erlog:execute(CommandRaw, Spike, Core) of
+handle_info({tcp, _, CommandRaw}, State = #state{line = Line, core = Core, socket = Socket}) ->
+	try erlog:execute(Core, CommandRaw) of
 		{ok, halt} ->
 			gen_tcp:send(Socket, <<"Ok.\n">>),
 			{stop, normal, State};
@@ -158,8 +158,9 @@ handle_info(_Info, State) ->
 %%--------------------------------------------------------------------
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
 		State :: #state{}) -> term()).
-terminate(_Reason, #state{socket = Socket}) -> %TODO destroy core
+terminate(_Reason, #state{socket = Socket, core = Core}) ->
 	gen_tcp:close(Socket),
+	gen_server:cast(Core, halt),
 	ok.
 
 %%--------------------------------------------------------------------

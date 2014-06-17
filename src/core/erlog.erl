@@ -26,14 +26,14 @@
 %% to test for, and create new variables with than using funny atom
 %% names like '$1' (yuch!), and we need LOTS of variables.
 
--module(erlog_core).
+-module(erlog).
 -behaviour(gen_server).
 -vsn('0.7').
 
 -include("erlog_int.hrl").
 
 %% Interface to server.
--export([start_link/0]).
+-export([start_link/0, execute/2]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -44,6 +44,8 @@
 	db, %database
 	state = normal :: normal | list() %state for solution selecting. atom or list of params.
 }).
+
+execute(Worker, Command) -> gen_server:call(Worker, {execute, Command}).
 
 start_link() ->
 	gen_server:start_link(?MODULE, [], []).
@@ -57,9 +59,15 @@ init(_) ->
 		]),
 	{ok, #state{db = Db1}}.
 
-handle_call(Command, _From, State) ->
-	{Res, NewState} = process_command(Command, State),
-	{reply, Res, NewState}.
+handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
+	Res = case erlog_scan:tokens([], Command, 1) of
+		      {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
+		      {more, _} -> {ok, more} % unfinished command. Ask for ending.
+	      end,
+	{reply, Res, State};
+handle_call({execute, Command}, _From, State) ->  %in selection solutions mode
+	Res = preprocess_command({select, Command}, State),
+	{reply, Res, State}.
 
 handle_cast(halt, St) ->
 	{stop, normal, St}.
@@ -76,6 +84,35 @@ code_change(_, _, St) -> {ok, St}.
 %%% Internal functions
 %%%===================================================================
 %% @private
+%% Run scanned command
+run_command(Command, State) ->
+	case erlog_parse:parse_prolog_term(Command) of
+		{ok, halt} -> {ok, halt};
+		PrologCmd -> preprocess_command(PrologCmd, State)
+	end.
+
+%% @private
+%% Preprocess command
+preprocess_command({ok, Command}, State) when is_list(Command) ->
+	{{ok, Db0}, NewState1} = process_command(get_db, State),
+	case erlog_logic:reconsult_files(Command, Db0) of
+		{ok, Db1} ->
+			{{ok, _Db}, NewState2} = process_command({set_db, Db1}, NewState1),
+			{<<"Yes">>, NewState2};
+		{error, {L, Pm, Pe}} ->
+			{erlog_io:format_error([L, Pm:format_error(Pe)]), NewState1};
+		{Error, Message} when Error == error; Error == erlog_error ->
+			{erlog_io:format_error([Message]), NewState1}
+	end;
+preprocess_command({ok, Command}, State) ->
+	{Res, State} = process_command({prove, Command}, State),
+	{erlog_logic:shell_prove_result(Res), State};
+preprocess_command({error, {_, Em, E}}, State) -> {erlog_io:format_error([Em:format_error(E)]), State};
+preprocess_command({select, Value}, State) ->
+	{Next, State} = process_command(next, State),
+	{erlog_logic:select_bindings(Value, Next), State}.
+
+%% @private
 %% Process command, modify state. Return {Result, NewState}
 -spec process_command(tuple() | atom(), State :: #state{}) -> tuple().
 process_command({prove, Goal}, State) ->
@@ -83,7 +120,7 @@ process_command({prove, Goal}, State) ->
 process_command(next, State = #state{state = normal}) ->
 	{fail, State};
 process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
-	{prove_result(catch erlog_int:fail(Cps, Db), Vs), State};
+	{erlog_logic:prove_result(catch erlog_int:fail(Cps, Db), Vs), State};
 process_command({consult, File}, State = #state{db = Db}) ->
 	case erlog_file:consult(File, Db) of
 		{ok, Db1} -> ok;  %TODO Db1?
@@ -108,29 +145,11 @@ process_command(halt, State) ->
 prove_goal(Goal0, State = #state{db = Db}) ->
 	Vs = erlog_logic:vars_in(Goal0),
 	%% Goal may be a list of goals, ensure proper goal.
-	Goal1 = unlistify(Goal0),
+	Goal1 = erlog_logic:unlistify(Goal0),
 	%% Must use 'catch' here as 'try' does not do last-call
 	%% optimisation.
-	case prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs) of
+	case erlog_logic:prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs) of
 		{succeed, Res, Args} ->
 			{{succeed, Res}, State#state{state = Args}};
 		OtherRes -> {OtherRes, State#state{state = normal}}
 	end.
-
-%% @private
-unlistify([G]) -> G;
-unlistify([G | Gs]) -> {',', G, unlistify(Gs)};
-unlistify([]) -> true;
-unlistify(G) -> G.        %In case it wasn't a list.
-
-%% @private
-prove_result({succeed, Cps, Bs, _Vn, _Db1}, Vs) ->
-	{succeed, erlog_int:dderef(Vs, Bs), [Vs, Cps]};
-prove_result({fail, _Db1}, _Vs) ->
-	fail;
-prove_result({erlog_error, Error, _Db1}, _Vs) ->
-	{error, Error};
-prove_result({erlog_error, Error}, _Vs) ->  %No new database
-	{error, Error};
-prove_result({'EXIT', Error}, _Vs) ->
-	{'EXIT', Error}.

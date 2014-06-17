@@ -20,7 +20,23 @@
 
 -include("erlog_int.hrl").
 
--export([vars_in/1, is_legal_term/1, reconsult_files/2, shell_prove_result/2, select_bindings/2]).
+-export([vars_in/1, is_legal_term/1, reconsult_files/2, select_bindings/2, shell_prove_result/1, prove_result/2, unlistify/1]).
+
+%% @private
+unlistify([G | Gs]) -> {',', G, unlistify(Gs)};
+unlistify([]) -> true;
+unlistify(G) -> G.        %In case it wasn't a list.
+
+prove_result({succeed, Cps, Bs, _Vn, _Db1}, Vs) ->
+	{succeed, erlog_int:dderef(Vs, Bs), [Vs, Cps]};
+prove_result({fail, _Db1}, _Vs) ->
+	fail;
+prove_result({erlog_error, Error, _Db1}, _Vs) ->
+	{error, Error};
+prove_result({erlog_error, Error}, _Vs) ->  %No new database
+	{error, Error};
+prove_result({'EXIT', Error}, _Vs) ->
+	{'EXIT', Error}.
 
 reconsult_files([], Db) -> {ok, Db};
 reconsult_files([F | Fs], Db0) ->
@@ -31,13 +47,10 @@ reconsult_files([F | Fs], Db0) ->
 	end;
 reconsult_files(Other, _Db) -> {error, {type_error, list, Other}}.
 
-shell_prove_result(Core, Command) ->
-	case gen_server:call(Core, Command) of
-		{succeed, Vs} -> show_bindings(Vs);
-		fail -> <<"No">>;
-		{error, Error} -> erlog_io:format_error([Error]);
-		{'EXIT', Error} -> erlog_io:format_error("EXIT", [Error])
-	end.
+shell_prove_result({succeed, Vs}) -> show_bindings(Vs);
+shell_prove_result(fail) -> <<"No">>;
+shell_prove_result({error, Error}) -> erlog_io:format_error([Error]);
+shell_prove_result({'EXIT', Error}) -> erlog_io:format_error("EXIT", [Error]).
 
 %% show_bindings(VarList, Pid)
 %% Show the bindings and query user for next solution.
@@ -49,10 +62,10 @@ show_bindings(Vs) ->
 		end, [], Vs), %format reply
 	{Out, select}.
 
-select_bindings(Selection, Core) ->
+select_bindings(Selection, Next) ->
 	case string:chr(Selection, $;) of
-		0 -> {Core, <<"Yes">>};
-		_ -> shell_prove_result(Core, gen_server:call(Core, next))
+		0 -> <<"Yes">>;
+		_ -> shell_prove_result(Next)
 	end.
 
 %% vars_in(Term) -> [{Name,Var}].
