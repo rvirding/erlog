@@ -26,21 +26,11 @@
 
 -import(lists, [foldl/3]).
 
-%% We use these a lot so we import them for cleaner code.
--import(erlog_int, [prove_body/5, unify_prove_body/7, unify_prove_body/9, fail/2,
-add_binding/3, make_vars/2, deref/2, dderef/2, dderef_list/2, unify/3,
-term_instance/2, add_built_in/2, add_compiled_proc/4, asserta_clause/2, assertz_clause/2]).
-
 load(Db0) ->
 	%% Compiled DCG predicates.
-	Db1 = foldl(fun({Head, M, F}, Db) -> add_compiled_proc(Head, M, F, Db) end,
-		Db0,
-		[
-			{{expand_term, 2}, erlog_dcg, expand_term_2},
-			{{phrase, 3}, erlog_dcg, phrase_3}
-		]),
+	Db1 = foldl(fun({Head, M, F}, Db) -> erlog_int:add_compiled_proc(Head, M, F, Db) end, Db0, ?ERLOG_DCG),
 	%% Interpreted DCG predicates.
-	foldl(fun(Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
+	foldl(fun(Clause, Db) -> erlog_int:assertz_clause(Clause, Db) end, Db1,
 		[
 			%% 'C'([H|T], H, T).
 			%% {'C',[{1}|{2}],{1},{2}},		%For DCGs
@@ -58,9 +48,9 @@ load(Db0) ->
 %%  Call the expand_term/2 predicate.
 
 expand_term_2(Goal, Next, Cps, Bs, Vn0, Db) ->
-	{expand_term, DCGRule, A2} = dderef(Goal, Bs),
+	{expand_term, DCGRule, A2} = erlog_int:dderef(Goal, Bs),
 	{Exp, Vn1} = expand_term(DCGRule, Vn0),
-	unify_prove_body(A2, Exp, Next, Cps, Bs, Vn1, Db).
+	erlog_int:unify_prove_body(A2, Exp, Next, Cps, Bs, Vn1, Db).
 
 %% phrase_3(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Call the phrase/3 preidicate. We could easily do this in prolog
@@ -69,11 +59,11 @@ expand_term_2(Goal, Next, Cps, Bs, Vn0, Db) ->
 %%  phrase(GRBody, S0, S) -> dcg_body(GRBody, S0, S, Goal), call(Goal).
 
 phrase_3(Goal, Next0, Cps, Bs, Vn0, Db) ->
-	{phrase, GRBody, S0, S} = dderef(Goal, Bs),
+	{phrase, GRBody, S0, S} = erlog_int:dderef(Goal, Bs),
 	{Body, Vn1} = dcg_body(GRBody, S0, S, Vn0),
 	%% io:format("~p\n", [Body]),
 	Next1 = [{call, Body} | Next0],    %Evaluate body
-	prove_body(Next1, Cps, Bs, Vn1, Db).
+	erlog_int:prove_body(Next1, Cps, Bs, Vn1, Db).
 
 %% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.

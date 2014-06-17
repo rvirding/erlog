@@ -20,20 +20,16 @@
 
 -include("erlog_int.hrl").
 
--compile(export_all).
-
 -export([assert/1, all_1/6, keys_2/6, match_2/6]).
 
 -import(lists, [foldl/3]).
--import(erlog_int, [add_compiled_proc/4, dderef/2, unify/3,
-prove_body/5, unify_prove_body/7, fail/2]).
 
 %% assert(Database) -> Database.
 %%  Assert predicates into the database.
 
 assert(Db) ->
 	foldl(fun({Head, M, F}, LDb) ->
-		add_compiled_proc(Head, M, F, LDb) end, Db,
+		erlog_int:add_compiled_proc(Head, M, F, LDb) end, Db,
 		[
 			{{ets_all, 1}, ?MODULE, all_1},
 			{{ets_keys, 2}, ?MODULE, keys_2},
@@ -47,16 +43,16 @@ assert(Db) ->
 
 all_1({ets_all, Var}, Next, Cps, Bs, Vn, Db) ->
 	Tabs = ets:all(),
-	unify_prove_body(Var, Tabs, Next, Cps, Bs, Vn, Db).
+	erlog_int:unify_prove_body(Var, Tabs, Next, Cps, Bs, Vn, Db).
 
 %% keys_2(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
 %%      Goal = {ets_keys,Table,Key}.
 %% Return the keys in an ETS database one at a time over backtracking.
 
 keys_2({ets_keys, Tab0, KeyVar}, Next, Cps, Bs, Vn, Db) ->
-	Tab1 = dderef(Tab0, Bs),
+	Tab1 = erlog_int:dderef(Tab0, Bs),
 	case ets:first(Tab1) of
-		'$end_of_table' -> fail(Cps, Db);
+		'$end_of_table' -> erlog_int:fail(Cps, Db);
 		Key -> keys_loop(Tab1, Key, KeyVar, Next, Cps, Bs, Vn, Db)
 	end.
 
@@ -65,11 +61,11 @@ keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db) ->
 		keys_fail(LCp, LCps, LDb, Tab, Key, KeyVar)
 	end,
 	C = #cp{type = compiled, data = FailFun, next = Next, bs = Bs, vn = Vn},
-	unify_prove_body(KeyVar, Key, Next, [C | Cps], Bs, Vn, Db).
+	erlog_int:unify_prove_body(KeyVar, Key, Next, [C | Cps], Bs, Vn, Db).
 
 keys_fail(#cp{next = Next, bs = Bs, vn = Vn}, Cps, Db, Tab, PrevKey, KeyVar) ->
 	case ets:next(Tab, PrevKey) of
-		'$end_of_table' -> fail(Cps, Db);
+		'$end_of_table' -> erlog_int:fail(Cps, Db);
 		Key -> keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db)
 	end.
 
@@ -80,8 +76,8 @@ keys_fail(#cp{next = Next, bs = Bs, vn = Vn}, Cps, Db, Tab, PrevKey, KeyVar) ->
 %% object matched.
 
 match_2({ets_match, Tab0, Pat0}, Next, Cps, Bs, Vn, Db) ->
-	Tab1 = dderef(Tab0, Bs),
-	Pat1 = dderef(Pat0, Bs),
+	Tab1 = erlog_int:dderef(Tab0, Bs),
+	Pat1 = erlog_int:dderef(Pat0, Bs),
 	{Epat, Vs} = ets_pat(Pat1),
 	match_2_loop(ets:match(Tab1, Epat, 10), Next, Cps, Bs, Vn, Db, Epat, Vs).
 
@@ -90,11 +86,11 @@ match_2_loop({[M | Ms], Cont}, Next, Cps, Bs, Vn, Db, Epat, Vs) ->
 		match_2_fail(LCp, LCps, LDb, Epat, Vs, {Ms, Cont})
 	end,
 	Cp = #cp{type = compiled, data = FailFun, next = Next, bs = Bs, vn = Vn},
-	unify_prove_body(Vs, M, Next, [Cp | Cps], Bs, Vn, Db);
+	erlog_int:unify_prove_body(Vs, M, Next, [Cp | Cps], Bs, Vn, Db);
 match_2_loop({[], Cont}, Next, Cps, Bs, Vn, Db, Epat, Vs) ->
 	match_2_loop(ets:match(Cont), Next, Cps, Bs, Vn, Db, Epat, Vs);
 match_2_loop('$end_of_table', _Next, Cps, _Bs, _Vn, Db, _Epat, _Vs) ->
-	fail(Cps, Db).
+	erlog_int:fail(Cps, Db).
 
 match_2_fail(#cp{next = Next, bs = Bs, vn = Vn}, Cps, Db, Epat, Vs, Ms) ->
 	match_2_loop(Ms, Next, Cps, Bs, Vn, Db, Epat, Vs).

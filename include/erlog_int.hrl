@@ -21,6 +21,95 @@
 -define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
 -define(IS_FUNCTOR(T), (is_tuple(T) andalso (tuple_size(T) >= 2) andalso is_atom(element(1, T)))).
 
+%% The old is_constant/1 ?
+-define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
+
 %% Define the choice point record
 -record(cp, {type, label, data, next, bs, vn}).
 -record(cut, {label, next}).
+
+-define(ERLOG_BIPS,
+	[
+		%% Term unification and comparison
+		{'=', 2},
+		{'\\=', 2},
+		{'@>', 2},
+		{'@>=', 2},
+		{'==', 2},
+		{'\\==', 2},
+		{'@<', 2},
+		{'@=<', 2},
+		%% Term creation and decomposition.
+		{arg, 3},
+		{copy_term, 2},
+		{functor, 3},
+		{'=..', 2},
+		%% Type testing.
+		{atom, 1},
+		{atomic, 1},
+		{compound, 1},
+		{integer, 1},
+		{float, 1},
+		{number, 1},
+		{nonvar, 1},
+		{var, 1},
+		%% Atom processing.
+		{atom_chars, 2},
+		{atom_length, 2},
+		%% Arithmetic evaluation and comparison
+		{'is', 2},
+		{'>', 2},
+		{'>=', 2},
+		{'=:=', 2},
+		{'=\\=', 2},
+		{'<', 2},
+		{'=<', 2}
+	]).
+
+-define(ERLOG_DCG,
+	[
+		{{expand_term, 2}, erlog_dcg, expand_term_2},
+		{{phrase, 3}, erlog_dcg, phrase_3}
+	]).
+
+-define(ERLOG_LISTS,
+	[
+		{{append, 3}, ?MODULE, append_3},
+		{{insert, 3}, ?MODULE, insert_3},
+		{{member, 2}, ?MODULE, member_2},
+		{{memberchk, 2}, ?MODULE, memberchk_2},
+		{{reverse, 2}, ?MODULE, reverse_2},
+		{{sort, 2}, ?MODULE, sort_2}
+	]).
+
+-define(ERLOG_INT,
+	[
+		%% Logic and control.
+		{call, 1},
+		{',', 2},
+		{'!', 0},
+		{';', 2},
+		{fail, 0},
+		{'->', 2},
+		{'\\+', 1},
+		{once, 1},
+		{repeat, 0},
+		{true, 0},
+		%% Clause creation and destruction.
+		{abolish, 1},
+		{assert, 1},
+		{asserta, 1},
+		{assertz, 1},
+		{retract, 1},
+		{retractall, 1},
+		%% Clause retrieval and information.
+		{clause, 2},
+		{current_predicate, 1},
+		{predicate_property, 2},
+		%% All solutions
+		%% External interface
+		{ecall, 2},
+		%% Non-standard but useful
+		{display, 1}
+	]
+).

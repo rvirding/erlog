@@ -105,6 +105,7 @@ preprocess_command({ok, Command}, State) when is_list(Command) ->
 			{erlog_io:format_error([Message]), NewState1}
 	end;
 preprocess_command({ok, Command}, State) ->
+	io:format("prove command ~p~n", [Command]),
 	{Res, NewState} = process_command({prove, Command}, State),
 	{erlog_logic:shell_prove_result(Res), NewState};
 preprocess_command({error, {_, Em, E}}, State) -> {erlog_io:format_error([Em:format_error(E)]), State};
@@ -143,6 +144,7 @@ process_command(halt, State) ->
 
 %% @private
 prove_goal(Goal0, State = #state{db = Db}) ->
+	io:format("db = ~p~n", [Db]),
 	Vs = erlog_logic:vars_in(Goal0),
 	%% Goal may be a list of goals, ensure proper goal.
 	Goal1 = erlog_logic:unlistify(Goal0),
@@ -150,6 +152,6 @@ prove_goal(Goal0, State = #state{db = Db}) ->
 	%% optimisation.
 	case erlog_logic:prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs) of
 		{succeed, Res, Args} ->
-			{{succeed, Res}, State#state{state = Args}};
+			{{succeed, Res}, State};
 		OtherRes -> {OtherRes, State#state{state = normal}}
 	end.

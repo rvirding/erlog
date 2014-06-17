@@ -182,10 +182,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 % process reply from prolog
 process_reply(State = #state{socket = Socket}, {Res, select}) ->
+	io:format("Reply = ~p~n", [Res]),
 	gen_tcp:send(Socket, Res),
 	gen_tcp:send(Socket, <<"\n: ">>),
 	{noreply, State#state{spike = select, line = []}};
 process_reply(State = #state{socket = Socket}, Res) ->
+	io:format("Reply = ~p~n", [Res]),
 	gen_tcp:send(Socket, Res),
 	gen_tcp:send(Socket, <<"\n| ?- ">>),
 	{noreply, State#state{spike = normal, line = []}}.

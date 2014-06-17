@@ -125,6 +125,8 @@
 
 -module(erlog_int).
 
+-include("erlog_int.hrl").
+
 %% Main execution functions.
 -export([prove_goal/2, prove_body/5, fail/2]).
 -export([unify_prove_body/7, unify_prove_body/9]).
@@ -146,18 +148,9 @@
 
 -import(lists, [map/2, foldl/3]).
 
-%% Some standard type macros.
-
-%% The old is_constant/1 ?
--define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
-
-%% -define(IS_ATOMIC(T), (is_atom(T) orelse is_number(T) orelse (T == []))).
--define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
--define(IS_FUNCTOR(T), ((tuple_size(T) >= 2) andalso is_atom(element(1, T)))).
-
 %% Define the database to use. ONE of the follwing must be defined.
 
-%%-define(ETS,true).
+%%-define(ETS,true).  %TODO get rid of this!
 %%-define(DB, orddict).
 -define(DB, dict).
 
@@ -168,40 +161,7 @@
 built_in_db() ->
 	Db0 = new_db(),
 	%% First add the Erlang built-ins.
-	foldl(fun(Head, Db) -> add_built_in(Head, Db) end, Db0,
-		[ %TODO move me to hrl
-			%% Logic and control.
-			{call, 1},
-			{',', 2},
-			{'!', 0},
-			{';', 2},
-			{fail, 0},
-			{'->', 2},
-			{'\\+', 1},
-			{once, 1},
-			{repeat, 0},
-			{true, 0},
-			%% Clause creation and destruction.
-			{abolish, 1},
-			{assert, 1},
-			{asserta, 1},
-			{assertz, 1},
-			{retract, 1},
-			{retractall, 1},
-			%% Clause retrieval and information.
-			{clause, 2},
-			{current_predicate, 1},
-			{predicate_property, 2},
-			%% All solutions
-			%% External interface
-			{ecall, 2},
-			%% Non-standard but useful
-			{display, 1}
-		]).
-
-%% Define the choice point record
--record(cp, {type, label, data, next, bs, vn}).
--record(cut, {label, next}).
+	foldl(fun(Head, Db) -> add_built_in(Head, Db) end, Db0, ?ERLOG_INT).
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
@@ -715,6 +675,7 @@ new_db() -> ?DB:new().
 %% Add Functor as a built-in in the database.
 
 add_built_in(Functor, Db) ->
+	io:format("add_built_in ~p~n", [Functor]),
 	?DB:store(Functor, built_in, Db).
 
 %% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
