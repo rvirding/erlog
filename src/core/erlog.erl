@@ -60,14 +60,14 @@ init(_) ->
 	{ok, #state{db = Db1}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
-	Res = case erlog_scan:tokens([], Command, 1) of
-		      {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
-		      {more, _} -> {ok, more} % unfinished command. Ask for ending.
-	      end,
-	{reply, Res, State};
+	{Res, NewState} = case erlog_scan:tokens([], Command, 1) of
+		                  {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
+		                  {more, _} -> {ok, more} % unfinished command. Ask for ending.
+	                  end,
+	{reply, Res, NewState};
 handle_call({execute, Command}, _From, State) ->  %in selection solutions mode
-	Res = preprocess_command({select, Command}, State),
-	{reply, Res, State}.
+	{Res, NewState} = preprocess_command({select, Command}, State),
+	{reply, Res, NewState}.
 
 handle_cast(halt, St) ->
 	{stop, normal, St}.
@@ -105,8 +105,8 @@ preprocess_command({ok, Command}, State) when is_list(Command) ->
 			{erlog_io:format_error([Message]), NewState1}
 	end;
 preprocess_command({ok, Command}, State) ->
-	{Res, State} = process_command({prove, Command}, State),
-	{erlog_logic:shell_prove_result(Res), State};
+	{Res, NewState} = process_command({prove, Command}, State),
+	{erlog_logic:shell_prove_result(Res), NewState};
 preprocess_command({error, {_, Em, E}}, State) -> {erlog_io:format_error([Em:format_error(E)]), State};
 preprocess_command({select, Value}, State) ->
 	{Next, State} = process_command(next, State),

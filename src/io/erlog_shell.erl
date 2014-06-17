@@ -123,7 +123,7 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
 handle_info({tcp, _, CommandRaw}, State = #state{line = Line, core = Core, socket = Socket}) ->
-	try erlog:execute(Core, CommandRaw) of
+	try erlog:execute(Core, lists:append(Line, CommandRaw)) of
 		{ok, halt} ->
 			gen_tcp:send(Socket, <<"Ok.\n">>),
 			{stop, normal, State};
