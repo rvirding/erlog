@@ -103,7 +103,8 @@ handle_cast(accept, State = #state{socket = ListenSocket}) ->
 	erlog_shell_sup:start_socket(),
 	Version = list_to_binary(erlang:system_info(version)),
 	gen_tcp:send(AcceptSocket, [<<<<"Erlog Shell V">>/binary, Version/binary, <<" (abort with ^G)\n| ?- ">>/binary>>]),
-	{noreply, State#state{socket = AcceptSocket, core = erlog_core:new()}};
+	{ok, Pid} = erlog_core:start_link(),
+	{noreply, State#state{socket = AcceptSocket, core = Pid}};
 handle_cast(_Request, State) ->
 	{noreply, State}.
 
@@ -122,7 +123,7 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
 handle_info({tcp, _, CommandRaw}, State = #state{line = Line, core = Core, spike = Spike, socket = Socket}) ->
-	try erlog:process_command(CommandRaw, Spike, Core) of
+	try erlog:execute(CommandRaw, Spike, Core) of
 		{ok, halt} ->
 			gen_tcp:send(Socket, <<"Ok.\n">>),
 			{stop, normal, State};
@@ -178,12 +179,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-% process reply from prolog %TODO find better way to handle erlog_shell_logic:show_bindings selection
-process_reply(State = #state{socket = Socket}, {NewCore, Res}) ->
-	gen_tcp:send(Socket, Res),
-	gen_tcp:send(Socket, <<"\n| ?- ">>),
-	{noreply, State#state{core = NewCore, spike = normal, line = []}};
-process_reply(State = #state{socket = Socket}, {NewCore, Res, select}) ->
+% process reply from prolog
+process_reply(State = #state{socket = Socket}, {Res, select}) ->
 	gen_tcp:send(Socket, Res),
 	gen_tcp:send(Socket, <<"\n: ">>),
-	{noreply, State#state{core = NewCore, spike = select, line = []}}.
+	{noreply, State#state{spike = select, line = []}};
+process_reply(State = #state{socket = Socket}, Res) ->
+	gen_tcp:send(Socket, Res),
+	gen_tcp:send(Socket, <<"\n| ?- ">>),
+	{noreply, State#state{spike = normal, line = []}}.
