@@ -13,7 +13,7 @@
 -export([execute/3]).
 
 -spec execute(Command :: string(), Mode :: atom(), Core :: pid) -> any().
-execute(Command, select, Core) -> % selection of solution
+execute(Command, select, Core) -> % selection of solution %TODO move Mode from here to erlog_core state
 	process_command(Core, {select, Command});
 execute(Command, normal, Core) -> % processing command in normal mode
 	case erlog_scan:tokens([], Command, 1) of
