@@ -41,13 +41,15 @@ assertz_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
 			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]})
-		end).
+		end),
+	{ok, Db}.
 
 asserta_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
 			ets:insert(Db, {Functor, clauses, Tag + 1, [{Tag, Head, Body} | Cs]})
-		end).
+		end),
+	{ok, Db}.
 
 retract_clause(Db, {Functor, Ct}) ->
 	case ets:lookup(Db, Functor) of
@@ -58,7 +60,8 @@ retract_clause(Db, {Functor, Ct}) ->
 		[{_, clauses, Nt, Cs}] ->
 			ets:insert(Db, {Functor, clauses, Nt, lists:keydelete(Ct, 1, Cs)});
 		[] -> ok        %Do nothing
-	end.
+	end,
+	{ok, Db}.
 
 abolish_clauses(Db, Functor) ->
 	case ets:lookup(Db, Functor) of
@@ -67,29 +70,30 @@ abolish_clauses(Db, Functor) ->
 		[{_, code, _}] -> ets:delete(Db, Functor);
 		[{_, clauses, _, _}] -> ets:delete(Db, Functor);
 		[] -> ok        %Do nothing
-	end.
+	end,
+	{ok, Db}.
 
 get_procedure(Db, Functor) ->
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> built_in;
-		[{_, code, C}] -> {code, C};
-		[{_, clauses, _, Cs}] -> {clauses, Cs};
-		[] -> undefined
-	end.
+	{case ets:lookup(Db, Functor) of
+		 [{_, built_in}] -> built_in;
+		 [{_, code, C}] -> {code, C};
+		 [{_, clauses, _, Cs}] -> {clauses, Cs};
+		 [] -> undefined
+	 end, Db}.
 
 get_procedure_type(Db, Functor) ->
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> built_in;    %A built-in
-		[{_, code, _C}] -> compiled;    %Compiled (perhaps someday)
-		[{_, clauses, _, _Cs}] -> interpreted;  %Interpreted clauses
-		[] -> undefined        %Undefined
-	end.
+	{case ets:lookup(Db, Functor) of
+		 [{_, built_in}] -> built_in;    %A built-in
+		 [{_, code, _C}] -> compiled;    %Compiled (perhaps someday)
+		 [{_, clauses, _, _Cs}] -> interpreted;  %Interpreted clauses
+		 [] -> undefined        %Undefined
+	 end, Db}.
 
 get_interp_functors(Db) ->
-	ets:foldl(fun({_, built_in}, Fs) -> Fs;
+	{ets:foldl(fun({_, built_in}, Fs) -> Fs;
 		({Func, code, _}, Fs) -> [Func | Fs];
 		({Func, clauses, _, _}, Fs) -> [Func | Fs]
-	end, [], Db).
+	end, [], Db), Db}.
 
 clause(Head, Body0, Db, ClauseFun) ->
 	{Functor, Body} = case catch {ok, erlog_core:functor(Head), erlog_core:well_form_body(Body0, false, sture)} of

@@ -37,7 +37,7 @@ load(Db) ->
 	%% Compiled common list library.
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_LISTS),
 	%% Finally interpreted common list library.
-	lists:foreach(fun(Clause) -> erlog_memory:assertz_clause(Clause, Db) end,
+	lists:foreach(fun(Clause) -> erlog_memory:assertz_clause(Db, Clause) end,
 		[
 			%% insert(L, X, [X|L]). insert([H|L], X, [H|L1]) :- insert(L, X, L1).
 			%% delete([X|L], X, L). delete([H|L], X, [H|L1]) :- delete(L, X, L1).

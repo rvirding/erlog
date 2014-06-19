@@ -127,9 +127,11 @@
 
 -include("erlog_int.hrl").
 
+%%-define(BIND, orddict).  %TODO ets and others?
+-define(BIND, dict).
+
 %% Main execution functions.
--export(
-[
+-export([
 	unify/3,
 	dderef_list/2,
 	make_vars/2,
@@ -141,8 +143,8 @@
 	prove_predicates/7,
 	prove_goal_clauses/7,
 	pred_ind/1,
-	well_form_body/3
-]).
+	well_form_body/3,
+	deref_list/2]).
 %% Bindings, unification and dereferncing.
 -export([functor/1]).
 %% Creating term and body instances.
@@ -211,7 +213,7 @@ deref(T, _) -> T.        %Not a variable, return it.
 
 %% deref_list(List, Bindings) -> List.
 %%  Dereference the top-level checking that it is a list.
-deref_list([], _) -> [];      %It already is a list
+deref_list([], _) -> [];      %It already is a list %TODO where it is used?
 deref_list([_ | _] = L, _) -> L;
 deref_list({V}, Bs) ->
 	case dict:find(V, Bs) of
@@ -860,9 +862,6 @@ pred_ind({N, A}) -> {'/', N, A}.
 
 %% Bindings
 %% Bindings are kept in a dict where the key is the variable name.
-%%-define(BIND, orddict).  %TODO ets and others?
--define(BIND, dict).
-
 new_bindings() -> ?BIND:new().
 
 add_binding({V}, Val, Bs0) ->

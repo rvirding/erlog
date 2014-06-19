@@ -56,20 +56,12 @@ start_link(Database, State) ->
 	gen_server:start_link(?MODULE, [Database, State], []).
 
 init([]) -> % use built in database
-	Db = erlog_memory:start_link(erlog_ets, undefined), %default database is ets module
-	%TODO monitor database?
-	%Load basic interpreter predicates
-	lists:foreach(fun(Mod) -> Mod:load(Db) end,
-		[
-			erlog_core,       %Core predicates
-			erlog_bips,       %Built in predicates
-			erlog_dcg,        %DCG predicates
-			erlog_lists       %Common lists library
-		]),
+	{ok, Db} = erlog_memory:start_link(erlog_ets, undefined), %default database is ets module
+	load_built_in(Db),
 	{ok, #state{db = Db}};
-init([Database, State]) -> % use custom database implementation  %TODO made state return in callbacks?
-	Db = erlog_memory:start_link(Database, State), %TODO monitor database?
-%% 	TODO load db
+init([Database, State]) -> % use custom database implementation
+	{ok, Db} = erlog_memory:start_link(Database, State),
+	load_built_in(Db),
 	{ok, #state{db = Db}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
@@ -96,6 +88,18 @@ code_change(_, _, St) -> {ok, St}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+%% @private
+load_built_in(Database) ->
+	link(Database), %TODO some better solution to clean database, close it properly and free memory after erlog terminates
+	%Load basic interpreter predicates
+	lists:foreach(fun(Mod) -> Mod:load(Database) end,
+		[
+			erlog_core,       %Core predicates
+			erlog_bips,       %Built in predicates
+			erlog_dcg,        %DCG predicates
+			erlog_lists       %Common lists library
+		]).
+
 %% @private
 %% Run scanned command
 run_command(Command, State) ->
@@ -164,7 +168,7 @@ prove_goal(Goal0, State = #state{db = Db}) ->
 	%% Must use 'catch' here as 'try' does not do last-call
 	%% optimisation.
 	case erlog_logic:prove_result(catch erlog_core:prove_goal(Goal1, Db), Vs) of
-		{succeed, Res, Args} ->
+		{succeed, Res, Args} -> %TODO Args?
 			{{succeed, Res}, State};
 		OtherRes -> {OtherRes, State#state{state = normal}}
 	end.

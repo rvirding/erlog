@@ -28,7 +28,7 @@ load(Db) ->
 	%% Compiled DCG predicates.
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DCG),
 	%% Interpreted DCG predicates.
-	lists:foldl(fun(Clause, Db) -> erlog_memory:assertz_clause(Db, Clause) end, Db,
+	lists:foreach(fun(Clause) -> erlog_memory:assertz_clause(Db, Clause) end,
 		[
 			%% 'C'([H|T], H, T).
 			%% {'C',[{1}|{2}],{1},{2}},		%For DCGs

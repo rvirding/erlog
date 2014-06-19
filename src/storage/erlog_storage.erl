@@ -9,20 +9,20 @@
 -module(erlog_storage).
 -author("tihon").
 
--callback add_built_in(State, Functor) -> {ok, NewState} | {error, Reason}.
+-callback add_built_in(State :: term(), Functor :: term()) -> {ok, NewState :: term()}.
 
--callback add_compiled_proc(State, {Functor, M, F}) -> {ok, NewState}  | {error, Reason}.
+-callback add_compiled_proc(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 
--callback assertz_clause(State, {Head, Body}) -> {ok, NewState}  | {error, Reason}.
+-callback assertz_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 
--callback asserta_clause(State, {Head, Body}) -> {ok, NewState}  | {error, Reason}.
+-callback asserta_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 
--callback retract_clause(State, {F, Ct}) -> {ok, NewState}  | {error, Reason}.
+-callback retract_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 
--callback abolish_clauses(State, Func) -> {ok, NewState}  | {error, Reason}.
+-callback abolish_clauses(State :: term(), Func :: term()) -> {ok, NewState :: term()}.
 
--callback get_procedure(State, Func) -> {atom, NewState}  | {term(), NewState} | {error, Reason}.
+-callback get_procedure(State :: term(), Func :: term()) -> {atom, NewState :: term()}  | {term(), NewState :: term()}.
 
--callback get_procedure_type(State, Func) -> {atom(), NewState}  | {error, Reason}.
+-callback get_procedure_type(State :: term(), Func :: term()) -> {atom(), NewState :: term()}.
 
--callback get_interp_functors(State) -> {list(), NewState}  | {error, Reason}.
+-callback get_interp_functors(State :: term()) -> {list(), NewState :: term()}.
