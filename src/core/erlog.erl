@@ -33,7 +33,7 @@
 -include("erlog_int.hrl").
 
 %% Interface to server.
--export([start_link/0, execute/2]).
+-export([start_link/2, start_link/0, execute/2]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -47,17 +47,29 @@
 
 execute(Worker, Command) -> gen_server:call(Worker, {execute, Command}).
 
+-spec start_link() -> pid().
 start_link() ->
 	gen_server:start_link(?MODULE, [], []).
 
-init(_) ->
-	Db0 = erlog_int:built_in_db(),    %Basic interpreter predicates
-	Db1 = lists:foldl(fun(Mod, Db) -> Mod:load(Db) end, Db0,
-		[erlog_bips,      %Built in predicates
-			erlog_dcg,      %DCG predicates
-			erlog_lists      %Common lists library
+-spec start_link(Database :: atom(), State :: term()) -> pid().
+start_link(Database, State) ->
+	gen_server:start_link(?MODULE, [Database, State], []).
+
+init([]) -> % use built in database
+	Db = erlog_memory:start_link(erlog_ets, undefined), %default database is ets module
+	%TODO monitor database?
+	%Load basic interpreter predicates
+	lists:foreach(fun(Mod) -> Mod:load(Db) end,
+		[
+			erlog_bips,       %Built in predicates
+			erlog_dcg,        %DCG predicates
+			erlog_lists       %Common lists library
 		]),
-	{ok, #state{db = Db1}}.
+	{ok, #state{db = Db}};
+init([Database, State]) -> % use custom database implementation  %TODO made state return in callbacks?
+	Db = erlog_memory:start_link(Database, State), %TODO monitor database?
+%% 	TODO load db
+	{ok, #state{db = Db}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
 	{Res, NewState} = case erlog_scan:tokens([], Command, 1) of
@@ -121,7 +133,7 @@ process_command({prove, Goal}, State) ->
 process_command(next, State = #state{state = normal}) ->
 	{fail, State};
 process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
-	{erlog_logic:prove_result(catch erlog_int:fail(Cps, Db), Vs), State};
+	{erlog_logic:prove_result(catch erlog_errors:fail(Cps, Db), Vs), State};
 process_command({consult, File}, State = #state{db = Db}) ->
 	case erlog_file:consult(File, Db) of
 		{ok, Db1} -> ok;  %TODO Db1?
@@ -150,7 +162,7 @@ prove_goal(Goal0, State = #state{db = Db}) ->
 	Goal1 = erlog_logic:unlistify(Goal0),
 	%% Must use 'catch' here as 'try' does not do last-call
 	%% optimisation.
-	case erlog_logic:prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs) of
+	case erlog_logic:prove_result(catch erlog_core:prove_goal(Goal1, Db), Vs) of
 		{succeed, Res, Args} ->
 			{{succeed, Res}, State};
 		OtherRes -> {OtherRes, State#state{state = normal}}

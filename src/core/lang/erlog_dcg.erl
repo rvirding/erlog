@@ -24,13 +24,11 @@
 -export([expand_term_2/6, phrase_3/6]).
 -export([load/1]).
 
--import(lists, [foldl/3]).
-
-load(Db0) ->
+load(Db) ->
 	%% Compiled DCG predicates.
-	Db1 = foldl(fun({Head, M, F}, Db) -> erlog_int:add_compiled_proc(Head, M, F, Db) end, Db0, ?ERLOG_DCG),
+	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DCG),
 	%% Interpreted DCG predicates.
-	foldl(fun(Clause, Db) -> erlog_int:assertz_clause(Clause, Db) end, Db1,
+	lists:foldl(fun(Clause, Db) -> erlog_memory:assertz_clause(Db, Clause) end, Db,
 		[
 			%% 'C'([H|T], H, T).
 			%% {'C',[{1}|{2}],{1},{2}},		%For DCGs
@@ -46,29 +44,26 @@ load(Db0) ->
 %% expand_term_2(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%     void
 %%  Call the expand_term/2 predicate.
-
 expand_term_2(Goal, Next, Cps, Bs, Vn0, Db) ->
-	{expand_term, DCGRule, A2} = erlog_int:dderef(Goal, Bs),
+	{expand_term, DCGRule, A2} = erlog_core:dderef(Goal, Bs),
 	{Exp, Vn1} = expand_term(DCGRule, Vn0),
-	erlog_int:unify_prove_body(A2, Exp, Next, Cps, Bs, Vn1, Db).
+	erlog_core:unify_prove_body(A2, Exp, Next, Cps, Bs, Vn1, Db).
 
 %% phrase_3(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Call the phrase/3 preidicate. We could easily do this in prolog
 %%  except for that it calls dcg_body/4 which is not exported.
 %%
 %%  phrase(GRBody, S0, S) -> dcg_body(GRBody, S0, S, Goal), call(Goal).
-
 phrase_3(Goal, Next0, Cps, Bs, Vn0, Db) ->
-	{phrase, GRBody, S0, S} = erlog_int:dderef(Goal, Bs),
+	{phrase, GRBody, S0, S} = erlog_core:dderef(Goal, Bs),
 	{Body, Vn1} = dcg_body(GRBody, S0, S, Vn0),
 	%% io:format("~p\n", [Body]),
 	Next1 = [{call, Body} | Next0],    %Evaluate body
-	erlog_int:prove_body(Next1, Cps, Bs, Vn1, Db).
+	erlog_core:prove_body(Next1, Cps, Bs, Vn1, Db).
 
 %% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
 %%  Handle DCG expansion. We do NOT work backwards.
-
 expand_term(Term) ->
 	{Exp, _} = expand_term(Term, 0),
 	Exp.
@@ -87,7 +82,6 @@ expand_term(Term, Vn) -> {Term, Vn}.
 %%  dcg_body and dcg_goal do smae the thing except the dcg_body
 %%  guarantees the output variable is the one we specify. It may
 %%  insert an explicit '=' to get this.
-
 dcg_rule(DCGRule, Vn0) ->
 	S0 = {Vn0},
 	S = {Vn0 + 1},
@@ -107,7 +101,7 @@ dcg_rule({'-->', H, B}, S0, S, Vn0) ->
 dcg_non_term(A, S0, S) when is_atom(A) -> {A, S0, S};
 dcg_non_term(T, S0, S) when ?IS_FUNCTOR(T) ->
 	list_to_tuple(tuple_to_list(T) ++ [S0, S]);
-dcg_non_term(Other, _, _) -> erlog_int:type_error(callable, Other).
+dcg_non_term(Other, _, _) -> erlog_errors:type_error(callable, Other).
 
 dcg_body({',', G0, B0}, S0, S, Vn0) ->
 	S1 = {Vn0},

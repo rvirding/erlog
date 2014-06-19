@@ -123,50 +123,44 @@
 %% to go back to but this would entail a more interactive
 %% body_instance.
 
--module(erlog_int).
+-module(erlog_core).
 
 -include("erlog_int.hrl").
 
 %% Main execution functions.
--export([prove_goal/2, prove_body/5, fail/2]).
--export([unify_prove_body/7, unify_prove_body/9]).
+-export(
+[
+	unify/3,
+	dderef_list/2,
+	make_vars/2,
+	prove_goal/2,
+	unify_prove_body/9,
+	prove_body/5,
+	unify_clauses/8,
+	retract_clauses/8,
+	prove_predicates/7,
+	prove_goal_clauses/7,
+	pred_ind/1,
+	well_form_body/3
+]).
 %% Bindings, unification and dereferncing.
--export([new_bindings/0, add_binding/3, make_vars/2]).
--export([deref/2, deref_list/2, dderef/2, dderef_list/2, unify/3, functor/1]).
+-export([functor/1]).
 %% Creating term and body instances.
 -export([term_instance/2]).
 %% Adding to database.
--export([asserta_clause/2, assertz_clause/2, abolish_clauses/2]).
--export([add_built_in/2, add_compiled_proc/4]).
--export([new_db/0, built_in_db/0]).
+-export([built_in_db/1]). %TODO?
 
-%% Error types.
--export([erlog_error/1, erlog_error/2, type_error/2, type_error/3,
-	instantiation_error/0, instantiation_error/1, permission_error/4]).
-
-%%-compile(export_all).
-
--import(lists, [map/2, foldl/3]).
-
-%% Define the database to use. ONE of the follwing must be defined.
-
-%%-define(ETS,true).  %TODO get rid of this!
-%%-define(DB, orddict).
--define(DB, dict).
-
-%% built_in_db() -> Database.
+%% built_in_db(Db) -> Database.
 %% Create an initial clause database containing the built-in
 %% predicates and predefined library predicates.
 
-built_in_db() ->
-	Db0 = new_db(),
-	%% First add the Erlang built-ins.
-	foldl(fun(Head, Db) -> add_built_in(Head, Db) end, Db0, ?ERLOG_INT).
+built_in_db(Db) ->
+	%% Add the Erlang built-ins.
+	lists:foreach(fun(Head, Db) -> Db:add_built_in(Head, Db) end, ?ERLOG_INT).
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
 %% everything is consistent then prove the goal as a call.
-
 prove_goal(Goal0, Db) ->
 	%% put(erlog_cut, orddict:new()),
 	%% put(erlog_cps, orddict:new()),
@@ -175,14 +169,93 @@ prove_goal(Goal0, Db) ->
 	{Goal1, Bs, Vn} = initial_goal(Goal0),
 	prove_body([{call, Goal1}], [], Bs, Vn, Db).
 
--define(FAIL(Bs, Cps, Db),
-	begin
-		put(erlog_cps, orddict:update_counter(length(Cps), 1, get(erlog_cps))),
-		put(erlog_var, orddict:update_counter(dict:size(Bs), 1, get(erlog_var))),
-		fail(Cps, Db)
-	end).
--undef(FAIL).
--define(FAIL(Bs, Cps, Db), fail(Cps, Db)).
+%% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
+%%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
+%% Prove the goals in a body. Remove the first goal and try to prove
+%% it. Return when there are no more goals. This is how proving a
+%% goal/body succeeds.
+prove_body([G | Gs], Cps, Bs0, Vn0, Db0) ->
+	%%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
+	prove_goal(G, Gs, Cps, Bs0, Vn0, Db0);
+prove_body([], Cps, Bs, Vn, Db) ->
+	%%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
+	%%      [get(erlog_cps),get(erlog_cut),get(erlog_var),dict:size(Bs)]),
+	%%io:fwrite("PB: ~p\n", [Cps]),
+	{succeed, Cps, Bs, Vn, Db}.      %No more body
+
+%% unify_prove_body(Term1, Term2, Next, ChoicePoints, Bindings, VarNum, Database) ->
+%%	void.
+%% Unify Term1 = Term2, on success prove body Next else fail.
+unify_prove_body(T1, T2, Next, Cps, Bs0, Vn, Db) ->
+	case unify(T1, T2, Bs0) of
+		{succeed, Bs1} -> prove_body(Next, Cps, Bs1, Vn, Db);
+		fail -> ?FAIL(Bs0, Cps, Db)
+	end.
+
+%% unify_prove_body(A1, B1, A2, B2, Next, ChoicePoints, Bindings, VarNum, Database) ->
+%%	void.
+%% Unify A1 = B1, A2 = B2, on success prove body Next else fail.
+unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db) ->
+	case unify(A1, B1, Bs0) of
+		{succeed, Bs1} -> unify_prove_body(A2, B2, Next, Cps, Bs1, Vn, Db);
+		fail -> ?FAIL(Bs0, Cps, Db)
+	end.
+
+%% deref(Term, Bindings) -> Term. %TODO ets and others?
+%% Dereference a variable, else just return the term.
+deref({V} = T0, Bs) ->
+	case ?BIND:find(V, Bs) of
+		{ok, T1} -> deref(T1, Bs);
+		error -> T0
+	end;
+deref(T, _) -> T.        %Not a variable, return it.
+
+%% deref_list(List, Bindings) -> List.
+%%  Dereference the top-level checking that it is a list.
+deref_list([], _) -> [];      %It already is a list
+deref_list([_ | _] = L, _) -> L;
+deref_list({V}, Bs) ->
+	case dict:find(V, Bs) of
+		{ok, L} -> deref_list(L, Bs);
+		error -> erlog_errors:instantiation_error()
+	end;
+deref_list(Other, _) -> erlog_errors:type_error(list, Other).
+
+%% dderef(Term, Bindings) -> Term.
+%% Do a deep dereference. Completely dereference all the variables
+%% occuring in a term, even those occuring in a variables value.
+dderef(A, _) when ?IS_CONSTANT(A) -> A;
+dderef([], _) -> [];
+dderef([H0 | T0], Bs) ->
+	[dderef(H0, Bs) | dderef(T0, Bs)];
+dderef({V} = Var, Bs) ->
+	case ?BIND:find(V, Bs) of
+		{ok, T} -> dderef(T, Bs);
+		error -> Var
+	end;
+dderef(T, Bs) when is_tuple(T) ->
+	Es0 = tuple_to_list(T),
+	Es1 = dderef(Es0, Bs),
+	list_to_tuple(Es1).
+
+%% dderef_list(List, Bindings) -> List.
+%%  Dereference all variables to any depth but check that the
+%%  top-level is a list.
+dderef_list([], _Bs) -> [];
+dderef_list([H | T], Bs) ->
+	[dderef(H, Bs) | dderef_list(T, Bs)];
+dderef_list({V}, Bs) ->
+	case ?BIND:find(V, Bs) of
+		{ok, L} -> dderef_list(L, Bs);
+		error -> erlog_errors:instantiation_error()
+	end;
+dderef_list(Other, _Bs) -> erlog_errors:type_error(list, Other).
+
+%% make_vars(Count, VarNum) -> [Var].
+%% Make a list of new variables starting at VarNum. %TODO move me to core?
+make_vars(0, _) -> [];
+make_vars(I, Vn) ->
+	[{Vn} | make_vars(I - 1, Vn + 1)].
 
 %% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
@@ -248,18 +321,18 @@ prove_goal(repeat, Next, Cps, Bs, Vn, Db) ->
 prove_goal({abolish, Pi0}, Next, Cps, Bs, Vn, Db) ->
 	case dderef(Pi0, Bs) of
 		{'/', N, A} when is_atom(N), is_integer(A), A > 0 ->
-			prove_body(Next, Cps, Bs, Vn, abolish_clauses({N, A}, Db));
-		Pi -> type_error(predicate_indicator, Pi, Db)
+			prove_body(Next, Cps, Bs, Vn, Db:abolish_clauses({N, A}, Db));
+		Pi -> erlog_errors:type_error(predicate_indicator, Pi, Db)
 	end;
 prove_goal({assert, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
-	prove_body(Next, Cps, Bs, Vn, assertz_clause(C, Db));
+	prove_body(Next, Cps, Bs, Vn, erlog_memory:assertz_clause(Db, C));
 prove_goal({asserta, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
-	prove_body(Next, Cps, Bs, Vn, asserta_clause(C, Db));
+	prove_body(Next, Cps, Bs, Vn, erlog_memory:asserta_clause(Db, C));
 prove_goal({assertz, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
-	prove_body(Next, Cps, Bs, Vn, assertz_clause(C, Db));
+	prove_body(Next, Cps, Bs, Vn, erlog_memory:assertz_clause(Db, C));
 prove_goal({retract, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
 	prove_retract(C, Next, Cps, Bs, Vn, Db);
@@ -272,12 +345,12 @@ prove_goal({current_predicate, Pi0}, Next, Cps, Bs, Vn, Db) ->
 	prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db);
 prove_goal({predicate_property, H0, P}, Next, Cps, Bs, Vn, Db) ->
 	H = dderef(H0, Bs),
-	case catch get_procedure_type(functor(H), Db) of
+	case catch erlog_memory:get_procedure_type(Db, functor(H)) of
 		built_in -> unify_prove_body(P, built_in, Next, Cps, Bs, Vn, Db);
 		compiled -> unify_prove_body(P, compiled, Next, Cps, Bs, Vn, Db);
 		interpreted -> unify_prove_body(P, interpreted, Next, Cps, Bs, Vn, Db);
 		undefined -> ?FAIL(Bs, Cps, Db);
-		{erlog_error, E} -> erlog_error(E, Db)
+		{erlog_error, E} -> erlog_errors:erlog_error(E, Db)
 	end;
 %% External interface
 prove_goal({ecall, C0, Val}, Next, Cps, Bs, Vn, Db) ->
@@ -294,7 +367,7 @@ prove_goal({ecall, C0, Val}, Next, Cps, Bs, Vn, Db) ->
 			       L = tuple_to_list(T),
 			       fun() -> apply(M, hd(L), tl(L)) end;
 		       Fun when is_function(Fun) -> Fun;
-		       Other -> type_error(callable, Other, Db)
+		       Other -> erlog_errors:type_error(callable, Other, Db)
 	       end,
 	prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db);
 %% Non-standard but useful.
@@ -305,47 +378,15 @@ prove_goal({display, T}, Next, Cps, Bs, Vn, Db) ->
 %% Now look up the database.
 prove_goal(G, Next, Cps, Bs, Vn, Db) ->
 	%%io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
-	case catch get_procedure(functor(G), Db) of
+	case catch erlog_memory:get_procedure(Db, functor(G)) of
 		built_in -> erlog_bips:prove_goal(G, Next, Cps, Bs, Vn, Db);
 		{code, {Mod, Func}} -> Mod:Func(G, Next, Cps, Bs, Vn, Db);
 		{clauses, Cs} -> prove_goal_clauses(G, Cs, Next, Cps, Bs, Vn, Db);
 		undefined -> ?FAIL(Bs, Cps, Db);
 	%% Getting built_in here is an error!
-		{erlog_error, E} -> erlog_error(E, Db)  %Fill in more error data
+		{erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
 	end.
 
-fail_disjunction(#cp{next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	prove_body(Next, Cps, Bs, Vn, Db).
-
-fail_if_then_else(#cp{next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	prove_body(Next, Cps, Bs, Vn, Db).
-
-%% fail(ChoicePoints, Database) -> {fail,Database}.
-%% cut(Label, Last, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
-%%
-%%  The functions which manipulate the choice point stack.  fail
-%%  backtracks to next choicepoint skipping cut labels cut steps
-%%  backwards over choice points until matching cut.
-
-fail([#cp{type = goal_clauses} = Cp | Cps], Db) ->
-	fail_goal_clauses(Cp, Cps, Db);
-fail([#cp{type = disjunction} = Cp | Cps], Db) ->
-	fail_disjunction(Cp, Cps, Db);
-fail([#cp{type = if_then_else} = Cp | Cps], Db) ->
-	fail_if_then_else(Cp, Cps, Db);
-fail([#cp{type = clause} = Cp | Cps], Db) ->
-	fail_clause(Cp, Cps, Db);
-fail([#cp{type = retract} = Cp | Cps], Db) ->
-	fail_retract(Cp, Cps, Db);
-fail([#cp{type = current_predicate} = Cp | Cps], Db) ->
-	fail_current_predicate(Cp, Cps, Db);
-fail([#cp{type = ecall} = Cp | Cps], Db) ->
-	fail_ecall(Cp, Cps, Db);
-fail([#cp{type = compiled, data = F} = Cp | Cps], Db) ->
-	F(Cp, Cps, Db);
-fail([#cut{} | Cps], Db) ->
-	fail(Cps, Db);        %Fail over cut points.
-fail([], Db) -> {fail, Db}.
 
 cut(Label, Last, Next, [#cut{label = Label} | Cps] = Cps0, Bs, Vn, Db) ->
 	if Last -> prove_body(Next, Cps, Bs, Vn, Db);
@@ -385,32 +426,12 @@ cut(Label, Last, Next, [_Cp | Cps], Bs, Vn, Db) ->
 
 check_goal(G0, Next, Bs, Db, Cut, Label) ->
 	case dderef(G0, Bs) of
-		{_} -> instantiation_error(Db);    %Must have something to call
+		{_} -> erlog_errors:instantiation_error(Db);    %Must have something to call
 		G1 ->
 			case catch {ok, well_form_goal(G1, Next, Cut, Label)} of
-				{erlog_error, E} -> erlog_error(E, Db);
+				{erlog_error, E} -> erlog_errors:erlog_error(E, Db);
 				{ok, GC} -> GC      %Body and cut
 			end
-	end.
-
-%% unify_prove_body(Term1, Term2, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-%% Unify Term1 = Term2, on success prove body Next else fail.
-
-unify_prove_body(T1, T2, Next, Cps, Bs0, Vn, Db) ->
-	case unify(T1, T2, Bs0) of
-		{succeed, Bs1} -> prove_body(Next, Cps, Bs1, Vn, Db);
-		fail -> ?FAIL(Bs0, Cps, Db)
-	end.
-
-%% unify_prove_body(A1, B1, A2, B2, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-%% Unify A1 = B1, A2 = B2, on success prove body Next else fail.
-
-unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db) ->
-	case unify(A1, B1, Bs0) of
-		{succeed, Bs1} -> unify_prove_body(A2, B2, Next, Cps, Bs1, Vn, Db);
-		fail -> ?FAIL(Bs0, Cps, Db)
 	end.
 
 %% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
@@ -428,21 +449,18 @@ prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db) ->
 		fail -> ?FAIL(Bs, Cps, Db)      %No more
 	end.
 
-fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db).
-
 %% prove_clause(Head, Body, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
 %%      void.
 %% Unify clauses matching with functor from Head with both Head and Body.
 
 prove_clause(H, B, Next, Cps, Bs, Vn, Db) ->
 	Functor = functor(H),
-	case get_procedure(Functor, Db) of
+	case erlog_memory:get_procedure(Db, Functor) of
 		{clauses, Cs} -> unify_clauses(H, B, Cs, Next, Cps, Bs, Vn, Db);
 		{code, _} ->
-			permission_error(access, private_procedure, pred_ind(Functor), Db);
+			erlog_errors:permission_error(access, private_procedure, pred_ind(Functor), Db);
 		built_in ->
-			permission_error(access, private_procedure, pred_ind(Functor), Db);
+			erlog_errors:permission_error(access, private_procedure, pred_ind(Functor), Db);
 		undefined -> ?FAIL(Bs, Cps, Db)
 	end.
 
@@ -477,9 +495,6 @@ unify_clause(Ch, Cb, {_Tag, H0, {B0, _}}, Bs0, Vn0) ->
 		fail -> fail
 	end.
 
-fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	unify_clauses(Ch, Cb, Cs, Next, Cps, Bs, Vn, Db).
-
 %% prove_current_predicate(PredInd, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
 %%      void.
 %% Match functors of existing user (interpreted) predicate with PredInd.
@@ -488,9 +503,9 @@ prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db) ->
 	case Pi of
 		{'/', _, _} -> ok;
 		{_} -> ok;
-		Other -> type_error(predicate_indicator, Other)
+		Other -> erlog_errors:type_error(predicate_indicator, Other)
 	end,
-	Fs = get_interp_functors(Db),
+	Fs = Db:get_interp_functors(Db),
 	prove_predicates(Pi, Fs, Next, Cps, Bs, Vn, Db).
 
 prove_predicates(Pi, [F | Fs], Next, Cps, Bs, Vn, Db) ->
@@ -498,13 +513,9 @@ prove_predicates(Pi, [F | Fs], Next, Cps, Bs, Vn, Db) ->
 	unify_prove_body(Pi, pred_ind(F), Next, [Cp | Cps], Bs, Vn, Db);
 prove_predicates(_Pi, [], _Next, Cps, _Bs, _Vn, Db) -> ?FAIL(_Bs, Cps, Db).
 
-fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	prove_predicates(Pi, Fs, Next, Cps, Bs, Vn, Db).
-
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
-
 prove_goal_clauses(G, [C], Next, Cps, Bs, Vn, Db) ->
 	%% Must be smart here and test whether we need to add a cut point.
 	%% C has the structure {Tag,Head,{Body,BodyHasCut}}.
@@ -533,11 +544,7 @@ prove_goal_clause(G, {_Tag, H0, {B0, _}}, Next, Cps, Bs0, Vn0, Db) ->
 		fail -> ?FAIL(Bs0, Cps, Db)
 	end.
 
-fail_goal_clauses(#cp{data = {G, Cs}, next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	prove_goal_clauses(G, Cs, Next, Cps, Bs, Vn, Db).
-
 %% cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db).
-
 cut_goal_clauses(true, Next, #cp{label = _}, Cps, Bs, Vn, Db) ->
 	%% Just remove the choice point completely and continue.
 	prove_body(Next, Cps, Bs, Vn, Db);
@@ -557,12 +564,12 @@ prove_retract(H, Next, Cps, Bs, Vn, Db) ->
 
 prove_retract(H, B, Next, Cps, Bs, Vn, Db) ->
 	Functor = functor(H),
-	case get_procedure(Functor, Db) of
+	case Db:get_procedure(Functor, Db) of
 		{clauses, Cs} -> retract_clauses(H, B, Cs, Next, Cps, Bs, Vn, Db);
 		{code, _} ->
-			permission_error(modify, static_procedure, pred_ind(Functor), Db);
+			erlog_errors:permission_error(modify, static_procedure, pred_ind(Functor), Db);
 		built_in ->
-			permission_error(modify, static_procedure, pred_ind(Functor), Db);
+			erlog_errors:permission_error(modify, static_procedure, pred_ind(Functor), Db);
 		undefined -> ?FAIL(Bs, Cps, Db)
 	end.
 
@@ -574,34 +581,22 @@ retract_clauses(Ch, Cb, [C | Cs], Next, Cps, Bs0, Vn0, Db0) ->
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			%% We have found a right clause so now retract it.
-			Db1 = retract_clause(functor(Ch), element(1, C), Db0),
+			Db1 = Db0:retract_clause(functor(Ch), element(1, C), Db0),
 			Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
 			prove_body(Next, [Cp | Cps], Bs1, Vn1, Db1);
 		fail -> retract_clauses(Ch, Cb, Cs, Next, Cps, Bs0, Vn0, Db0)
 	end;
 retract_clauses(_Ch, _Cb, [], _Next, Cps, _Bs, _Vn, Db) -> ?FAIL(_Bs, Cps, Db).
 
-fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Cps, Db) ->
-	retract_clauses(Ch, Cb, Cs, Next, Cps, Bs, Vn, Db).
-
-%% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
-%%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
-%% Prove the goals in a body. Remove the first goal and try to prove
-%% it. Return when there are no more goals. This is how proving a
-%% goal/body succeeds.
-
-prove_body([G | Gs], Cps, Bs0, Vn0, Db0) ->
-	%%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
-	prove_goal(G, Gs, Cps, Bs0, Vn0, Db0);
-prove_body([], Cps, Bs, Vn, Db) ->
-	%%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
-	%%      [get(erlog_cps),get(erlog_cut),get(erlog_var),dict:size(Bs)]),
-	%%io:fwrite("PB: ~p\n", [Cps]),
-	{succeed, Cps, Bs, Vn, Db}.      %No more body
+unify_args(_, _, Bs, I, S) when I > S -> {succeed, Bs};
+unify_args(S1, S2, Bs0, I, S) ->
+	case unify(element(I, S1), element(I, S2), Bs0) of
+		{succeed, Bs1} -> unify_args(S1, S2, Bs1, I + 1, S);
+		fail -> fail
+	end.
 
 %% unify(Term, Term, Bindings) -> {succeed,NewBindings} | fail.
 %% Unify two terms with a set of bindings.
-
 unify(T10, T20, Bs0) ->
 	case {deref(T10, Bs0), deref(T20, Bs0)} of
 		{T1, T2} when ?IS_CONSTANT(T1), T1 == T2 ->
@@ -621,329 +616,16 @@ unify(T10, T20, Bs0) ->
 		_Other -> fail
 	end.
 
-unify_args(_, _, Bs, I, S) when I > S -> {succeed, Bs};
-unify_args(S1, S2, Bs0, I, S) ->
-	case unify(element(I, S1), element(I, S2), Bs0) of
-		{succeed, Bs1} -> unify_args(S1, S2, Bs1, I + 1, S);
-		fail -> fail
-	end.
-
-%% make_vars(Count, VarNum) -> [Var].
-%% Make a list of new variables starting at VarNum.
-
-make_vars(0, _) -> [];
-make_vars(I, Vn) ->
-	[{Vn} | make_vars(I - 1, Vn + 1)].
-
-%% Errors
-%% To keep dialyzer quiet.
--spec type_error(_, _) -> no_return().
--spec type_error(_, _, _) -> no_return().
--spec instantiation_error() -> no_return().
--spec instantiation_error(_) -> no_return().
--spec permission_error(_, _, _, _) -> no_return().
--spec erlog_error(_) -> no_return().
--spec erlog_error(_, _) -> no_return().
-
-type_error(Type, Value, Db) -> erlog_error({type_error, Type, Value}, Db).
-type_error(Type, Value) -> erlog_error({type_error, Type, Value}).
-
-instantiation_error(Db) -> erlog_error(instantiation_error, Db).
-instantiation_error() -> erlog_error(instantiation_error).
-
-permission_error(Op, Type, Value, Db) ->
-	erlog_error({permission_error, Op, Type, Value}, Db).
-
-erlog_error(E, Db) -> throw({erlog_error, E, Db}).
-erlog_error(E) -> throw({erlog_error, E}).
-
--ifdef(DB). %TODO resolve me
-%% Database
-%% The database is a dict where the key is the functor pair {Name,Arity}.
-%% The value is: built_in |
-%%		 {clauses,NextTag,[{Tag,Head,Body}]} |
-%%		 {code,{Module,Function}}.
-%% Built-ins are defined by the system and cannot manipulated by user
-%% code.
-%% We are a little paranoid here and do our best to ensure consistency
-%% in the database by checking input arguments even if we know they
-%% come from "good" code.
-
-new_db() -> ?DB:new().
-
-%% add_built_in(Functor, Database) -> NewDatabase.
-%% Add Functor as a built-in in the database.
-
-add_built_in(Functor, Db) ->
-	io:format("add_built_in ~p~n", [Functor]),
-	?DB:store(Functor, built_in, Db).
-
-%% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
-%% Add Functor as a compiled procedure with code in Module:Function. No
-%% checking.
-
-add_compiled_proc(Functor, M, F, Db) ->
-	?DB:update(Functor,
-		fun(built_in) ->
-			permission_error(modify, static_procedure, pred_ind(Functor), Db);
-			(_) -> {code, {M, F}}
-		end, {code, {M, F}}, Db).
-
-%% assertz_clause(Clause, Database) -> NewDatabase.
-%% assertz_clause(Head, Body, Database) -> NewDatabase.
-%% Assert a clause into the database first checking that it is well
-%% formed.
-
-assertz_clause({':-', H, B}, Db) -> assertz_clause(H, B, Db);
-assertz_clause(H, Db) -> assertz_clause(H, true, Db).
-
-assertz_clause(Head, Body0, Db) ->
-	{Functor, Body} = case catch {ok, functor(Head),
-		well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	?DB:update(Functor,
-		fun(built_in) ->
-			permission_error(modify, static_procedure, pred_ind(Functor), Db);
-			({code, _}) ->
-				permission_error(modify, static_procedure, pred_ind(Functor), Db);
-			({clauses, T, Cs}) -> {clauses, T + 1, Cs ++ [{T, Head, Body}]}
-		end, {clauses, 1, [{0, Head, Body}]}, Db).
-
-%% asserta_clause(Clause, Database) -> NewDatabase.
-%% asserta_clause(Head, Body, Database) -> NewDatabase.
-%% Assert a clause into the database first checking that it is well
-%% formed.
-
-asserta_clause({':-', H, B}, Db) -> asserta_clause(H, B, Db);
-asserta_clause(H, Db) -> asserta_clause(H, true, Db).
-
-asserta_clause(Head, Body0, Db) ->
-	{Functor, Body} = case catch {ok, functor(Head),
-		well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	?DB:update(Functor,
-		fun(built_in) ->
-			permission_error(modify, static_procedure, pred_ind(Functor), Db);
-			({code, _}) ->
-				permission_error(modify, static_procedure, pred_ind(Functor), Db);
-			({clauses, T, Cs}) -> {clauses, T + 1, [{T, Head, Body} | Cs]}
-		end, {clauses, 1, [{0, Head, Body}]}, Db).
-
-%% retract_clause(Functor, ClauseTag, Database) -> NewDatabase.
-%% Retract (remove) the clause with tag ClauseTag from the list of
-%% clauses of Functor.
-
-retract_clause(F, Ct, Db) ->
-	case ?DB:find(F, Db) of
-		{ok, built_in} ->
-			permission_error(modify, static_procedure, pred_ind(F), Db);
-		{ok, {code, _}} ->
-			permission_error(modify, static_procedure, pred_ind(F), Db);
-		{ok, {clauses, Nt, Cs}} ->
-			?DB:store(F, {clauses, Nt, lists:keydelete(Ct, 1, Cs)}, Db);
-		error -> Db        %Do nothing
-	end.
-
-%% abolish_clauses(Functor, Database) -> NewDatabase.
-
-abolish_clauses(Func, Db) ->
-	case ?DB:find(Func, Db) of
-		{ok, built_in} ->
-			permission_error(modify, static_procedure, pred_ind(Func), Db);
-		{ok, {code, _}} -> ?DB:erase(Func, Db);
-		{ok, {clauses, _, _}} -> ?DB:erase(Func, Db);
-		error -> Db        %Do nothing
-	end.
-
-%% get_procedure(Functor, Database) ->
-%%	built_in | {code,{Mod,Func}} | {clauses,[Clause]} | undefined.
-%% Return the procedure type and data for a functor.
-
-get_procedure(Func, Db) ->
-	case ?DB:find(Func, Db) of
-		{ok, built_in} -> built_in;    %A built-in
-		{ok, {code, {_M, _F}} = P} -> P;    %Compiled (perhaps someday)
-		{ok, {clauses, _T, Cs}} -> {clauses, Cs};  %Interpreted clauses
-		error -> undefined      %Undefined
-	end.
-
-%% get_procedure_type(Functor, Database) ->
-%%	built_in | compiled | interpreted | undefined.
-%% Return the procedure type for a functor.
-
-get_procedure_type(Func, Db) ->
-	case ?DB:find(Func, Db) of
-		{ok, built_in} -> built_in;    %A built-in
-		{ok, {code, _}} -> compiled;    %Compiled (perhaps someday)
-		{ok, {clauses, _, _}} -> interpreted;  %Interpreted clauses
-		error -> undefined      %Undefined
-	end.
-
-%% get_interp_functors(Database) -> [Functor].
-
-get_interp_functors(Db) ->
-	?DB:fold(fun(_Func, built_in, Fs) -> Fs;
-		(Func, {code, _}, Fs) -> [Func | Fs];
-		(Func, {clauses, _, _}, Fs) -> [Func | Fs]
-	end, [], Db).
--endif.
-
--ifdef(ETS).
-%% The database is an ets table where the key is the functor pair {Name,Arity}.
-%% The value is: {Functor,built_in} |
-%%		 {Functor,clauses,NextTag,[{Tag,Head,Body}]} |
-%%		 {Functor,code,{Module,Function}}.
-%% Built-ins are defined by the system and cannot manipulated by user
-%% code.
-%% We are a little paranoid here and do our best to ensure consistency
-%% in the database by checking input arguments even if we know they
-%% come from "good" code.
-
-new_db() -> ets:new(erlog_database, [set, protected, {keypos, 1}]).
-
-%% add_built_in(Functor, Database) -> NewDatabase.
-%% Add Functor as a built-in in the database.
-
-add_built_in(Functor, Db) ->
-	ets:insert(Db, {Functor, built_in}),
-	Db.
-
-%% add_compiled_proc(Functor, Module, Function, Database) -> NewDatabase.
-%% Add Functor as a compiled procedure with code in Module:Function. No
-%% checking.
-
-add_compiled_proc(Functor, M, F, Db) ->
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] ->
-			permission_error(modify, static_procedure, pred_ind(Functor), Db);
-		[_] -> ets:insert(Db, {Functor, code, {M, F}});
-		[] -> ets:insert(Db, {Functor, code, {M, F}})
-	end,
-	Db.
-
-%% assertz_clause(Clause, Database) -> NewDatabase.
-%% assertz_clause(Head, Body, Database) -> NewDatabase.
-%% Assert a clause into the database first checking that it is well
-%% formed.
-
-assertz_clause({':-', H, B}, Db) -> assertz_clause(H, B, Db);
-assertz_clause(H, Db) -> assertz_clause(H, true, Db).
-
-assertz_clause(Head, Body0, Db) ->
-	{Functor, Body} = case catch {ok, functor(Head),
-		well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> permission_error(pred_ind(Functor), Db);
-		[{_, code, _}] -> permission_error(pred_ind(Functor), Db);
-		[{_, clauses, Tag, Cs}] ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]});
-		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
-	end,
-	Db.
-
-%% asserta_clause(Clause, Database) -> NewDatabase.
-%% asserta_clause(Head, Body, Database) -> NewDatabase.
-%% Assert a clause into the database first checking that it is well
-%% formed.
-
-asserta_clause({':-', H, B}, Db) -> asserta_clause(H, B, Db);
-asserta_clause(H, Db) -> asserta_clause(H, true, Db).
-
-asserta_clause(Head, Body0, Db) ->
-	{Functor, Body} = case catch {ok, functor(Head),
-		well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> permission_error(pred_ind(Functor), Db);
-		[{_, code, _}] -> permission_error(pred_ind(Functor), Db);
-		[{_, clauses, Tag, Cs}] ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, [{Tag, Head, Body} | Cs]});
-		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
-	end,
-	Db.
-
-%% retract_clause(Functor, ClauseTag, Database) -> NewDatabase.
-%% Retract (remove) the clause with tag ClauseTag from the list of
-%% clauses of Functor.
-
-retract_clause(F, Ct, Db) ->
-	case ets:lookup(Db, F) of
-		[{_, built_in}] ->
-			permission_error(modify, static_procedure, pred_ind(F), Db);
-		[{_, code, _}] ->
-			permission_error(modify, static_procedure, pred_ind(F), Db);
-		[{_, clauses, Nt, Cs}] ->
-			ets:insert(Db, {F, clauses, Nt, lists:keydelete(Ct, 1, Cs)});
-		[] -> ok        %Do nothing
-	end,
-	Db.
-
-%% abolish_clauses(Functor, Database) -> NewDatabase.
-
-abolish_clauses(Func, Db) ->
-	case ets:lookup(Db, Func) of
-		[{_, built_in}] ->
-			permission_error(modify, static_procedure, pred_ind(F), Db);
-		[{_, code, _}] -> ets:delete(Db, Func);
-		[{_, clauses, _, _}] -> ets:delete(Db, Func);
-		[] -> ok        %Do nothing
-	end,
-	Db.
-
-%% get_procedure(Functor, Database) ->
-%%	built_in | {code,{Mod,Func}} | {clauses,[Clause]} | undefined.
-%% Return the procedure type and data for a functor.
-
-get_procedure(Func, Db) ->
-	case ets:lookup(Db, Func) of
-		[{_, built_in}] -> built_in;
-		[{_, code, C}] -> {code, C};
-		[{_, clauses, _, Cs}] -> {clauses, Cs};
-		[] -> undefined
-	end.
-
-%% get_procedure_type(Functor, Database) ->
-%%	built_in | compiled | interpreted | undefined.
-%% Return the procedure type for a functor.
-
-get_procedure_type(Func, Db) ->
-	case ets:lookup(Db, Func) of
-		[{_, built_in}] -> built_in;    %A built-in
-		[{_, code, C}] -> compiled;    %Compiled (perhaps someday)
-		[{_, clauses, _, Cs}] -> interpreted;  %Interpreted clauses
-		[] -> undefined        %Undefined
-	end.
-
-%% get_interp_functors(Database) -> [Functor].
-
-get_interp_functors(Db) ->
-	ets:foldl(fun({_, built_in}, Fs) -> Fs;
-		({Func, code, _}, Fs) -> [Func | Fs];
-		({Func, clauses, _, _}, Fs) -> [Func | Fs]
-	end, [], Db).
--endif.
-
 %% functor(Goal) -> {Name,Arity}.
-
 functor(T) when ?IS_FUNCTOR(T) ->
 	{element(1, T), tuple_size(T) - 1};
 functor(T) when is_atom(T) -> {T, 0};
-functor(T) -> type_error(callable, T).
+functor(T) -> erlog_errors:type_error(callable, T).
 
 %% well_form_body(Body, HasCutAfter, CutLabel) -> {Body,HasCut}.
 %% well_form_body(Body, Tail, HasCutAfter, CutLabel) -> {Body,HasCut}.
 %%  Check that Body is well-formed, flatten conjunctions, fix cuts and
 %%  add explicit call to top-level variables.
-
 well_form_body(Body, Cut, Label) -> well_form_body(Body, [], Cut, Label).
 
 well_form_body({',', L, R}, Tail0, Cut0, Label) ->
@@ -981,7 +663,6 @@ well_form_body(Goal, Tail, Cut, _Label) ->
 %% well_form_goal(Goal, Tail, HasCutAfter, CutLabel) -> {Body,HasCut}.
 %%  Check that Goal is well-formed, flatten conjunctions, fix cuts and
 %%  add explicit call to top-level variables.
-
 well_form_goal({',', L, R}, Tail0, Cut0, Label) ->
 	{Tail1, Cut1} = well_form_goal(R, Tail0, Cut0, Label),
 	well_form_goal(L, Tail1, Cut1, Label);
@@ -1019,7 +700,6 @@ well_form_goal(Goal, Tail, Cut, _Label) ->
 %%  replacing integer variables with overlapping integer ranges. Don't
 %%  check Term as it should already be checked. Use orddict as there
 %%  will seldom be many variables and it it fast to setup.
-
 term_instance(A, Vn) -> term_instance(A, orddict:new(), Vn).
 
 term_instance([], Rs, Vn) -> {[], Rs, Vn};
@@ -1181,7 +861,7 @@ pred_ind({N, A}) -> {'/', N, A}.
 
 %% Bindings
 %% Bindings are kept in a dict where the key is the variable name.
-%%-define(BIND, orddict).
+%%-define(BIND, orddict).  %TODO ets and others?
 -define(BIND, dict).
 
 new_bindings() -> ?BIND:new().
@@ -1191,60 +871,6 @@ add_binding({V}, Val, Bs0) ->
 
 get_binding({V}, Bs) ->
 	?BIND:find(V, Bs).
-
-%% deref(Term, Bindings) -> Term.
-%% Dereference a variable, else just return the term.
-
-deref({V} = T0, Bs) ->
-	case ?BIND:find(V, Bs) of
-		{ok, T1} -> deref(T1, Bs);
-		error -> T0
-	end;
-deref(T, _) -> T.        %Not a variable, return it.
-
-%% deref_list(List, Bindings) -> List.
-%%  Dereference the top-level checking that it is a list.
-
-deref_list([], _) -> [];      %It already is a list
-deref_list([_ | _] = L, _) -> L;
-deref_list({V}, Bs) ->
-	case ?BIND:find(V, Bs) of
-		{ok, L} -> deref_list(L, Bs);
-		error -> instantiation_error()
-	end;
-deref_list(Other, _) -> type_error(list, Other).
-
-%% dderef(Term, Bindings) -> Term.
-%% Do a deep dereference. Completely dereference all the variables
-%% occuring in a term, even those occuring in a variables value.
-
-dderef(A, _) when ?IS_CONSTANT(A) -> A;
-dderef([], _) -> [];
-dderef([H0 | T0], Bs) ->
-	[dderef(H0, Bs) | dderef(T0, Bs)];
-dderef({V} = Var, Bs) ->
-	case ?BIND:find(V, Bs) of
-		{ok, T} -> dderef(T, Bs);
-		error -> Var
-	end;
-dderef(T, Bs) when is_tuple(T) ->
-	Es0 = tuple_to_list(T),
-	Es1 = dderef(Es0, Bs),
-	list_to_tuple(Es1).
-
-%% dderef_list(List, Bindings) -> List.
-%%  Dereference all variables to any depth but check that the
-%%  top-level is a list.
-
-dderef_list([], _Bs) -> [];
-dderef_list([H | T], Bs) ->
-	[dderef(H, Bs) | dderef_list(T, Bs)];
-dderef_list({V}, Bs) ->
-	case ?BIND:find(V, Bs) of
-		{ok, L} -> dderef_list(L, Bs);
-		error -> instantiation_error()
-	end;
-dderef_list(Other, _Bs) -> type_error(list, Other).
 
 %% initial_goal(Goal) -> {Goal,Bindings,NewVarNum}.
 %% initial_goal(Goal, Bindings, VarNum) -> {Goal,NewBindings,NewVarNum}.
@@ -1272,4 +898,4 @@ initial_goal(S, Bs0, Vn0) when ?IS_FUNCTOR(S) ->
 	{As1, Bs1, Vn1} = initial_goal(As0, Bs0, Vn0),
 	{list_to_tuple([element(1, S) | As1]), Bs1, Vn1};
 initial_goal(T, Bs, Vn) when ?IS_ATOMIC(T) -> {T, Bs, Vn};
-initial_goal(T, _Bs, _Vn) -> type_error(callable, T).
+initial_goal(T, _Bs, _Vn) -> erlog_errors:type_error(callable, T).

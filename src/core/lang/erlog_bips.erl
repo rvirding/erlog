@@ -29,13 +29,10 @@
 
 %%-compile(export_all).
 
--import(lists, [map/2, foldl/3]).
-
 %% load(Database) -> Database.
 %%  Assert predicates into the database.
-
-load(Db0) ->
-	foldl(fun(Head, Db) -> erlog_int:add_built_in(Head, Db) end, Db0, ?ERLOG_BIPS).
+load(Db) ->
+	lists:foreach(fun(Head) -> erlog_memory:add_built_in(Db, Head) end, ?ERLOG_BIPS).
 
 %% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
@@ -45,11 +42,11 @@ load(Db0) ->
 
 %% Term unification and comparison
 prove_goal({'=', L, R}, Next, Cps, Bs, Vn, Db) ->
-	erlog_int:unify_prove_body(L, R, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body(L, R, Next, Cps, Bs, Vn, Db);
 prove_goal({'\\=', L, R}, Next, Cps, Bs0, Vn, Db) ->
-	case erlog_int:unify(L, R, Bs0) of
-		{succeed, _Bs1} -> erlog_int:fail(Cps, Db);
-		fail -> erlog_int:prove_body(Next, Cps, Bs0, Vn, Db)
+	case erlog_core:unify(L, R, Bs0) of
+		{succeed, _Bs1} -> erlog_errors:fail(Cps, Db);
+		fail -> erlog_core:prove_body(Next, Cps, Bs0, Vn, Db)
 	end;
 prove_goal({'@>', L, R}, Next, Cps, Bs, Vn, Db) ->
 	term_test_prove_body('>', L, R, Next, Cps, Bs, Vn, Db);
@@ -65,77 +62,77 @@ prove_goal({'@=<', L, R}, Next, Cps, Bs, Vn, Db) ->
 	term_test_prove_body('=<', L, R, Next, Cps, Bs, Vn, Db);
 %% Term creation and decomposition.
 prove_goal({arg, I, Ct, A}, Next, Cps, Bs, Vn, Db) ->
-	prove_arg(erlog_int:deref(I, Bs), erlog_int:deref(Ct, Bs), A, Next, Cps, Bs, Vn, Db);
+	prove_arg(erlog_core:deref(I, Bs), erlog_core:deref(Ct, Bs), A, Next, Cps, Bs, Vn, Db);
 prove_goal({copy_term, T0, C}, Next, Cps, Bs, Vn0, Db) ->
 	%% Use term_instance to create the copy, can ignore orddict it creates.
-	{T, _Nbs, Vn1} = erlog_int:term_instance(erlog_int:dderef(T0, Bs), Vn0),
-	erlog_int:unify_prove_body(T, C, Next, Cps, Bs, Vn1, Db);
+	{T, _Nbs, Vn1} = erlog_core:term_instance(erlog_core:dderef(T0, Bs), Vn0),
+	erlog_core:unify_prove_body(T, C, Next, Cps, Bs, Vn1, Db);
 prove_goal({functor, T, F, A}, Next, Cps, Bs, Vn, Db) ->
-	prove_functor(erlog_int:dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
+	prove_functor(erlog_core:dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
 prove_goal({'=..', T, L}, Next, Cps, Bs, Vn, Db) ->
-	prove_univ(erlog_int:dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
+	prove_univ(erlog_core:dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
 %% Type testing.
 prove_goal({atom, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		T when is_atom(T) -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		_Other -> erlog_int:fail(Cps, Db)
+	case erlog_core:deref(T0, Bs) of
+		T when is_atom(T) -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		_Other -> erlog_errors:fail(Cps, Db)
 	end;
 prove_goal({atomic, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		T when ?IS_ATOMIC(T) -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		_Other -> erlog_int:fail(Cps, Db)
+	case erlog_core:deref(T0, Bs) of
+		T when ?IS_ATOMIC(T) -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		_Other -> erlog_errors:fail(Cps, Db)
 	end;
 prove_goal({compound, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		T when ?IS_ATOMIC(T) -> erlog_int:fail(Cps, Db);
-		_Other -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db)
+	case erlog_core:deref(T0, Bs) of
+		T when ?IS_ATOMIC(T) -> erlog_errors:fail(Cps, Db);
+		_Other -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db)
 	end;
 prove_goal({integer, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		T when is_integer(T) -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		_Other -> erlog_int:fail(Cps, Db)
+	case erlog_core:deref(T0, Bs) of
+		T when is_integer(T) -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		_Other -> erlog_errors:fail(Cps, Db)
 	end;
 prove_goal({float, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		T when is_float(T) -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		_Other -> erlog_int:fail(Cps, Db)
+	case erlog_core:deref(T0, Bs) of
+		T when is_float(T) -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		_Other -> erlog_errors:fail(Cps, Db)
 	end;
 prove_goal({number, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		T when is_number(T) -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		_Other -> erlog_int:fail(Cps, Db)
+	case erlog_core:deref(T0, Bs) of
+		T when is_number(T) -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		_Other -> erlog_errors:fail(Cps, Db)
 	end;
 prove_goal({nonvar, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		{_} -> erlog_int:fail(Cps, Db);
-		_Other -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db)
+	case erlog_core:deref(T0, Bs) of
+		{_} -> erlog_errors:fail(Cps, Db);
+		_Other -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db)
 	end;
 prove_goal({var, T0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:deref(T0, Bs) of
-		{_} -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		_Other -> erlog_int:fail(Cps, Db)
+	case erlog_core:deref(T0, Bs) of
+		{_} -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		_Other -> erlog_errors:fail(Cps, Db)
 	end;
 %% Atom processing.
 prove_goal({atom_chars, A, L}, Next, Cps, Bs, Vn, Db) ->
 	prove_atom_chars(A, L, Next, Cps, Bs, Vn, Db);
 prove_goal({atom_length, A0, L0}, Next, Cps, Bs, Vn, Db) ->
-	case erlog_int:dderef(A0, Bs) of
+	case erlog_core:dderef(A0, Bs) of
 		A when is_atom(A) ->
 			Alen = length(atom_to_list(A)),  %No of chars in atom
-			case erlog_int:dderef(L0, Bs) of
+			case erlog_core:dderef(L0, Bs) of
 				L when is_integer(L) ->
-					erlog_int:unify_prove_body(Alen, L, Next, Cps, Bs, Vn, Db);
+					erlog_core:unify_prove_body(Alen, L, Next, Cps, Bs, Vn, Db);
 				{_} = Var ->
-					erlog_int:unify_prove_body(Alen, Var, Next, Cps, Bs, Vn, Db);
-				Other -> erlog_int:type_error(integer, Other, Db)
+					erlog_core:unify_prove_body(Alen, Var, Next, Cps, Bs, Vn, Db);
+				Other -> erlog_errors:type_error(integer, Other, Db)
 			end;
-		{_} -> erlog_int:instantiation_error(Db);
-		Other -> erlog_int:type_error(atom, Other, Db)
+		{_} -> erlog_errors:instantiation_error(Db);
+		Other -> erlog_errors:type_error(atom, Other, Db)
 	end;
 %% Arithmetic evalution and comparison.
 prove_goal({is, N, E0}, Next, Cps, Bs, Vn, Db) ->
-	E = eval_arith(erlog_int:deref(E0, Bs), Bs, Db),
-	erlog_int:unify_prove_body(N, E, Next, Cps, Bs, Vn, Db);
+	E = eval_arith(erlog_core:deref(E0, Bs), Bs, Db),
+	erlog_core:unify_prove_body(N, E, Next, Cps, Bs, Vn, Db);
 prove_goal({'>', L, R}, Next, Cps, Bs, Vn, Db) ->
 	arith_test_prove_body('>', L, R, Next, Cps, Bs, Vn, Db);
 prove_goal({'>=', L, R}, Next, Cps, Bs, Vn, Db) ->
@@ -153,9 +150,9 @@ prove_goal({'=<', L, R}, Next, Cps, Bs, Vn, Db) ->
 %%      void.
 
 term_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
-	case erlang:Test(erlog_int:dderef(L, Bs), erlog_int:dderef(R, Bs)) of
-		true -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		false -> erlog_int:fail(Cps, Db)
+	case erlang:Test(erlog_core:dderef(L, Bs), erlog_core:dderef(R, Bs)) of
+		true -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		false -> erlog_errors:fail(Cps, Db)
 	end.
 
 %% prove_arg(Index, Term, Arg, Next, ChoicePoints, VarNum, Database) -> void.
@@ -163,48 +160,48 @@ term_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
 
 prove_arg(I, [H | T], A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
 	%% He, he, he!
-	if I == 1 -> erlog_int:unify_prove_body(H, A, Next, Cps, Bs, Vn, Db);
-		I == 2 -> erlog_int:unify_prove_body(T, A, Next, Cps, Bs, Vn, Db);
+	if I == 1 -> erlog_core:unify_prove_body(H, A, Next, Cps, Bs, Vn, Db);
+		I == 2 -> erlog_core:unify_prove_body(T, A, Next, Cps, Bs, Vn, Db);
 		true -> {fail, Db}
 	end;
 prove_arg(I, Ct, A, Next, Cps, Bs, Vn, Db)
 	when is_integer(I), tuple_size(Ct) >= 2 ->
 	if I > 1, I + 1 =< tuple_size(Ct) ->
-		erlog_int:unify_prove_body(element(I + 1, Ct), A, Next, Cps, Bs, Vn, Db);
+		erlog_core:unify_prove_body(element(I + 1, Ct), A, Next, Cps, Bs, Vn, Db);
 		true -> {fail, Db}
 	end;
 prove_arg(I, Ct, _, _, _, _, _, Db) ->
 	%%Type failure just generates an error.
-	if not(is_integer(I)) -> erlog_int:type_error(integer, I, Db);
-		true -> erlog_int:type_error(compound, Ct, Db)
+	if not(is_integer(I)) -> erlog_errors:type_error(integer, I, Db);
+		true -> erlog_errors:type_error(compound, Ct, Db)
 	end.
 
 %% prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Prove the call functor(T, F, A), Term has been dereferenced.
 
 prove_functor(T, F, A, Next, Cps, Bs, Vn, Db) when tuple_size(T) >= 2 ->
-	erlog_int:unify_prove_body(F, element(1, T), A, tuple_size(T) - 1, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body(F, element(1, T), A, tuple_size(T) - 1, Next, Cps, Bs, Vn, Db);
 prove_functor(T, F, A, Next, Cps, Bs, Vn, Db) when ?IS_ATOMIC(T) ->
-	erlog_int:unify_prove_body(F, T, A, 0, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body(F, T, A, 0, Next, Cps, Bs, Vn, Db);
 prove_functor([_ | _], F, A, Next, Cps, Bs, Vn, Db) ->
 	%% Just the top level here.
-	erlog_int:unify_prove_body(F, '.', A, 2, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body(F, '.', A, 2, Next, Cps, Bs, Vn, Db);
 prove_functor({_} = Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
-	case {erlog_int:dderef(F0, Bs0), erlog_int:dderef(A0, Bs0)} of
+	case {erlog_core:dderef(F0, Bs0), erlog_core:dderef(A0, Bs0)} of
 		{'.', 2} ->        %He, he, he!
-			Bs1 = erlog_int:add_binding(Var, [{Vn0} | {Vn0 + 1}], Bs0),
-			erlog_int:prove_body(Next, Cps, Bs1, Vn0 + 2, Db);
+			Bs1 = erlog_core:add_binding(Var, [{Vn0} | {Vn0 + 1}], Bs0),
+			erlog_core:prove_body(Next, Cps, Bs1, Vn0 + 2, Db);
 		{F1, 0} when ?IS_ATOMIC(F1) ->
-			Bs1 = erlog_int:add_binding(Var, F1, Bs0),
-			erlog_int:prove_body(Next, Cps, Bs1, Vn0, Db);
+			Bs1 = erlog_core:add_binding(Var, F1, Bs0),
+			erlog_core:prove_body(Next, Cps, Bs1, Vn0, Db);
 		{F1, A1} when is_atom(F1), is_integer(A1), A1 > 0 ->
-			As = erlog_int:make_vars(A1, Vn0),
-			Bs1 = erlog_int:add_binding(Var, list_to_tuple([F1 | As]), Bs0),
-			erlog_int:prove_body(Next, Cps, Bs1, Vn0 + A1, Db); %!!!
+			As = erlog_core:make_vars(A1, Vn0),
+			Bs1 = erlog_core:add_binding(Var, list_to_tuple([F1 | As]), Bs0),
+			erlog_core:prove_body(Next, Cps, Bs1, Vn0 + A1, Db); %!!!
 	%% Now the error cases.
-		{{_}, _} -> erlog_int:instantiation_error(Db);
-		{F1, A1} when is_atom(F1) -> erlog_int:type_error(integer, A1, Db);
-		{F1, _} -> erlog_int:type_error(atom, F1, Db)
+		{{_}, _} -> erlog_errors:instantiation_error(Db);
+		{F1, A1} when is_atom(F1) -> erlog_errors:type_error(integer, A1, Db);
+		{F1, _} -> erlog_errors:type_error(atom, F1, Db)
 	end.
 
 %% prove_univ(Term, List, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
@@ -212,27 +209,27 @@ prove_functor({_} = Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
 
 prove_univ(T, L, Next, Cps, Bs, Vn, Db) when tuple_size(T) >= 2 ->
 	Es = tuple_to_list(T),
-	erlog_int:unify_prove_body(Es, L, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body(Es, L, Next, Cps, Bs, Vn, Db);
 prove_univ(T, L, Next, Cps, Bs, Vn, Db) when ?IS_ATOMIC(T) ->
-	erlog_int:unify_prove_body([T], L, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body([T], L, Next, Cps, Bs, Vn, Db);
 prove_univ([Lh | Lt], L, Next, Cps, Bs, Vn, Db) ->
 	%% He, he, he!
-	erlog_int:unify_prove_body(['.', Lh, Lt], L, Next, Cps, Bs, Vn, Db);
+	erlog_core:unify_prove_body(['.', Lh, Lt], L, Next, Cps, Bs, Vn, Db);
 prove_univ({_} = Var, L, Next, Cps, Bs0, Vn, Db) ->
-	case erlog_int:dderef(L, Bs0) of
+	case erlog_core:dderef(L, Bs0) of
 		['.', Lh, Lt] ->        %He, he, he!
-			Bs1 = erlog_int:add_binding(Var, [Lh | Lt], Bs0),
-			erlog_int:prove_body(Next, Cps, Bs1, Vn, Db);
+			Bs1 = erlog_core:add_binding(Var, [Lh | Lt], Bs0),
+			erlog_core:prove_body(Next, Cps, Bs1, Vn, Db);
 		[A] when ?IS_ATOMIC(A) ->
-			Bs1 = erlog_int:add_binding(Var, A, Bs0),
-			erlog_int:prove_body(Next, Cps, Bs1, Vn, Db);
+			Bs1 = erlog_core:add_binding(Var, A, Bs0),
+			erlog_core:prove_body(Next, Cps, Bs1, Vn, Db);
 		[F | As] when is_atom(F), length(As) > 0 ->
-			Bs1 = erlog_int:add_binding(Var, list_to_tuple([F | As]), Bs0),
-			erlog_int:prove_body(Next, Cps, Bs1, Vn, Db);
+			Bs1 = erlog_core:add_binding(Var, list_to_tuple([F | As]), Bs0),
+			erlog_core:prove_body(Next, Cps, Bs1, Vn, Db);
 	%% Now the error cases.
-		[{_} | _] -> erlog_int:instantiation_error(Db);
-		{_} -> erlog_int:instantiation_error(Db);
-		Other -> erlog_int:type_error(list, Other, Db)
+		[{_} | _] -> erlog_errors:instantiation_error(Db);
+		{_} -> erlog_errors:instantiation_error(Db);
+		Other -> erlog_errors:type_error(list, Other, Db)
 	end.
 
 %% prove_atom_chars(Atom, List, Next, ChoicePoints, Bindings, VarNum, Database) ->
@@ -241,39 +238,39 @@ prove_univ({_} = Var, L, Next, Cps, Bs0, Vn, Db) ->
 
 prove_atom_chars(A, L, Next, Cps, Bs, Vn, Db) ->
 	%% After a suggestion by Sean Cribbs.
-	case erlog_int:dderef(A, Bs) of
+	case erlog_core:dderef(A, Bs) of
 		Atom when is_atom(Atom) ->
 			AtomList = [list_to_atom([C]) || C <- atom_to_list(Atom)],
-			erlog_int:unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
+			erlog_core:unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
 		{_} = Var ->
 			%% Error #3: List is neither a list nor a partial list.
 			%% Handled in dderef_list/2.
-			List = erlog_int:dderef_list(L, Bs),
+			List = erlog_core:dderef_list(L, Bs),
 			%% Error #1, #4: List is a list or partial list with an
 			%% element which is a variable or not one char atom.
-			Fun = fun({_}) -> erlog_int:instantiation_error(Db);
+			Fun = fun({_}) -> erlog_errors:instantiation_error(Db);
 				(Atom) ->
 					case is_atom(Atom) andalso atom_to_list(Atom) of
 						[C] -> C;
-						_ -> erlog_int:type_error(character, Atom, Db)
+						_ -> erlog_errors:type_error(character, Atom, Db)
 					end
 			end,
 			Chars = lists:map(Fun, List),
 			Atom = list_to_atom(Chars),
-			erlog_int:unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
+			erlog_core:unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
 		Other ->
 			%% Error #2: Atom is neither a variable nor an atom
-			erlog_int:type_error(atom, Other, Db)
+			erlog_errors:type_error(atom, Other, Db)
 	end.
 
 %% arith_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
 
 arith_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
-	case erlang:Test(eval_arith(erlog_int:deref(L, Bs), Bs, Db),
-		eval_arith(erlog_int:deref(R, Bs), Bs, Db)) of
-		true -> erlog_int:prove_body(Next, Cps, Bs, Vn, Db);
-		false -> erlog_int:fail(Cps, Db)
+	case erlang:Test(eval_arith(erlog_core:deref(L, Bs), Bs, Db),
+		eval_arith(erlog_core:deref(R, Bs), Bs, Db)) of
+		true -> erlog_core:prove_body(Next, Cps, Bs, Vn, Db);
+		false -> erlog_errors:fail(Cps, Db)
 	end.
 
 %% eval_arith(ArithExpr, Bindings, Database) -> Number.
@@ -282,49 +279,49 @@ arith_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
 %%  work.  Must be called deferenced.
 
 eval_arith({'+', A, B}, Bs, Db) ->
-	eval_arith(erlog_int:deref(A, Bs), Bs, Db) + eval_arith(erlog_int:deref(B, Bs), Bs, Db);
+	eval_arith(erlog_core:deref(A, Bs), Bs, Db) + eval_arith(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'-', A, B}, Bs, Db) ->
-	eval_arith(erlog_int:deref(A, Bs), Bs, Db) - eval_arith(erlog_int:deref(B, Bs), Bs, Db);
+	eval_arith(erlog_core:deref(A, Bs), Bs, Db) - eval_arith(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'*', A, B}, Bs, Db) ->
-	eval_arith(erlog_int:deref(A, Bs), Bs, Db) * eval_arith(erlog_int:deref(B, Bs), Bs, Db);
+	eval_arith(erlog_core:deref(A, Bs), Bs, Db) * eval_arith(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'/', A, B}, Bs, Db) ->
-	eval_arith(erlog_int:deref(A, Bs), Bs, Db) / eval_arith(erlog_int:deref(B, Bs), Bs, Db);
+	eval_arith(erlog_core:deref(A, Bs), Bs, Db) / eval_arith(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'**', A, B}, Bs, Db) ->
-	math:pow(eval_arith(erlog_int:deref(A, Bs), Bs, Db),
-		eval_arith(erlog_int:deref(B, Bs), Bs, Db));
+	math:pow(eval_arith(erlog_core:deref(A, Bs), Bs, Db),
+		eval_arith(erlog_core:deref(B, Bs), Bs, Db));
 eval_arith({'//', A, B}, Bs, Db) ->
-	eval_int(erlog_int:deref(A, Bs), Bs, Db) div eval_int(erlog_int:deref(B, Bs), Bs, Db);
+	eval_int(erlog_core:deref(A, Bs), Bs, Db) div eval_int(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'mod', A, B}, Bs, Db) ->
-	eval_int(erlog_int:deref(A, Bs), Bs, Db) rem eval_int(erlog_int:deref(B, Bs), Bs, Db);
+	eval_int(erlog_core:deref(A, Bs), Bs, Db) rem eval_int(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'/\\', A, B}, Bs, Db) ->
-	eval_int(erlog_int:deref(A, Bs), Bs, Db) band eval_int(erlog_int:deref(B, Bs), Bs, Db);
+	eval_int(erlog_core:deref(A, Bs), Bs, Db) band eval_int(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'\\/', A, B}, Bs, Db) ->
-	eval_int(erlog_int:deref(A, Bs), Bs, Db) bor eval_int(erlog_int:deref(B, Bs), Bs, Db);
+	eval_int(erlog_core:deref(A, Bs), Bs, Db) bor eval_int(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'<<', A, B}, Bs, Db) ->
-	eval_int(erlog_int:deref(A, Bs), Bs, Db) bsl eval_int(erlog_int:deref(B, Bs), Bs, Db);
+	eval_int(erlog_core:deref(A, Bs), Bs, Db) bsl eval_int(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'>>', A, B}, Bs, Db) ->
-	eval_int(erlog_int:deref(A, Bs), Bs, Db) bsr eval_int(erlog_int:deref(B, Bs), Bs, Db);
+	eval_int(erlog_core:deref(A, Bs), Bs, Db) bsr eval_int(erlog_core:deref(B, Bs), Bs, Db);
 eval_arith({'\\', A}, Bs, Db) ->
-	bnot eval_int(erlog_int:deref(A, Bs), Bs, Db);
+	bnot eval_int(erlog_core:deref(A, Bs), Bs, Db);
 eval_arith({'+', A}, Bs, Db) ->
-	+ eval_arith(erlog_int:deref(A, Bs), Bs, Db);
+	+ eval_arith(erlog_core:deref(A, Bs), Bs, Db);
 eval_arith({'-', A}, Bs, Db) ->
-	- eval_arith(erlog_int:deref(A, Bs), Bs, Db);
+	- eval_arith(erlog_core:deref(A, Bs), Bs, Db);
 eval_arith({'abs', A}, Bs, Db) ->
-	abs(eval_arith(erlog_int:deref(A, Bs), Bs, Db));
+	abs(eval_arith(erlog_core:deref(A, Bs), Bs, Db));
 eval_arith({'float', A}, Bs, Db) ->
-	float(eval_arith(erlog_int:deref(A, Bs), Bs, Db));
+	float(eval_arith(erlog_core:deref(A, Bs), Bs, Db));
 eval_arith({'truncate', A}, Bs, Db) ->
-	trunc(eval_arith(erlog_int:deref(A, Bs), Bs, Db));
+	trunc(eval_arith(erlog_core:deref(A, Bs), Bs, Db));
 eval_arith(N, _Bs, _Db) when is_number(N) -> N;  %Just a number
 %% Error cases.
-eval_arith({_}, _Bs, Db) -> erlog_int:instantiation_error(Db);
+eval_arith({_}, _Bs, Db) -> erlog_errors:instantiation_error(Db);
 eval_arith(N, _Bs, Db) when is_tuple(N) ->
 	Pi = pred_ind(element(1, N), tuple_size(N) - 1),
-	erlog_int:type_error(evaluable, Pi, Db);
+	erlog_errors:type_error(evaluable, Pi, Db);
 eval_arith([_ | _], _Bs, Db) ->
-	erlog_int:type_error(evaluable, pred_ind('.', 2), Db);
-eval_arith(O, _Bs, Db) -> erlog_int:type_error(evaluable, O, Db).
+	erlog_errors:type_error(evaluable, pred_ind('.', 2), Db);
+eval_arith(O, _Bs, Db) -> erlog_errors:type_error(evaluable, O, Db).
 
 %% eval_int(IntegerExpr, Bindings, Database) -> Integer.
 %% Evaluate an integer expression, include the database for errors.
@@ -332,7 +329,7 @@ eval_arith(O, _Bs, Db) -> erlog_int:type_error(evaluable, O, Db).
 eval_int(E0, Bs, Db) ->
 	E = eval_arith(E0, Bs, Db),
 	if is_integer(E) -> E;
-		true -> erlog_int:type_error(integer, E, Db)
+		true -> erlog_errors:type_error(integer, E, Db)
 	end.
 
 pred_ind(N, A) -> {'/', N, A}.

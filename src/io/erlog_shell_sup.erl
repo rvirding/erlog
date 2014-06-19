@@ -12,7 +12,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0, process_connection/1, start_socket/0]).
+-export([start_link/0, start_socket/0]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -22,8 +22,6 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
-% for rpc for server-server integration
-process_connection(Args) -> supervisor:start_child(?MODULE, [Args]). %TODO fix me
 % for console
 start_socket() ->	supervisor:start_child(?MODULE, []).
 

@@ -28,16 +28,16 @@
 %% Load/reload an Erlog file into the interpreter. Reloading will
 %% abolish old definitons of clauses.
 
-consult(File, Db0) ->
+consult(File, Db) ->
 	case erlog_io:read_file(File) of
 		{ok, Terms} ->
-			consult_terms(fun consult_assert/2, Db0, Terms);
+			consult_terms(fun consult_assert/2, Db, Terms);
 		Error -> Error
 	end.
 
 consult_assert(Term0, Db) ->
 	Term1 = erlog_dcg:expand_term(Term0),
-	{ok, erlog_int:assertz_clause(Term1, Db)}.  %TODO redefining database?
+	{ok, erlog_memory:assertz_clause(Db, Term1)}.
 
 reconsult(File, Db0) ->
 	case erlog_io:read_file(File) of
@@ -49,15 +49,15 @@ reconsult(File, Db0) ->
 		Error -> Error
 	end.
 
-reconsult_assert(Term0, {Db0, Seen}) ->
+reconsult_assert(Term0, {Db, Seen}) ->
 	Term1 = erlog_dcg:expand_term(Term0),
 	Func = functor(Term1),
 	case lists:member(Func, Seen) of
 		true ->
-			{ok, {erlog_int:assertz_clause(Term1, Db0), Seen}};
+			{ok, {erlog_memory:assertz_clause(Db, Term1), Seen}};
 		false ->
-			Db1 = erlog_int:abolish_clauses(Func, Db0),
-			{ok, {erlog_int:assertz_clause(Term1, Db1), [Func | Seen]}}
+			erlog_memory:abolish_clauses(Db, Func),
+			{ok, {erlog_memory:assertz_clause(Db, Term1), [Func | Seen]}}
 	end.
 
 %% consult_terms(InsertFun, Database, Terms) ->
@@ -76,5 +76,5 @@ consult_terms(Ifun, Db0, [T | Ts]) ->
 	end;
 consult_terms(_Ifun, Db, []) -> {ok, Db}.
 
-functor({':-', H, _B}) -> erlog_int:functor(H);
-functor(T) -> erlog_int:functor(T).
+functor({':-', H, _B}) -> erlog_core:functor(H);
+functor(T) -> erlog_core:functor(T).
