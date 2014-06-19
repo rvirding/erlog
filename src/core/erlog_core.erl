@@ -148,15 +148,14 @@
 %% Creating term and body instances.
 -export([term_instance/2]).
 %% Adding to database.
--export([built_in_db/1]). %TODO?
+-export([load/1]). %TODO?
 
 %% built_in_db(Db) -> Database.
 %% Create an initial clause database containing the built-in
 %% predicates and predefined library predicates.
 
-built_in_db(Db) ->
-	%% Add the Erlang built-ins.
-	lists:foreach(fun(Head, Db) -> Db:add_built_in(Head, Db) end, ?ERLOG_INT).
+load(Db) ->
+	lists:foreach(fun(Head) -> erlog_memory:add_built_in(Db, Head) end, ?ERLOG_CORE). %% Add the Erlang built-ins.
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that

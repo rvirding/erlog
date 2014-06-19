@@ -37,33 +37,17 @@ add_compiled_proc(Db, {Functor, M, F}) ->
 	end,
 	{ok, Db}.
 
-assertz_clause(Db, {Head, Body0}) ->  %TODO по максимуму совместить с asserta_clause
-	{Functor, Body} = case catch {ok, erlog_core:functor(Head),
-		erlog_core:well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-		[{_, clauses, Tag, Cs}] ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]});
-		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
-	end.
+assertz_clause(Db, {Head, Body0}) ->
+	clause(Head, Body0, Db,
+		fun(Functor, Tag, Cs, Body) ->
+			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]})
+		end).
 
 asserta_clause(Db, {Head, Body0}) ->
-	{Functor, Body} = case catch {ok, erlog_core:functor(Head),
-		erlog_core:well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-		[{_, clauses, Tag, Cs}] ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, [{Tag, Head, Body} | Cs]});
-		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
-	end.
+	clause(Head, Body0, Db,
+		fun(Functor, Tag, Cs, Body) ->
+			ets:insert(Db, {Functor, clauses, Tag + 1, [{Tag, Head, Body} | Cs]})
+		end).
 
 retract_clause(Db, {Functor, Ct}) ->
 	case ets:lookup(Db, Functor) of
@@ -106,3 +90,15 @@ get_interp_functors(Db) ->
 		({Func, code, _}, Fs) -> [Func | Fs];
 		({Func, clauses, _, _}, Fs) -> [Func | Fs]
 	end, [], Db).
+
+clause(Head, Body0, Db, ClauseFun) ->
+	{Functor, Body} = case catch {ok, erlog_core:functor(Head), erlog_core:well_form_body(Body0, false, sture)} of
+		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
+		                  {ok, F, B} -> {F, B}
+	                  end,
+	case ets:lookup(Db, Functor) of
+		[{_, built_in}] -> erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
+		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
+		[{_, clauses, Tag, Cs}] -> ClauseFun(Functor, Tag, Cs, Body);
+		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
+	end.

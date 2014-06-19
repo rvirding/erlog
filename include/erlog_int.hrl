@@ -84,7 +84,7 @@
 		{{sort, 2}, ?MODULE, sort_2}
 	]).
 
--define(ERLOG_INT,
+-define(ERLOG_CORE,
 	[
 		%% Logic and control.
 		{call, 1},

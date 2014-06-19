@@ -61,6 +61,7 @@ init([]) -> % use built in database
 	%Load basic interpreter predicates
 	lists:foreach(fun(Mod) -> Mod:load(Db) end,
 		[
+			erlog_core,       %Core predicates
 			erlog_bips,       %Built in predicates
 			erlog_dcg,        %DCG predicates
 			erlog_lists       %Common lists library

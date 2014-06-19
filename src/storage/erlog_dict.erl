@@ -35,33 +35,17 @@ add_compiled_proc(Db, {Functor, M, F}) ->
 			(_) -> {code, {M, F}}
 		end, {code, {M, F}}, Db)}.
 
-assertz_clause(Db, {Head, Body0}) ->    %TODO по максимуму совместить с asserta_clause
-	{Functor, Body} = case catch {ok, erlog_core:functor(Head),
-		erlog_core:well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	dict:update(Functor,
-		fun(built_in) ->
-			erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-			({code, _}) ->
-				erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-			({clauses, T, Cs}) -> {clauses, T + 1, Cs ++ [{T, Head, Body}]}
-		end, {clauses, 1, [{0, Head, Body}]}, Db).
+assertz_clause(Db, {Head, Body0}) ->
+	clause(Head, Body0, Db,
+		fun(T, Body, Cs) ->
+			{clauses, T + 1, Cs ++ [{T, Head, Body}]}
+		end).
 
 asserta_clause(Db, {Head, Body0}) ->
-	{Functor, Body} = case catch {ok, erlog_core:functor(Head),
-		erlog_core:well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	dict:update(Functor,
-		fun(built_in) ->
-			erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-			({code, _}) ->
-				erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
-			({clauses, T, Cs}) -> {clauses, T + 1, [{T, Head, Body} | Cs]}
-		end, {clauses, 1, [{0, Head, Body}]}, Db).
+	clause(Head, Body0, Db,
+		fun(T, Body, Cs) ->
+			{clauses, T + 1, [{T, Head, Body} | Cs]}
+		end).
 
 retract_clause(Db, {Functor, Ct}) ->
 	case dict:find(Functor, Db) of
@@ -104,3 +88,17 @@ get_interp_functors(Db) ->
 		(Func, {code, _}, Fs) -> [Func | Fs];
 		(Func, {clauses, _, _}, Fs) -> [Func | Fs]
 	end, [], Db).
+
+clause(Head, Body0, Db, ClauseFun) ->
+	{Functor, Body} = case catch {ok, erlog_core:functor(Head),
+		erlog_core:well_form_body(Body0, false, sture)} of
+		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
+		                  {ok, F, B} -> {F, B}
+	                  end,
+	dict:update(Functor,
+		fun(built_in) ->
+			erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
+			({code, _}) ->
+				erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
+			({clauses, T, Cs}) -> ClauseFun(T, Body, Cs)
+		end, {clauses, 1, [{0, Head, Body}]}, Db).
