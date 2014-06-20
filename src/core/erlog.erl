@@ -45,7 +45,7 @@
 	state = normal :: normal | list() %state for solution selecting. atom or list of params.
 }).
 
-execute(Worker, Command) -> gen_server:call(Worker, {execute, Command}).
+execute(Worker, Command) -> gen_server:call(Worker, {execute, trim_command(Command)}).
 
 -spec start_link() -> pid().
 start_link() ->
@@ -65,6 +65,8 @@ init(Database) -> % use custom database implementation
 	{ok, #state{db = Db}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
+
+
 	{Res, NewState} = case erlog_scan:tokens([], Command, 1) of
 		                  {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
 		                  {more, _} -> {ok, more} % unfinished command. Ask for ending.
@@ -169,4 +171,12 @@ prove_goal(Goal0, State = #state{db = Db}) ->
 		{succeed, Res, Args} -> %TODO Args?
 			{{succeed, Res}, State};
 		OtherRes -> {OtherRes, State#state{state = normal}}
+	end.
+
+%% @private
+%% Adds "\r\n" to command. We need this, as erlog_scan reply more on commands without such ending
+trim_command(Command) ->
+	case lists:suffix([13, 10], Command) of
+		true -> Command;
+		_ -> lists:append(Command, [13, 10])
 	end.

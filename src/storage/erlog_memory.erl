@@ -55,9 +55,7 @@ retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F
 
 abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, Func}).
 
-get_procedure(Database, Func) -> io:format("get_procedure, functor = ~p~n", [Func]),
-	io:format("Database ~p~n", [Database]),
-	gen_server:call(Database, {get_procedure, Func}).
+get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, Func}).
 
 get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, Func}).
 
