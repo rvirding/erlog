@@ -14,7 +14,8 @@
 -include("erlog_int.hrl").
 
 %% erlog callbacks
--export([add_built_in/2,
+-export([new/0,
+	add_built_in/2,
 	add_compiled_proc/2,
 	assertz_clause/2,
 	asserta_clause/2,
@@ -23,6 +24,8 @@
 	get_procedure/2,
 	get_procedure_type/2,
 	get_interp_functors/1]).
+
+new() -> ets:new(eets, []).
 
 add_built_in(Db, Functor) ->
 	true = ets:insert(Db, {Functor, built_in}),

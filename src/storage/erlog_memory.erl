@@ -14,7 +14,7 @@
 -include("erlog_int.hrl").
 
 %% API
--export([start_link/2, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
+-export([start_link/1, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
 	retract_clause/3, abolish_clauses/2, get_procedure/2, get_procedure_type/2,
 	get_interp_functors/1, assertz_clause/2, asserta_clause/2]).
 
@@ -55,7 +55,9 @@ retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F
 
 abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, Func}).
 
-get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, Func}).
+get_procedure(Database, Func) -> io:format("get_procedure, functor = ~p~n", [Func]),
+	io:format("Database ~p~n", [Database]),
+	gen_server:call(Database, {get_procedure, Func}).
 
 get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, Func}).
 
@@ -67,10 +69,10 @@ get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link(Database :: atom(), State :: term()) ->
+-spec(start_link(Database :: atom()) ->
 	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Database, State) ->
-	gen_server:start_link(?MODULE, [Database, State], []).
+start_link(Database) ->
+	gen_server:start_link(?MODULE, [Database], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -90,7 +92,8 @@ start_link(Database, State) ->
 -spec(init(Args :: term()) ->
 	{ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term()} | ignore).
-init([Database, State]) when is_atom(Database) ->
+init([Database]) when is_atom(Database) ->
+	State = Database:new(),
 	{ok, #state{database = Database, state = State}}.
 
 %%--------------------------------------------------------------------
@@ -108,8 +111,8 @@ init([Database, State]) when is_atom(Database) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_call({Fun, Params}, _From, State = #state{state = State, database = Database}) ->
-	{Res, NewState} = Database:Fun(State, Params),
+handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Database}) ->
+	{Res, NewState} = Database:Fun(DbState, Params),
 	{reply, Res, State#state{state = NewState}};
 handle_call(Fun, _From, State = #state{state = State, database = Database}) ->
 	{Res, NewState} = Database:Fun(State),

@@ -25,3 +25,10 @@ Process prolog terms, using your core:
 Where:  
 `Command` is a command, ended with dot,  
 `Worker` is a pid of your prolog logic core.
+
+#### Custom database server:
+Erlog now supports using your own database, instead of using ets and dicts. Just implement `erlog_storage` callback interface
+and pass your module name with your implementation to `erlog:start_link/1`.  
+Example:  
+    
+    erlog:start_link(mysql_storage_impl_module).

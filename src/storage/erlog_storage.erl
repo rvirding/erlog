@@ -9,6 +9,9 @@
 -module(erlog_storage).
 -author("tihon").
 
+
+-callback new() -> {ok, State :: term()}.
+
 -callback add_built_in(State :: term(), Functor :: term()) -> {ok, NewState :: term()}.
 
 -callback add_compiled_proc(State :: term(), Param :: term()) -> {ok, NewState :: term()}.

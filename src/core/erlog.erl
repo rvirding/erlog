@@ -33,7 +33,7 @@
 -include("erlog_int.hrl").
 
 %% Interface to server.
--export([start_link/2, start_link/0, execute/2]).
+-export([start_link/1, start_link/0, execute/2]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -51,16 +51,16 @@ execute(Worker, Command) -> gen_server:call(Worker, {execute, Command}).
 start_link() ->
 	gen_server:start_link(?MODULE, [], []).
 
--spec start_link(Database :: atom(), State :: term()) -> pid().
-start_link(Database, State) ->
-	gen_server:start_link(?MODULE, [Database, State], []).
+-spec start_link(Database :: atom()) -> pid().
+start_link(Database) ->
+	gen_server:start_link(?MODULE, [Database], []).
 
 init([]) -> % use built in database
-	{ok, Db} = erlog_memory:start_link(erlog_ets, undefined), %default database is ets module
+	{ok, Db} = erlog_memory:start_link(erlog_ets), %default database is ets module
 	load_built_in(Db),
 	{ok, #state{db = Db}};
-init([Database, State]) -> % use custom database implementation
-	{ok, Db} = erlog_memory:start_link(Database, State),
+init(Database) -> % use custom database implementation
+	{ok, Db} = erlog_memory:start_link(Database),
 	load_built_in(Db),
 	{ok, #state{db = Db}}.
 
@@ -122,7 +122,6 @@ preprocess_command({ok, Command}, State) when is_list(Command) ->
 			{erlog_io:format_error([Message]), NewState1}
 	end;
 preprocess_command({ok, Command}, State) ->
-	io:format("prove command ~p~n", [Command]),
 	{Res, NewState} = process_command({prove, Command}, State),
 	{erlog_logic:shell_prove_result(Res), NewState};
 preprocess_command({error, {_, Em, E}}, State) -> {erlog_io:format_error([Em:format_error(E)]), State};
@@ -161,7 +160,6 @@ process_command(halt, State) ->
 
 %% @private
 prove_goal(Goal0, State = #state{db = Db}) ->
-	io:format("db = ~p~n", [Db]),
 	Vs = erlog_logic:vars_in(Goal0),
 	%% Goal may be a list of goals, ensure proper goal.
 	Goal1 = erlog_logic:unlistify(Goal0),

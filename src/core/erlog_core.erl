@@ -144,13 +144,13 @@
 	prove_goal_clauses/7,
 	pred_ind/1,
 	well_form_body/3,
-	deref_list/2]).
+	deref_list/2, unify_prove_body/7, dderef/2]).
 %% Bindings, unification and dereferncing.
 -export([functor/1]).
 %% Creating term and body instances.
 -export([term_instance/2]).
 %% Adding to database.
--export([load/1]). %TODO?
+-export([load/1]).
 
 %% built_in_db(Db) -> Database.
 %% Create an initial clause database containing the built-in
@@ -253,7 +253,7 @@ dderef_list({V}, Bs) ->
 dderef_list(Other, _Bs) -> erlog_errors:type_error(list, Other).
 
 %% make_vars(Count, VarNum) -> [Var].
-%% Make a list of new variables starting at VarNum. %TODO move me to core?
+%% Make a list of new variables starting at VarNum.
 make_vars(0, _) -> [];
 make_vars(I, Vn) ->
 	[{Vn} | make_vars(I - 1, Vn + 1)].
@@ -378,7 +378,7 @@ prove_goal({display, T}, Next, Cps, Bs, Vn, Db) ->
 	prove_body(Next, Cps, Bs, Vn, Db);
 %% Now look up the database.
 prove_goal(G, Next, Cps, Bs, Vn, Db) ->
-	%%io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
+%% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
 	case catch erlog_memory:get_procedure(Db, functor(G)) of
 		built_in -> erlog_bips:prove_goal(G, Next, Cps, Bs, Vn, Db);
 		{code, {Mod, Func}} -> Mod:Func(G, Next, Cps, Bs, Vn, Db);
@@ -424,7 +424,6 @@ cut(Label, Last, Next, [_Cp | Cps], Bs, Vn, Db) ->
 %% check_goal(Goal, Next, Bindings, Database, CutAfter, CutLabel) -> 
 %%      {WellFormedBody,HasCut}.
 %% Check to see that Goal is bound and ensure that it is well-formed.
-
 check_goal(G0, Next, Bs, Db, Cut, Label) ->
 	case dderef(G0, Bs) of
 		{_} -> erlog_errors:instantiation_error(Db);    %Must have something to call
