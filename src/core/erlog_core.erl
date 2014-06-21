@@ -874,7 +874,6 @@ get_binding({V}, Bs) ->
 %% Check term for well-formedness as an Erlog term and replace '_'
 %% variables with unique numbered variables. Error on non-well-formed
 %% goals.
-
 initial_goal(Goal) -> initial_goal(Goal, new_bindings(), 0).
 
 initial_goal({'_'}, Bs, Vn) -> {{Vn}, Bs, Vn + 1};  %Anonymous variable

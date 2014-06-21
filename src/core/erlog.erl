@@ -42,7 +42,7 @@
 -record(state,
 {
 	db, %database
-	state = normal :: normal | list() %state for solution selecting. atom or list of params.
+	state = normal :: normal | list() %state for solution selecting.
 }).
 
 execute(Worker, Command) -> gen_server:call(Worker, {execute, trim_command(Command)}).
@@ -65,16 +65,21 @@ init(Database) -> % use custom database implementation
 	{ok, #state{db = Db}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
-
-
-	{Res, NewState} = case erlog_scan:tokens([], Command, 1) of
-		                  {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
-		                  {more, _} -> {ok, more} % unfinished command. Ask for ending.
-	                  end,
+	{Res, UpdateState} = case erlog_scan:tokens([], Command, 1) of
+		                     {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
+		                     {more, _} -> {{ok, more}, State} % unfinished command. Ask for ending.
+	                     end,
+	NewState = case Res of  % change state, depending on reply
+		           {_, select} -> UpdateState;
+		           _ -> UpdateState#state{state = normal}
+	           end,
 	{reply, Res, NewState};
 handle_call({execute, Command}, _From, State) ->  %in selection solutions mode
-	{Res, NewState} = preprocess_command({select, Command}, State),
-	{reply, Res, NewState}.
+	{Reply, NewState} = case preprocess_command({select, Command}, State) of  % change state, depending on reply
+		                    {{_, select} = Res, UpdatedState} -> {Res, UpdatedState};
+		                    {Res, UpdatedState} -> {Res, UpdatedState#state{state = normal}}
+	                    end,
+	{reply, Reply, NewState}.
 
 handle_cast(halt, St) ->
 	{stop, normal, St}.
@@ -124,31 +129,32 @@ preprocess_command({ok, Command}, State) when is_list(Command) ->
 			{erlog_io:format_error([Message]), NewState1}
 	end;
 preprocess_command({ok, Command}, State) ->
-	{Res, NewState} = process_command({prove, Command}, State),
-	{erlog_logic:shell_prove_result(Res), NewState};
+	{Result, NewState} = process_command({prove, Command}, State),
+	{erlog_logic:shell_prove_result(Result), NewState};
 preprocess_command({error, {_, Em, E}}, State) -> {erlog_io:format_error([Em:format_error(E)]), State};
 preprocess_command({select, Value}, State) ->
-	{Next, State} = process_command(next, State),
-	{erlog_logic:select_bindings(Value, Next), State}.
+	{Next, NewState} = process_command(next, State),
+	{erlog_logic:select_bindings(Value, Next), NewState}.
 
 %% @private
 %% Process command, modify state. Return {Result, NewState}
 -spec process_command(tuple() | atom(), State :: #state{}) -> tuple().
 process_command({prove, Goal}, State) ->
 	prove_goal(Goal, State);
-process_command(next, State = #state{state = normal}) ->
+process_command(next, State = #state{state = normal}) ->  % can't select solution, when not in select mode
 	{fail, State};
 process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
-	{erlog_logic:prove_result(catch erlog_errors:fail(Cps, Db), Vs), State};
+	{Atom, Res, _} = erlog_logic:prove_result(catch erlog_errors:fail(Cps, Db), Vs),
+	{{Atom, Res}, State};
 process_command({consult, File}, State = #state{db = Db}) ->
 	case erlog_file:consult(File, Db) of
-		{ok, Db1} -> ok;  %TODO Db1?
+		{ok, Db1} -> ok;  %TODO remove all Db passing and returning in functions, which do not need db
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
 process_command({reconsult, File}, State = #state{db = Db}) ->
 	case erlog_file:reconsult(File, Db) of
-		{ok, Db1} -> ok;  %TODO Db1?
+		{ok, Db1} -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
@@ -168,9 +174,8 @@ prove_goal(Goal0, State = #state{db = Db}) ->
 	%% Must use 'catch' here as 'try' does not do last-call
 	%% optimisation.
 	case erlog_logic:prove_result(catch erlog_core:prove_goal(Goal1, Db), Vs) of
-		{succeed, Res, Args} -> %TODO Args?
-			{{succeed, Res}, State};
-		OtherRes -> {OtherRes, State#state{state = normal}}
+		{succeed, Res, Args} -> {{succeed, Res}, State#state{state = Args}};
+		OtherRes -> {OtherRes, State}
 	end.
 
 %% @private
