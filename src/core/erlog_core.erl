@@ -230,7 +230,7 @@ dderef([], _) -> [];
 dderef([H0 | T0], Bs) ->
 	[dderef(H0, Bs) | dderef(T0, Bs)];
 dderef({V} = Var, Bs) ->
-	case ?BIND:find(V, Bs) of
+	case ?BIND:find(V, Bs) of %TODO check, why dict instead erlog_storage
 		{ok, T} -> dderef(T, Bs);
 		error -> Var
 	end;

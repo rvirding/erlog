@@ -59,7 +59,7 @@ init([]) -> % use built in database
 	{ok, Db} = erlog_memory:start_link(erlog_ets), %default database is ets module
 	load_built_in(Db),
 	{ok, #state{db = Db}};
-init(Database) -> % use custom database implementation
+init([Database]) -> % use custom database implementation
 	{ok, Db} = erlog_memory:start_link(Database),
 	load_built_in(Db),
 	{ok, #state{db = Db}}.
@@ -144,8 +144,10 @@ process_command({prove, Goal}, State) ->
 process_command(next, State = #state{state = normal}) ->  % can't select solution, when not in select mode
 	{fail, State};
 process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
-	{Atom, Res, _} = erlog_logic:prove_result(catch erlog_errors:fail(Cps, Db), Vs),
-	{{Atom, Res}, State};
+	case erlog_logic:prove_result(catch erlog_errors:fail(Cps, Db), Vs) of
+		{Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
+		Other -> {Other, State}
+	end;
 process_command({consult, File}, State = #state{db = Db}) ->
 	case erlog_file:consult(File, Db) of
 		{ok, Db1} -> ok;  %TODO remove all Db passing and returning in functions, which do not need db
