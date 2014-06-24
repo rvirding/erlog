@@ -33,7 +33,7 @@
 -include("erlog_int.hrl").
 
 %% Interface to server.
--export([start_link/1, start_link/0, execute/2]).
+-export([start_link/2, start_link/0, execute/2]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -51,16 +51,17 @@ execute(Worker, Command) -> gen_server:call(Worker, {execute, trim_command(Comma
 start_link() ->
 	gen_server:start_link(?MODULE, [], []).
 
--spec start_link(Database :: atom()) -> pid().
-start_link(Database) ->
-	gen_server:start_link(?MODULE, [Database], []).
+%% Database is your callback module. Params will be send to it's new(Params) callback
+-spec start_link(Database :: atom(), Params :: list()) -> pid().
+start_link(Database, Params) ->
+	gen_server:start_link(?MODULE, [Database, Params], []).
 
 init([]) -> % use built in database
 	{ok, Db} = erlog_memory:start_link(erlog_ets), %default database is ets module
 	load_built_in(Db),
 	{ok, #state{db = Db}};
-init([Database]) -> % use custom database implementation
-	{ok, Db} = erlog_memory:start_link(Database),
+init([Database, Params]) -> % use custom database implementation
+	{ok, Db} = erlog_memory:start_link(Database, Params),
 	load_built_in(Db),
 	{ok, #state{db = Db}}.
 

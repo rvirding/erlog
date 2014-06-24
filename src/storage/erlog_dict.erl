@@ -12,7 +12,7 @@
 -behaviour(erlog_storage).
 
 %% erlog callbacks
--export([new/0,
+-export([new/0, new/1,
 	add_built_in/2,
 	add_compiled_proc/2,
 	assertz_clause/2,
@@ -27,6 +27,8 @@
 -export([]).
 
 new() -> dict:new().
+
+new(_) -> dict:new().
 
 add_built_in(Db, Functor) ->
 	{ok, dict:store(Functor, built_in, Db)}.

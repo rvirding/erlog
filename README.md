@@ -38,7 +38,11 @@ Full Example:
 
 #### Custom database server:
 Erlog now supports using your own database, instead of using ets and dicts. Just implement `erlog_storage` callback interface
-and pass your module name with your implementation to `erlog:start_link/1`.  
+and pass your module name with your implementation to `erlog:start_link/2`.  
 Example:  
     
-    erlog:start_link(mysql_storage_impl_module).
+    erlog:start_link(mysql_storage_impl_module, []).
+You can pass your parameters to your database implementation:
+
+    erlog:start_link(dbModule, Params).
+Where `Params` is a list of your args, need to be passed to `dbModule:new/1` function.

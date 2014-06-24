@@ -14,7 +14,7 @@
 -include("erlog_int.hrl").
 
 %% API
--export([start_link/1, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
+-export([start_link/1, start_link/2, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
 	retract_clause/3, abolish_clauses/2, get_procedure/2, get_procedure_type/2,
 	get_interp_functors/1, assertz_clause/2, asserta_clause/2]).
 
@@ -71,6 +71,10 @@ get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
 	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link(Database) ->
 	gen_server:start_link(?MODULE, [Database], []).
+-spec(start_link(Database :: atom(), Params :: list()) ->
+	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+start_link(Database, Params) ->
+	gen_server:start_link(?MODULE, [Database, Params], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -92,6 +96,9 @@ start_link(Database) ->
 	{stop, Reason :: term()} | ignore).
 init([Database]) when is_atom(Database) ->
 	State = Database:new(),
+	{ok, #state{database = Database, state = State}};
+init([Database, Params]) when is_atom(Database) ->
+	State = Database:new(Params),
 	{ok, #state{database = Database, state = State}}.
 
 %%--------------------------------------------------------------------
