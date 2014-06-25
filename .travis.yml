@@ -18,6 +18,7 @@ script:
          true
      fi
   - make eunit
+  - make qc
 
 
 otp_release:
