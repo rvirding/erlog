@@ -20,7 +20,7 @@
 
 -include("erlog_int.hrl").
 
--export([vars_in/1, is_legal_term/1, reconsult_files/2, select_bindings/2, shell_prove_result/1, prove_result/2, unlistify/1]).
+-export([vars_in/1, is_legal_term/1, reconsult_files/3, select_bindings/2, shell_prove_result/1, prove_result/2, unlistify/1]).
 
 %% @private
 unlistify([G | Gs]) -> {',', G, unlistify(Gs)};
@@ -38,14 +38,14 @@ prove_result({erlog_error, Error}, _Vs) ->  %No new database
 prove_result({'EXIT', Error}, _Vs) ->
 	{'EXIT', Error}.
 
-reconsult_files([], Db) -> {ok, Db};
-reconsult_files([F | Fs], Db0) ->
-	case erlog_file:reconsult(F, Db0) of
-		{ok, Db1} -> reconsult_files(Fs, Db1);
+reconsult_files([], Db, _Fun) -> {ok, Db};
+reconsult_files([F | Fs], Db0, Fun) ->
+	case erlog_file:reconsult(Fun, F, Db0) of
+		{ok, Db1} -> reconsult_files(Fs, Db1, Fun);
 		{erlog_error, Error} -> {erlog_error, Error};
 		{error, Error} -> {error, Error}
 	end;
-reconsult_files(Other, _Db) -> {error, {type_error, list, Other}}.
+reconsult_files(Other, _Db, _Fun) -> {error, {type_error, list, Other}}.
 
 shell_prove_result({succeed, Vs}) -> show_bindings(Vs);
 shell_prove_result(fail) -> <<"No">>;

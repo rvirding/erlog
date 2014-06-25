@@ -128,7 +128,7 @@ run_command(Command, State) ->
 %% Preprocess command
 preprocess_command({ok, Command}, State = #state{f_consulter = Fun}) when is_list(Command) ->
 	{{ok, Db0}, NewState1} = process_command(get_db, State),
-	case erlog_logic:reconsult_files(Command, Db0) of   %TODO fun
+	case erlog_logic:reconsult_files(Command, Db0, Fun) of
 		{ok, Db1} ->
 			{{ok, _Db}, NewState2} = process_command({set_db, Db1}, NewState1),
 			{<<"Yes">>, NewState2};
@@ -158,13 +158,13 @@ process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
 		Other -> {Other, State}
 	end;
 process_command({consult, File}, State = #state{db = Db, f_consulter = Fun}) ->
-	case erlog_file:consult(Fun, File, Db) of %TODO fun
+	case erlog_file:consult(Fun, File, Db) of
 		{ok, Db1} -> ok;  %TODO remove all Db passing and returning in functions, which do not need db
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
 process_command({reconsult, File}, State = #state{db = Db, f_consulter = Fun}) ->
-	case erlog_file:reconsult(Fun, File, Db) of  %TODO fun
+	case erlog_file:reconsult(Fun, File, Db) of
 		{ok, Db1} -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
