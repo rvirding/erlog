@@ -38,11 +38,22 @@ Full Example:
 
 #### Custom database server:
 Erlog now supports using your own database, instead of using ets and dicts. Just implement `erlog_storage` callback interface
-and pass your module name with your implementation to `erlog:start_link/2`.  
+and pass your module name with your implementation to `erlog:start_link/1`.  
 Example:  
     
-    erlog:start_link(mysql_storage_impl_module, []).
+    Proplist = [{database, mysql_storage_impl_module}],
+    erlog:start_link(Proplist).
 You can pass your parameters to your database implementation:
 
-    erlog:start_link(dbModule, Params).
+    Proplist = [{database, dbModule}, {arguments, Params}],
+    erlog:start_link(Proplist).
 Where `Params` is a list of your args, need to be passed to `dbModule:new/1` function.
+
+#### Custom file consulter:
+Basic file consulting takes `FileName` as argument and loads file from your filesystem.  
+But if your production-system needs to consult files from database, of shared filesystem, or something else - you can create
+your own function for consulting files and pass it to erlog:
+
+    F = fun(Filename) -> my_hadoop_server:get_file(Filename) end,
+    Proplist = [{database, dbModule}, {arguments, Params}, {f_consulter, F}],
+    erlog:start_link(Proplist).

@@ -71,8 +71,10 @@ get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
 	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link(Database) ->
 	gen_server:start_link(?MODULE, [Database], []).
--spec(start_link(Database :: atom(), Params :: list()) ->
+-spec(start_link(Database :: atom(), Params :: list() | atom()) ->
 	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+start_link(Database, undefined) ->
+	start_link(Database);
 start_link(Database, Params) ->
 	gen_server:start_link(?MODULE, [Database, Params], []).
 

@@ -33,7 +33,7 @@
 -include("erlog_int.hrl").
 
 %% Interface to server.
--export([start_link/2, start_link/0, execute/2]).
+-export([start_link/1, start_link/0, execute/2]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -41,7 +41,8 @@
 %% Erlang server code.
 -record(state,
 {
-	db, %database
+	db :: atom(), %database
+	f_consulter :: fun(), %file consulter
 	state = normal :: normal | list() %state for solution selecting.
 }).
 
@@ -52,18 +53,25 @@ start_link() ->
 	gen_server:start_link(?MODULE, [], []).
 
 %% Database is your callback module. Params will be send to it's new(Params) callback
--spec start_link(Database :: atom(), Params :: list()) -> pid().
-start_link(Database, Params) ->
-	gen_server:start_link(?MODULE, [Database, Params], []).
+-spec start_link(Params :: proplists:proplist()) -> pid().
+start_link(Params) ->
+	gen_server:start_link(?MODULE, Params, []).
 
 init([]) -> % use built in database
 	{ok, Db} = erlog_memory:start_link(erlog_ets), %default database is ets module
 	load_built_in(Db),
-	{ok, #state{db = Db}};
-init([Database, Params]) -> % use custom database implementation
-	{ok, Db} = erlog_memory:start_link(Database, Params),
+	F = fun erlog_io:read_file/1, %set default consult function
+	{ok, #state{db = Db, f_consulter = F}};
+init(Params) -> % use custom database implementation
+	Database = proplists:get_value(database, Params),
+	Args = proplists:get_value(arguments, Params),
+	FileCon = case proplists:get_value(f_consulter, Params) of  %get function from params or default
+							undefined -> fun erlog_io:read_file/1;
+							Other -> Other
+	          end,
+	{ok, Db} = erlog_memory:start_link(Database, Args),
 	load_built_in(Db),
-	{ok, #state{db = Db}}.
+	{ok, #state{db = Db, f_consulter = FileCon}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
 	{Res, UpdateState} = case erlog_scan:tokens([], Command, 1) of
@@ -118,9 +126,9 @@ run_command(Command, State) ->
 
 %% @private
 %% Preprocess command
-preprocess_command({ok, Command}, State) when is_list(Command) ->
+preprocess_command({ok, Command}, State = #state{f_consulter = Fun}) when is_list(Command) ->
 	{{ok, Db0}, NewState1} = process_command(get_db, State),
-	case erlog_logic:reconsult_files(Command, Db0) of
+	case erlog_logic:reconsult_files(Command, Db0) of   %TODO fun
 		{ok, Db1} ->
 			{{ok, _Db}, NewState2} = process_command({set_db, Db1}, NewState1),
 			{<<"Yes">>, NewState2};
@@ -149,14 +157,14 @@ process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
 		{Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
 		Other -> {Other, State}
 	end;
-process_command({consult, File}, State = #state{db = Db}) ->
-	case erlog_file:consult(File, Db) of
+process_command({consult, File}, State = #state{db = Db, f_consulter = Fun}) ->
+	case erlog_file:consult(Fun, File, Db) of %TODO fun
 		{ok, Db1} -> ok;  %TODO remove all Db passing and returning in functions, which do not need db
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
-process_command({reconsult, File}, State = #state{db = Db}) ->
-	case erlog_file:reconsult(File, Db) of
+process_command({reconsult, File}, State = #state{db = Db, f_consulter = Fun}) ->
+	case erlog_file:reconsult(Fun, File, Db) of  %TODO fun
 		{ok, Db1} -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}

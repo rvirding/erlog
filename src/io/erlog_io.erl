@@ -32,6 +32,8 @@
 -export([write/1, write/2, write1/1, writeq/1, writeq/2, writeq1/1,
 	write_canonical/1, write_canonical/2, write_canonical1/1]).
 
+-record(ops, {op = false, q = true}).
+
 scan_file(File) ->
 	case file:open(File, [read]) of
 		{ok, Fd} ->
@@ -57,7 +59,6 @@ scan_stream(Fd, L0) ->
 %% read_file(FileName) -> {ok,[Term]} | {error,Error}.
 %% Read a file containing Prolog terms. This has been taken from 'io'
 %% but cleaned up using try.
-
 read_file(File) ->
 	case file:open(File, [read]) of
 		{ok, Fd} ->
@@ -79,14 +80,11 @@ read_stream(Fd, L0) ->
 scan_erlog_term(Io, Prompt, Line) ->
 	io:request(Io, {get_until, Prompt, erlog_scan, tokens, [Line]}).
 
--record(ops, {op = false, q = true}).
-
 %% write([IoDevice], Term) -> ok.
 %% writeq([IoDevice], Term) -> ok.
 %% write_canonical([IoDevice], Term) -> ok.
 %%  A very simple write function. Does not pretty-print but can handle
 %%  operators. The xxx1 verions return an iolist of the characters.
-
 write(T) -> write(standard_io, T).
 
 write(Io, T) -> io:put_chars(Io, write1(T)).
@@ -107,7 +105,6 @@ write_canonical1(T) -> write1(T, 1200, #ops{op = false, q = true}).
 
 %% write1(Term, Precedence, Ops) -> iolist().
 %%  The function which does the actual writing.
-
 write1(T, Prec, Ops) when is_atom(T) -> write1_atom(T, Prec, Ops);
 write1(T, _, _) when is_number(T) -> io_lib:write(T);
 write1({V}, _, _) when is_integer(V) -> "_" ++ integer_to_list(V);
@@ -152,7 +149,6 @@ write1(T, _, _) ->           %Else use default Erlang.
 %% write1_prec(OutString, OpPrecedence, Precedence) -> iolist().
 %%  Encase OutString with (..) if op precedence higher than
 %%  precedence.
-
 write1_prec(Out, OpP, Prec) when OpP > Prec -> [$(, Out, $)];
 write1_prec(Out, _, _) -> Out.
 

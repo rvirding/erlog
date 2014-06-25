@@ -18,7 +18,7 @@
 
 -module(erlog_file).
 
--export([consult/2, reconsult/2]).
+-export([consult/3, reconsult/3]).
 
 
 %% consult(File, Database) ->
@@ -27,20 +27,15 @@
 %%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
 %% Load/reload an Erlog file into the interpreter. Reloading will
 %% abolish old definitons of clauses.
-
-consult(File, Db) ->
-	case erlog_io:read_file(File) of
+consult(Fun, File, Db) ->
+	case Fun(File) of %default is erlog_io:read_file/1
 		{ok, Terms} ->
 			consult_terms(fun consult_assert/2, Db, Terms);
 		Error -> Error
 	end.
 
-consult_assert(Term0, Db) ->
-	Term1 = erlog_dcg:expand_term(Term0),
-	{ok, erlog_memory:assertz_clause(Db, Term1)}.
-
-reconsult(File, Db0) ->
-	case erlog_io:read_file(File) of
+reconsult(Fun, File, Db0) ->
+	case Fun(File) of %default is erlog_io:read_file/1
 		{ok, Terms} ->
 			case consult_terms(fun reconsult_assert/2, {Db0, []}, Terms) of
 				{ok, {Db1, _Seen1}} -> {ok, Db1};
@@ -49,6 +44,12 @@ reconsult(File, Db0) ->
 		Error -> Error
 	end.
 
+%% @private
+consult_assert(Term0, Db) ->
+	Term1 = erlog_dcg:expand_term(Term0),
+	{ok, erlog_memory:assertz_clause(Db, Term1)}.
+
+%% @private
 reconsult_assert(Term0, {Db, Seen}) ->
 	Term1 = erlog_dcg:expand_term(Term0),
 	Func = functor(Term1),
@@ -60,6 +61,7 @@ reconsult_assert(Term0, {Db, Seen}) ->
 			{ok, {erlog_memory:assertz_clause(Db, Term1), [Func | Seen]}}
 	end.
 
+%% @private
 %% consult_terms(InsertFun, Database, Terms) ->
 %%      {ok,NewDatabase} | {erlog_error,Error}.
 %% Add terms to the database using InsertFun. Ignore directives and
@@ -76,5 +78,6 @@ consult_terms(Ifun, Db0, [T | Ts]) ->
 	end;
 consult_terms(_Ifun, Db, []) -> {ok, Db}.
 
+%% @private
 functor({':-', H, _B}) -> erlog_core:functor(H);
 functor(T) -> erlog_core:functor(T).
