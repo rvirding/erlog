@@ -95,10 +95,10 @@ start_link(Database, Params) ->
 	{ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term()} | ignore).
 init([Database]) when is_atom(Database) ->
-	State = Database:new(),
+	{ok, State} = Database:new(),
 	{ok, #state{database = Database, state = State}};
 init([Database, Params]) when is_atom(Database) ->
-	State = Database:new(Params),
+	{ok, State} = Database:new(Params),
 	{ok, #state{database = Database, state = State}}.
 
 %%--------------------------------------------------------------------

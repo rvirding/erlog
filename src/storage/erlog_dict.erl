@@ -26,9 +26,9 @@
 %% API
 -export([]).
 
-new() -> dict:new().
+new() -> {ok, dict:new()}.
 
-new(_) -> dict:new().
+new(_) -> {ok, dict:new()}.
 
 add_built_in(Db, Functor) ->
 	{ok, dict:store(Functor, built_in, Db)}.

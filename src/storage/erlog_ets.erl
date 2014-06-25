@@ -25,9 +25,9 @@
 	get_procedure_type/2,
 	get_interp_functors/1]).
 
-new() -> ets:new(eets, []).
+new() -> {ok, ets:new(eets, [])}.
 
-new(_) -> ets:new(eets, []).
+new(_) -> {ok, ets:new(eets, [])}.
 
 add_built_in(Db, Functor) ->
 	true = ets:insert(Db, {Functor, built_in}),
