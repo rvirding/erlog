@@ -3,6 +3,7 @@
 *.beam
 .deps_plt
 .eunit/*
+.qc/*
 doc/*
 src/erlog_scan.erl
 deps/*
