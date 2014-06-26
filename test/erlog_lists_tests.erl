@@ -8,10 +8,10 @@ prop_append_lists() ->
        {A,B},
        {list(int()), list(int())},
        begin
-           Term = {append,A,B,{'Z'}},
-           {ok, PID} = erlog:start_link(),
-           case  erlog:prove(PID,Term) of
-               {succeed, [{'Z', Z}]} ->
+           Term      = {append,A,B,{'Z'}},
+           E         = erlog:new(),
+           case  E({prove,Term}) of
+               {{succeed, [{'Z', Z}]},E1} when is_function(E1) ->
                    Z =:= lists:append(A,B);
                fail ->
                    false
@@ -25,10 +25,10 @@ prop_append_list() ->
        list(int()),
        begin
            Term = {append,{'A'},{'B'},L},
-           {ok, PID} = erlog:start_link(),
-           case  erlog:prove(PID,Term) of
-               {succeed, [{'A', A}, 
-                          {'B', B}]} ->
+           E    = erlog:new(),
+           case  E({prove,Term}) of
+               {{succeed, [{'A', A}, 
+                          {'B', B}]},E1} when is_function(E1) ->
                    L =:= lists:append(A,B);
                fail ->
                    false
@@ -39,10 +39,10 @@ prop_append_list() ->
 prop_reverse_list() ->
     ?FORALL(L, list(int()),
             begin
-                Term =  {reverse,L,{'Y'}},
-                {ok, PID} = erlog:start_link(),
-                case  erlog:prove(PID,Term) of
-                    {succeed, [{'Y', Y}]} ->
+                Term      =  {reverse,L,{'Y'}},
+                E         = erlog:new(),
+                case  E({prove,Term}) of
+                    {{succeed, [{'Y', Y}]},_E1} ->
                         L =:= lists:reverse(Y);
                     fail ->
                         false

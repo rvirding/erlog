@@ -81,7 +81,7 @@ eunit: deps_eunit
 
 
 qc: compile 
-	$(REBAR) qc --verbose
+	$(REBAR) qc 
 
 
 compile:
