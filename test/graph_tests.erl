@@ -2,6 +2,7 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+
 partially_ordered_set_test() ->
     {ok, PID}   =				erlog:start_link(),
     ok          =				erlog:consult(PID, "../test/po_set.pl"),    
@@ -20,37 +21,27 @@ gnode() ->
 gnodes() ->
     non_empty(list(gnode())).
 
-%%TODO ADD TIMEOUT HERE
+
 prop_travel() ->
         ?FORALL({Nodes},
 		{gnodes()},
 		
 		begin
-		    {ok, PID}   = erlog:start_link(),
-		    ok          = erlog:consult(PID, "../test/graph.pl"),
-		    [erlog:prove(PID, {assertz, Node})|| Node <- Nodes],
+		    E   = erlog:new(),
+		    {ok,E1}  = E({consult, "test/graph.pl"}),
+		    E2  = lists:foldr(fun(Node, EI) ->
+					      {{succeed, _},E2} = EI({prove, {assertz,Node}}),
+					      E2
+				      end, E1,Nodes),
 		    
 		    true = lists:all(fun({edge,Start,_})->
-					     {succeed, R} = erlog:prove(PID, {path, Start, {'End'},{'Path'}}),
+					     {{succeed, R},_}  = E2({prove, {path, Start, {'End'},{'Path'}}}),
 					     End  = proplists:get_value('End',  R),
-					     Path = proplists:get_value('Path', R ),
-					     {succeed, []} =:= erlog:prove(PID, {path, Start, End, Path})
-				     
+					     Path = proplists:get_value('Path', R),
+					     {{succeed, []},_} = E2({prove, {path, Start, End, Path}}),
+					     true
 				     end, Nodes)
 			 end).
 
 
-out(P) ->
-   on_output(fun(S,F) -> io:format(user, S, F) end,P).
-
-run_test_() ->
-    Props = [
-	     fun prop_travel/0
-             ],    
-    [
-     begin
-         P = out(Prop()),
-         ?_assert(quickcheck(numtests(500,P)))
-     end
-     || Prop <- Props].
 
