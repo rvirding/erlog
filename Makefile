@@ -67,9 +67,6 @@ all: deps compile test
 # =============================================================================
 
 
-deps_eunit: 
-	$(REBAR)  get-deps
-	$(REBAR)  compile
 
 deps:
 	$(REBAR) get-deps
@@ -82,10 +79,9 @@ update-deps:
 eunit: deps_eunit
 	$(REBAR)  eunit skip_deps=true --verbose
 
-eunit-qc: deps_eunit
-	$(REBAR)  eunit skip_deps=true compile_only=true --verbose
 
-qc: compile eunit-qc 
+qc: compile 
+	$(REBAR) qc --verbose
 
 
 compile:
