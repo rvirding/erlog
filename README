@@ -3,3 +3,11 @@ with the Erlang runtime system. It is a subset of the Prolog standard.
 An erlog shell is also included.
 
 Erlog is tested to work with Erlang versions R14B02 - 17 
+
+Currently there are 3 ways to interact with erlog. 
+
+The first way to use erlog is to create a function closure with erlog:new(), this is the general preferred way. 
+
+The second way is to create a gen_server with erlog:start_link(), this will probably go away soon.
+
+You can also create an erlog REPL with the erlog binary. This may be useful for trouble shooting prolog code and such.
