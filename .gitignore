@@ -4,6 +4,7 @@
 .deps_plt
 .eunit/*
 .qc/*
+scratch/*
 doc/*
 src/erlog_scan.erl
 deps/*
