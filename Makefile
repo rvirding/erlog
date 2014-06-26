@@ -76,7 +76,7 @@ update-deps:
 	$(REBAR) update-deps
 	$(REBAR) compile
 
-eunit: deps_eunit
+eunit: compile
 	$(REBAR)  eunit skip_deps=true --verbose
 
 
