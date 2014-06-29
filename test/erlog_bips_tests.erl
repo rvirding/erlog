@@ -6,9 +6,21 @@ cops() ->
     oneof([{'=:=', fun (I,J) ->
 			   I == J
 		   end},
+	   {'==', fun (I,J) ->
+			   I == J
+		   end},
+
 	   {'=\\=', fun(I,J) ->
 			   I /= J
 		   end},
+	   {'\\==', fun(I,J) ->
+			   I /= J
+		   end},
+
+	   {'\\=', fun(I,J) ->
+			   I /= J
+		   end},
+
 	   {'<', fun(I, J) ->
 			 I < J
 		 end},
@@ -21,6 +33,32 @@ cops() ->
 	   {'=<', fun(I,J) ->
 			  I =< J
 		  end}]).
+
+atom()->
+    elements(['a','b','c','d','e','f','g','A',' ','_']).
+
+is_atomic(A) when is_list(A) ->
+    false;
+is_atomic(A) when is_tuple(A) ->
+    false;
+is_atomic(_) ->
+    true.
+
+prop_atomic_and_compound() ->
+    ?FORALL(Atom,
+	    oneof([int(),atom(),real(),binary(),non_empty(list(int())),{atom(), int()}]),
+	    begin
+		{ok, PID}    = erlog:start_link(),
+                case {erlog:prove(PID, {atomic,  Atom}),
+		      erlog:prove(PID, {compound,Atom})}
+		      of
+		    {{succeed,_},fail} ->
+			is_atomic(Atom);
+		    {fail,{succeed,_}} ->
+			not(is_atomic(Atom))
+		end
+	    end).
+
 
 prop_comp() ->
     ?FORALL({I, J, {Op,C}},
@@ -73,22 +111,3 @@ prop_number()->
             end).
 
 
-out(P) ->
-   on_output(fun(S,F) -> io:format(user, S, F) end,P).
-
-run_test_() ->
-    Props = [
-             fun prop_integer/0,
-             fun prop_number/0,
-             fun prop_float/0,
-             fun prop_equals/0,
-             fun prop_not_equals/0,
-	     fun prop_comp/0
-
-             ],
-    [
-     begin
-         P = out(Prop()),
-         ?_assert(quickcheck(numtests(500,P)))
-     end
-     || Prop <- Props].

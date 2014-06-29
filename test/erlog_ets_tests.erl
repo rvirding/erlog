@@ -77,19 +77,4 @@ prop_ets_match() ->
             end).
 
 
-out(P) ->
-   on_output(fun(S,F) -> io:format(user, S, F) end,P).
-
-run_test_() ->
-    Props = [
-	     fun prop_ets_match/0,
-	     fun prop_ets_match_all/0,
-	     fun prop_ets_keys/0
-             ],    
-    [
-     begin
-         P = out(Prop()),
-         ?_assert(quickcheck(numtests(500,P)))
-     end
-     || Prop <- Props].
 

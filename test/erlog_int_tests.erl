@@ -73,20 +73,6 @@ prop_retract() ->
             end).
               
 
-out(P) ->
-   on_output(fun(S,F) -> io:format(user, S, F) end,P).
-
-run_test_() ->
-    Props = [
-             fun prop_assert/0,
-             fun prop_retract/0
-             ],    
-    [
-     begin
-         P = out(Prop()),
-         ?_assert(quickcheck(numtests(500,P)))
-     end
-     || Prop <- Props].
 
 
 
