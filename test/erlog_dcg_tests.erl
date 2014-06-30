@@ -10,7 +10,6 @@ prop_finite_dcg() ->
     {succeed,_} = erlog:prove(PID,{s,[the,man,shoots,a,man],[]}),
     case erlog:prove(PID, {s, {'X'},[]}) of
 	{succeed, [{'X',List}]} ->
-	    ?debugVal(List),
 	    [the,woman,shoots,the,woman] =:= List;
 	fail ->
 	    false
