@@ -1,3 +1,4 @@
+/* -*-Prolog -*-*/
 %%% Some simple timer procedures.
 
 cpu_time(Time) :-

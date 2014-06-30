@@ -1,4 +1,6 @@
-%   File   : TREES.PL
+% -*-Prolog -*-
+				%   File   : TREES.PL -
+   
 %   Author : R.A.O'Keefe
 %   Updated: 25 November 1983
 %   Purpose: Updatable binary trees.

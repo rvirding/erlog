@@ -1,0 +1,7 @@
+% -*-Erlang-*-
+{application, erlog,
+ [{description, "Erlog , Prolog in Erlang"},
+  {vsn, "0.6"},
+  {registered, []},
+  {applications, [kernel,stdlib]}
+ ]}.
