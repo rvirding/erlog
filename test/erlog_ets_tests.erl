@@ -13,14 +13,14 @@
 %     ?assertEqual({succeed,[]},erlog:prove(PID, {ets_all, test_ets_table})),
 %     ok.
 
-erlog_empty_ets_test() ->
+prop_erlog_empty_ets() ->
     {ok, PID}   = erlog:start_link(),
     ok = erlog:load(PID,erlog_ets),
     TabId = ets:new(test_ets_table, [bag, {keypos,2}]),
     ?assertEqual(fail,erlog:prove(PID, {ets_keys, TabId, {'S'}})),
     ?assertEqual(fail,erlog:prove(PID, {ets_match, TabId,{'S'}})),
+    true.
 
-    ok.
     
      
 gnode() ->

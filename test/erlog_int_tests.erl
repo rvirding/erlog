@@ -2,15 +2,15 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
-fail_test() ->
+prop_fail() ->
     {ok, PID}   = erlog:start_link(),
     ?assertEqual(fail,erlog:prove(PID, fail)),
-    ok.
+    true.
 
-not_equal_test() ->
+prop_not_equal() ->
     {ok, PID}   = erlog:start_link(),
     ?assertEqual(fail,erlog:prove(PID, {'\=', 1,2})),
-    ok.
+    true.
 
 
 keys() ->
@@ -35,11 +35,11 @@ keys() ->
      "54BB4C80",
      "537E16D9"].
 
-bool_test() ->
+prop_bool() ->
     {ok,E} = erlog:start_link(),
     ?assertEqual({succeed, []}, erlog:prove(E, true)),
     ?assertEqual(fail, erlog:prove(E, false)),
-    ok.
+    true.
 
 option() ->
     oneof([assert, asserta, assertz]).

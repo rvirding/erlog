@@ -3,9 +3,9 @@
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 
-partially_ordered_set_test() ->
+prop_partially_ordered_set() ->
     {ok, PID}   =				erlog:start_link(),
-    ok          =				erlog:consult(PID, "../test/po_set.pl"),    
+    ok          =				erlog:consult(PID, "test/po_set.pl"),    
     ?assertEqual({succeed, []},			erlog:prove(PID, {connected, a, b})),
     ?assertEqual(fail,				erlog:prove(PID, {connected, b,c})),
     ?assertEqual({succeed, []},			erlog:prove(PID, {ancestor, a, f})),
@@ -13,7 +13,7 @@ partially_ordered_set_test() ->
     ?assertEqual({succeed, [{'Ancestor', b}]},	erlog:next_solution(PID)),
     ?assertEqual({succeed, [{'p', [a,b,f]}]},	erlog:prove(PID,{path, a, f, {p}})),
     ?assertEqual({succeed, [{'p', [a,c,d,f]}]}, erlog:next_solution(PID)),
-    ok.
+    true.
 
 gnode() ->
     {edge, char(),char()}.
