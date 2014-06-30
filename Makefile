@@ -100,7 +100,7 @@ doc:
 ct: compile 
 	$(REBAR)   skip_deps=true ct
 
-test: compile eunit #dialyzer
+test: compile eunit qc
 
 start: compile 
 	erl -name erlog  -pa ebin  -pa deps/*/ebin   #-s reloader 
