@@ -1,3 +1,12 @@
 Erlog is a Prolog interpreter implemented in Erlang and integrated
-with the Erlang runtime system. It is a subset of the Prolog standard.
-An erlog shell is also included.
+with the Erlang runtime system, that runs in an Erlang process. It is a subset of the ISO Prolog standard. 
+
+You should use this if you want to include some prolog functionality in a larger erlang system (Including Elixir, LFE, Joxa etc). If you want a stand alone prolog you are probably better off using a package like SWI Prolog. 
+
+There are currently 3 ways of interacting with Erlog, you can use the Erlog REPL for ad hoc testing, you can create an Erlog implementation in a closure or you can create an Erlog instance in a gen_server. Which version you should use depends on your application. 
+
+Erlog can also share data with an erlang program by way of an ETS table. Erlog includes commands to unify a goal with the contents of an ets table. It should also be possible to work with mnesia tables, but this has not yet been done. 
+
+You can include erlog in your application with rebar, by adding it to the deps section of your rebar config file.
+
+
