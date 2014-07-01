@@ -22,7 +22,9 @@ new closure and a return of type _erlog_return()_. To consult you can
 run _E({consult,FILE})_ which will return a new closure and 'ok' or an
 error.
 
+````erlang
 -type erlog_return() :: fail|{succeed, [{atom(), any()}]}.
+````
 
 *NOTE THIS INTERFACE MAY GO AWAY*
 
