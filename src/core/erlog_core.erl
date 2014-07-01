@@ -144,7 +144,7 @@
 	prove_goal_clauses/7,
 	pred_ind/1,
 	well_form_body/3,
-	deref_list/2, unify_prove_body/7, dderef/2]).
+	deref_list/2, unify_prove_body/7, dderef/2, deref/2, add_binding/3]).
 %% Bindings, unification and dereferncing.
 -export([functor/1]).
 %% Creating term and body instances.
