@@ -127,9 +127,10 @@ run_command(Command, State) ->
 %% @private
 %% Preprocess command
 preprocess_command({ok, Command}, State = #state{f_consulter = Fun}) when is_list(Command) ->
-	{{ok, Db0}, NewState1} = process_command(get_db, State),
+	{Db0, NewState1} = process_command(get_db, State),  %TODO remove db passing!
+	io:format("Reconsult files with command ~p~n", [Command]),
 	case erlog_logic:reconsult_files(Command, Db0, Fun) of
-		{ok, Db1} ->
+		{ok, Db1} ->  %TODO remove db passing!
 			{{ok, _Db}, NewState2} = process_command({set_db, Db1}, NewState1),
 			{<<"Yes">>, NewState2};
 		{error, {L, Pm, Pe}} ->
@@ -157,15 +158,15 @@ process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
 		{Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
 		Other -> {Other, State}
 	end;
-process_command({consult, File}, State = #state{db = Db, f_consulter = Fun}) ->
+process_command({consult, File}, State = #state{db = Db, f_consulter = Fun}) -> %TODO consult unused?
 	case erlog_file:consult(Fun, File, Db) of
 		{ok, Db1} -> ok;  %TODO remove all Db passing and returning in functions, which do not need db
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
-process_command({reconsult, File}, State = #state{db = Db, f_consulter = Fun}) ->
+process_command({reconsult, File}, State = #state{db = Db, f_consulter = Fun}) -> %TODO reconsult unused?
 	case erlog_file:reconsult(Fun, File, Db) of
-		{ok, Db1} -> ok;
+		{ok, Db1} -> ok;  %TODO remove db passing!
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
