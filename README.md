@@ -1,6 +1,6 @@
 Erlog is a Prolog interpreter implemented in Erlang and integrated
 with the Erlang runtime system. It is a subset of the Prolog standard.
-An erlog shell is also included.
+An erlog shell (REPL) is also included.
 
 with the Erlang runtime system, that runs in an Erlang process. It is
 a subset of the ISO Prolog standard.
@@ -29,8 +29,12 @@ error.
 If you want to setup erlog in its own server then you can use the
 command _erlog:start()_ or _erlog:start_link()_ from there you can
 load files with _erlog:consult(PID, FILE)_ and run code with
-_erlog:consult(PID,{...})_ 
+_erlog:prove(PID,{...})_ 
 
+The thing to note with this interface is that the erlog process can be
+accessed from any process that knows about the server, so it is
+possible to have strange concurrency errors, for example with the
+_erlog:next_solution/1_ function.   
 
 
 Erlog can also share data with an erlang program by way of an ETS
