@@ -49,6 +49,10 @@ You can pass your parameters to your database implementation:
     erlog:start_link(Proplist).
 Where `Params` is a list of your args, need to be passed to `dbModule:new/1` function.
 
+#### Consulting files
+To consult files use brakes and filename with path `["/home/prolog_user/prolog_code/examples/family.pl"]`.  
+__Remember!__ For proper consulting files with default consulter, files should end with empty line!
+
 #### Custom file consulter:
 Basic file consulting takes `FileName` as argument and loads file from your filesystem.  
 But if your production-system needs to consult files from database, of shared filesystem, or something else - you can create
