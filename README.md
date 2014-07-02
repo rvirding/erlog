@@ -22,6 +22,18 @@ new closure and a return of type _erlog_return()_. To consult you can
 run _E({consult,FILE})_ which will return a new closure and 'ok' or an
 error.
 
+For example take this code:
+````erlang
+           Term      = {append,A,B,{'Z'}},
+           E         = erlog:new(),
+           case  E({prove,Term}) of
+               {{succeed, [{'Z', Z}]},E1} when is_function(E1) ->
+                   Z =:= lists:append(A,B);
+               fail ->
+                   false
+           end
+````
+
 ````erlang
 -type erlog_return() :: fail|{succeed, [{atom(), any()}]}.
 ````
