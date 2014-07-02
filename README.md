@@ -22,6 +22,29 @@ new closure and a return of type _erlog_return()_. To consult you can
 run _E({consult,FILE})_ which will return a new closure and 'ok' or an
 error.
 
+For example take this code:
+We start by creating a new instance of the erlog engine, then we 
+it starts with an append statement which ask it to append lists *A*
+and *B*. The return value is designated with a 1 tuple with an atom
+value for the return variable, in this case *{'Z'}*. 
+
+If the prolog code works correctly it will return the tuple {{succeed,
+[{'Z', Value}]}, E1}. Here E1 is the new state of theerlog interpreter.
+
+
+
+````erlang
+           E         = erlog:new(),
+           case  E({prove,{append,A,B,{'Z'}}}) of
+               {{succeed, [{'Z', Z}]}, E1} when is_function(E1) ->
+                   Z =:= lists:append(A,B);
+               fail ->
+                   false
+           end
+````
+
+Erlog prove has a type signature like this:
+
 ````erlang
 -type erlog_return() :: fail|{succeed, [{atom(), any()}]}.
 ````
