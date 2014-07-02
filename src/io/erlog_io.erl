@@ -75,7 +75,17 @@ read_file(File) ->
 	end.
 
 read_stream(Fd, L0) ->
-	erlog_parse:parse_prolog_term(scan_erlog_term(Fd, '', L0)).
+	case scan_erlog_term(Fd, '', L0) of
+		{ok, Toks, L1} ->
+			case erlog_parse:term(Toks, L0) of
+				{ok, end_of_file} -> [];    %Prolog does this.
+				{ok, Term} ->
+					[Term | read_stream(Fd, L1)];
+				{error, What} -> throw({error, What})
+			end;
+		{error, Error, _} -> throw({error, Error});
+		{eof, _} -> []
+	end.
 
 scan_erlog_term(Io, Prompt, Line) ->
 	io:request(Io, {get_until, Prompt, erlog_scan, tokens, [Line]}).

@@ -66,7 +66,7 @@ reconsult_assert(Term0, {Db, Seen}) ->
 %%      {ok,NewDatabase} | {erlog_error,Error}.
 %% Add terms to the database using InsertFun. Ignore directives and
 %% queries.
--spec consult_terms(fun(), pid(), list()) -> tuple.
+-spec consult_terms(fun(), pid(), list()) -> tuple().
 consult_terms(Ifun, Db, [{':-', _} | Ts]) ->
 	consult_terms(Ifun, Db, Ts);
 consult_terms(Ifun, Db, [{'?-', _} | Ts]) ->

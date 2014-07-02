@@ -312,13 +312,10 @@ infix_op('**') -> {yes, 199, 200, 199};    %xfx 200
 infix_op('^') -> {yes, 199, 200, 200};    %xfy 200
 infix_op(_Op) -> no.
 
-parse_prolog_term(Commands) ->
-	case Commands of
-		{ok, Ts} -> parse(Ts);
-		{ok, Ts, _} -> parse(Ts);
-		{error, Se, _} -> {error, Se};
-		{eof, _} -> {ok, end_of_file}    %Prolog does this
-	end.
+parse_prolog_term({ok, Ts}) -> parse(Ts);
+parse_prolog_term({ok, Ts, _}) -> parse(Ts);
+parse_prolog_term({error, Se, _}) -> {error, Se};
+parse_prolog_term({eof, _}) -> {ok, end_of_file}. %Prolog does this
 
 parse(Ts) ->
 	case erlog_parse:term(Ts) of
