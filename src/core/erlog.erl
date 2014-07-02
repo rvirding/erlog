@@ -66,8 +66,8 @@ init(Params) -> % use custom database implementation
 	Database = proplists:get_value(database, Params),
 	Args = proplists:get_value(arguments, Params),
 	FileCon = case proplists:get_value(f_consulter, Params) of  %get function from params or default
-							undefined -> fun erlog_io:read_file/1;
-							Other -> Other
+		          undefined -> fun erlog_io:read_file/1;
+		          Other -> Other
 	          end,
 	{ok, Db} = erlog_memory:start_link(Database, Args),
 	load_built_in(Db),
@@ -126,17 +126,15 @@ run_command(Command, State) ->
 
 %% @private
 %% Preprocess command
-preprocess_command({ok, Command}, State = #state{f_consulter = Fun}) when is_list(Command) ->
-	{Db0, NewState1} = process_command(get_db, State),  %TODO remove db passing!
+preprocess_command({ok, Command}, State = #state{f_consulter = Fun, db = Db}) when is_list(Command) ->
 	io:format("Reconsult files with command ~p~n", [Command]),
-	case erlog_logic:reconsult_files(Command, Db0, Fun) of
-		{ok, Db1} ->  %TODO remove db passing!
-			{{ok, _Db}, NewState2} = process_command({set_db, Db1}, NewState1),
-			{<<"Yes">>, NewState2};
+	case erlog_logic:reconsult_files(Command, Db, Fun) of
+		ok ->
+			{<<"Yes">>, State};
 		{error, {L, Pm, Pe}} ->
-			{erlog_io:format_error([L, Pm:format_error(Pe)]), NewState1};
+			{erlog_io:format_error([L, Pm:format_error(Pe)]), State};
 		{Error, Message} when Error == error; Error == erlog_error ->
-			{erlog_io:format_error([Message]), NewState1}
+			{erlog_io:format_error([Message]), State}
 	end;
 preprocess_command({ok, Command}, State) ->
 	{Result, NewState} = process_command({prove, Command}, State),
@@ -160,20 +158,16 @@ process_command(next, State = #state{state = [Vs, Cps], db = Db}) ->
 	end;
 process_command({consult, File}, State = #state{db = Db, f_consulter = Fun}) -> %TODO consult unused?
 	case erlog_file:consult(Fun, File, Db) of
-		{ok, Db1} -> ok;  %TODO remove all Db passing and returning in functions, which do not need db
+		ok -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
 process_command({reconsult, File}, State = #state{db = Db, f_consulter = Fun}) -> %TODO reconsult unused?
 	case erlog_file:reconsult(Fun, File, Db) of
-		{ok, Db1} -> ok;  %TODO remove db passing!
+		ok -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			{{error, Error}, State}
 	end;
-process_command(get_db, State = #state{db = Db}) ->
-	{Db, State};
-process_command({set_db, NewDb}, State = #state{db = Db}) -> % set new db, return old
-	{{ok, Db}, State#state{db = NewDb}};
 process_command(halt, State) ->
 	gen_server:cast(self(), halt),
 	{ok, State}.

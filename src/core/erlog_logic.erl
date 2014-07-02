@@ -38,10 +38,11 @@ prove_result({erlog_error, Error}, _Vs) ->  %No new database
 prove_result({'EXIT', Error}, _Vs) ->
 	{'EXIT', Error}.
 
-reconsult_files([], Db, _Fun) -> {ok, Db};
-reconsult_files([F | Fs], Db0, Fun) ->
-	case erlog_file:reconsult(Fun, F, Db0) of
-		{ok, Db1} -> reconsult_files(Fs, Db1, Fun);
+-spec reconsult_files(list(), pid(), fun()) -> ok | tuple().
+reconsult_files([], _Db, _Fun) -> ok;
+reconsult_files([F | Fs], Db, Fun) ->
+	case erlog_file:reconsult(Fun, F, Db) of
+		ok -> reconsult_files(Fs, Db, Fun);
 		{erlog_error, Error} -> {erlog_error, Error};
 		{error, Error} -> {error, Error}
 	end;

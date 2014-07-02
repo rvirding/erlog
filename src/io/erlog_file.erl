@@ -27,6 +27,7 @@
 %%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
 %% Load/reload an Erlog file into the interpreter. Reloading will
 %% abolish old definitons of clauses.
+-spec consult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
 consult(Fun, File, Db) ->
 	case Fun(File) of %default is erlog_io:read_file/1
 		{ok, Terms} ->
@@ -34,11 +35,12 @@ consult(Fun, File, Db) ->
 		Error -> Error
 	end.
 
-reconsult(Fun, File, Db0) ->
+-spec reconsult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
+reconsult(Fun, File, Db) ->
 	case Fun(File) of %default is erlog_io:read_file/1
 		{ok, Terms} ->
-			case consult_terms(fun reconsult_assert/2, {Db0, []}, Terms) of
-				{ok, {Db1, _Seen1}} -> {ok, Db1};
+			case consult_terms(fun reconsult_assert/2, {Db, []}, Terms) of
+				ok -> ok;
 				Error -> Error
 			end;
 		Error -> Error
@@ -66,18 +68,18 @@ reconsult_assert(Term0, {Db, Seen}) ->
 %%      {ok,NewDatabase} | {erlog_error,Error}.
 %% Add terms to the database using InsertFun. Ignore directives and
 %% queries.
--spec consult_terms(fun(), pid(), list()) -> tuple().
-consult_terms(Ifun, Db, [{':-', _} | Ts]) ->
-	consult_terms(Ifun, Db, Ts);
-consult_terms(Ifun, Db, [{'?-', _} | Ts]) ->
-	consult_terms(Ifun, Db, Ts);
-consult_terms(Ifun, Db0, [T | Ts]) ->
-	case catch Ifun(T, Db0) of
-		{ok, Db1} -> consult_terms(Ifun, Db1, Ts);
-		{erlog_error, E, _Db1} -> {erlog_error, E};
+-spec consult_terms(fun(), any(), list()) -> ok | tuple().
+consult_terms(Ifun, Params, [{':-', _} | Ts]) ->
+	consult_terms(Ifun, Params, Ts);
+consult_terms(Ifun, Params, [{'?-', _} | Ts]) ->
+	consult_terms(Ifun, Params, Ts);
+consult_terms(Ifun, Params, [Term | Ts]) ->
+	case catch Ifun(Term, Params) of
+		{ok, _} -> consult_terms(Ifun, Params, Ts);
+		{erlog_error, E, _} -> {erlog_error, E};
 		{erlog_error, E} -> {erlog_error, E}
 	end;
-consult_terms(_Ifun, Db, []) -> {ok, Db}.
+consult_terms(_, _, []) -> ok.
 
 %% @private
 functor({':-', H, _B}) -> erlog_core:functor(H);
