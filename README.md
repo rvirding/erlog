@@ -85,6 +85,7 @@ _ets_match(TableId, Value)_.
 You can include erlog in your application with rebar, by adding it to
 the deps section of your rebar config file.
 
+## Testing
 
 Erlog is tested to work with Erlang versions R14B02 - 17, the tests
 are quick-check properties, if you do not have quickcheck don't worry
