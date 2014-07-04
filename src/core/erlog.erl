@@ -127,7 +127,6 @@ run_command(Command, State) ->
 %% @private
 %% Preprocess command
 preprocess_command({ok, Command}, State = #state{f_consulter = Fun, db = Db}) when is_list(Command) ->
-	io:format("Reconsult files with command ~p~n", [Command]),
 	case erlog_logic:reconsult_files(Command, Db, Fun) of
 		ok ->
 			{<<"Yes">>, State};

@@ -47,20 +47,25 @@ reconsult(Fun, File, Db) ->
 	end.
 
 %% @private
+-spec consult_assert(Term0 :: term(), Db :: pid()) -> {ok, Db :: pid()}.
 consult_assert(Term0, Db) ->
 	Term1 = erlog_dcg:expand_term(Term0),
-	{ok, erlog_memory:assertz_clause(Db, Term1)}.
+	erlog_memory:assertz_clause(Db, Term1),
+	{ok, Db}.  %TODO refactor consult_terms not to pass DB everywhere!
 
 %% @private
+-spec reconsult_assert(Term0 :: term(), {Db :: pid(), Seen :: list()}) -> {ok, {Db :: pid(), list()}}.
 reconsult_assert(Term0, {Db, Seen}) ->
 	Term1 = erlog_dcg:expand_term(Term0),
 	Func = functor(Term1),
 	case lists:member(Func, Seen) of
 		true ->
-			{ok, {erlog_memory:assertz_clause(Db, Term1), Seen}};
+			erlog_memory:assertz_clause(Db, Term1),
+			{ok, {Db, Seen}};  %TODO refactor consult_terms not to pass DB everywhere!
 		false ->
 			erlog_memory:abolish_clauses(Db, Func),
-			{ok, {erlog_memory:assertz_clause(Db, Term1), [Func | Seen]}}
+			erlog_memory:assertz_clause(Db, Term1),
+			{ok, {Db, [Func | Seen]}}
 	end.
 
 %% @private
@@ -69,13 +74,13 @@ reconsult_assert(Term0, {Db, Seen}) ->
 %% Add terms to the database using InsertFun. Ignore directives and
 %% queries.
 -spec consult_terms(fun(), any(), list()) -> ok | tuple().
-consult_terms(Ifun, Params, [{':-', _} | Ts]) ->
+consult_terms(Ifun, Params, [{':-', _} | Ts]) ->  %TODO refactor me to make interface for Params unifyed! (or may be lists:foreach will be better this hand made recursion)
 	consult_terms(Ifun, Params, Ts);
 consult_terms(Ifun, Params, [{'?-', _} | Ts]) ->
 	consult_terms(Ifun, Params, Ts);
 consult_terms(Ifun, Params, [Term | Ts]) ->
 	case catch Ifun(Term, Params) of
-		{ok, _} -> consult_terms(Ifun, Params, Ts);
+		{ok, UpdParams} -> consult_terms(Ifun, UpdParams, Ts);
 		{erlog_error, E, _} -> {erlog_error, E};
 		{erlog_error, E} -> {erlog_error, E}
 	end;

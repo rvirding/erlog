@@ -45,7 +45,7 @@ add_compiled_proc(Db, {Functor, M, F}) ->
 assertz_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]})
+			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]}),
 		end),
 	{ok, Db}.
 

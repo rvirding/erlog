@@ -175,9 +175,9 @@ prove_goal(Goal0, Db) ->
 %% Prove the goals in a body. Remove the first goal and try to prove
 %% it. Return when there are no more goals. This is how proving a
 %% goal/body succeeds.
-prove_body([G | Gs], Cps, Bs0, Vn0, Db0) ->
+prove_body([G | Gs], Cps, Bs0, Vn0, Db) ->
 	%%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
-	prove_goal(G, Gs, Cps, Bs0, Vn0, Db0);
+	prove_goal(G, Gs, Cps, Bs0, Vn0, Db);
 prove_body([], Cps, Bs, Vn, Db) ->
 	%%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
 	%%      [get(erlog_cps),get(erlog_cut),get(erlog_var),dict:size(Bs)]),
@@ -202,7 +202,7 @@ unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db) ->
 		fail -> ?FAIL(Bs0, Cps, Db)
 	end.
 
-%% deref(Term, Bindings) -> Term. %TODO ets and others?
+%% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
 deref({V} = T0, Bs) ->
 	case ?BIND:find(V, Bs) of
@@ -322,18 +322,22 @@ prove_goal(repeat, Next, Cps, Bs, Vn, Db) ->
 prove_goal({abolish, Pi0}, Next, Cps, Bs, Vn, Db) ->
 	case dderef(Pi0, Bs) of
 		{'/', N, A} when is_atom(N), is_integer(A), A > 0 ->
-			prove_body(Next, Cps, Bs, Vn, Db:abolish_clauses({N, A}, Db));
+			erlog_memory:abolish_clauses(Db, {N, A}),
+			prove_body(Next, Cps, Bs, Vn, Db);
 		Pi -> erlog_errors:type_error(predicate_indicator, Pi, Db)
 	end;
 prove_goal({assert, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
-	prove_body(Next, Cps, Bs, Vn, erlog_memory:assertz_clause(Db, C));
+	erlog_memory:assertz_clause(Db, C),
+	prove_body(Next, Cps, Bs, Vn, Db);
 prove_goal({asserta, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
-	prove_body(Next, Cps, Bs, Vn, erlog_memory:asserta_clause(Db, C));
+	erlog_memory:asserta_clause(Db, C),
+	prove_body(Next, Cps, Bs, Vn, Db);
 prove_goal({assertz, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
-	prove_body(Next, Cps, Bs, Vn, erlog_memory:assertz_clause(Db, C));
+	erlog_memory:assertz_clause(Db, C),
+	prove_body(Next, Cps, Bs, Vn, Db);
 prove_goal({retract, C0}, Next, Cps, Bs, Vn, Db) ->
 	C = dderef(C0, Bs),
 	prove_retract(C, Next, Cps, Bs, Vn, Db);
@@ -505,7 +509,7 @@ prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db) ->
 		{_} -> ok;
 		Other -> erlog_errors:type_error(predicate_indicator, Other)
 	end,
-	Fs = Db:get_interp_functors(Db),
+	Fs = erlog_memory:get_interp_functors(Db),
 	prove_predicates(Pi, Fs, Next, Cps, Bs, Vn, Db).
 
 prove_predicates(Pi, [F | Fs], Next, Cps, Bs, Vn, Db) ->
@@ -564,7 +568,7 @@ prove_retract(H, Next, Cps, Bs, Vn, Db) ->
 
 prove_retract(H, B, Next, Cps, Bs, Vn, Db) ->
 	Functor = functor(H),
-	case Db:get_procedure(Functor, Db) of
+	case erlog_memory:get_procedure(Db, Functor) of
 		{clauses, Cs} -> retract_clauses(H, B, Cs, Next, Cps, Bs, Vn, Db);
 		{code, _} ->
 			erlog_errors:permission_error(modify, static_procedure, pred_ind(Functor), Db);
@@ -577,14 +581,14 @@ prove_retract(H, B, Next, Cps, Bs, Vn, Db) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
 
-retract_clauses(Ch, Cb, [C | Cs], Next, Cps, Bs0, Vn0, Db0) ->
+retract_clauses(Ch, Cb, [C | Cs], Next, Cps, Bs0, Vn0, Db) -> %TODO foreach vs handmaid recursion?
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			%% We have found a right clause so now retract it.
-			Db1 = Db0:retract_clause(functor(Ch), element(1, C), Db0),
+			erlog_memory:retract_clause(Db, functor(Ch), element(1, C)),
 			Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
-			prove_body(Next, [Cp | Cps], Bs1, Vn1, Db1);
-		fail -> retract_clauses(Ch, Cb, Cs, Next, Cps, Bs0, Vn0, Db0)
+			prove_body(Next, [Cp | Cps], Bs1, Vn1, Db);
+		fail -> retract_clauses(Ch, Cb, Cs, Next, Cps, Bs0, Vn0, Db)
 	end;
 retract_clauses(_Ch, _Cb, [], _Next, Cps, _Bs, _Vn, Db) -> ?FAIL(_Bs, Cps, Db).
 
