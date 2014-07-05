@@ -126,7 +126,7 @@ run_command(Command, State) ->
 
 %% @private
 %% Preprocess command
-preprocess_command({ok, Command}, State = #state{f_consulter = Fun, db = Db}) when is_list(Command) ->
+preprocess_command({ok, Command}, State = #state{f_consulter = Fun, db = Db}) when is_list(Command) ->  %TODO may be remove me?
 	case erlog_logic:reconsult_files(Command, Db, Fun) of
 		ok ->
 			{<<"Yes">>, State};
