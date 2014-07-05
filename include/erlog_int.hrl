@@ -24,8 +24,6 @@
 %% The old is_constant/1 ?
 -define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
 
--define(FAIL(Bs, Cps, Db), erlog_errors:fail(Cps, Db)).
-
 %% Define the choice point record
 -record(cp, {type, label, data, next, bs, vn}).
 -record(cut, {label, next}).
@@ -112,6 +110,8 @@
 		%% External interface
 		{ecall, 2},
 		%% Non-standard but useful
-		{display, 1}
+		{display, 1},
+		%% File utils
+		{consult, 1}
 	]
 ).

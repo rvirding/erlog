@@ -29,7 +29,7 @@
 -export([load/1]).
 
 %% Library functions.
--export([append_3/6, insert_3/6, member_2/6, memberchk_2/6, reverse_2/6, sort_2/6]).
+-export([append_3/7, insert_3/7, member_2/7, memberchk_2/7, reverse_2/7, sort_2/7]).
 
 %% load(Database) -> Database.
 %%  Assert predicates into the database.
@@ -52,92 +52,92 @@ load(Db) ->
 %% append([], L, L).
 %% append([H|T], L, [H|L1]) :- append(T, L, L1).
 %%  Here we attempt to compile indexing in the first argument.
-append_3({append, A1, L, A3}, Next0, Cps, Bs0, Vn, Db) ->
+append_3({append, A1, L, A3}, Next0, Cps, Bs0, Vn, Db, Fcon) ->
 	case erlog_core:deref(A1, Bs0) of
 		[] ->          %Cannot backtrack
-			erlog_core:unify_prove_body(L, A3, Next0, Cps, Bs0, Vn, Db);
+			erlog_core:unify_prove_body(L, A3, Next0, Cps, Bs0, Vn, Db, Fcon);
 		[H | T] ->        %Cannot backtrack
 			L1 = {Vn},
 			Next1 = [{append, T, L, L1} | Next0],
-			erlog_core:unify_prove_body(A3, [H | L1], Next1, Cps, Bs0, Vn + 1, Db);
+			erlog_core:unify_prove_body(A3, [H | L1], Next1, Cps, Bs0, Vn + 1, Db, Fcon);
 		{_} = Var ->        %This can backtrack
 			FailFun = fun(LCp, LCps, LDb) ->
-				fail_append_3(LCp, LCps, LDb, Var, L, A3)
+				fail_append_3(LCp, LCps, LDb, Var, L, A3, Fcon)
 			end,
 			Cp = #cp{type = compiled, data = FailFun, next = Next0, bs = Bs0, vn = Vn},
 			Bs1 = erlog_core:add_binding(Var, [], Bs0),
-			erlog_core:unify_prove_body(L, A3, Next0, [Cp | Cps], Bs1, Vn, Db);
-		_ -> erlog_errors:fail(Cps, Db)      %Will fail here!
+			erlog_core:unify_prove_body(L, A3, Next0, [Cp | Cps], Bs1, Vn, Db, Fcon);
+		_ -> erlog_errors:fail(Cps, Db, Fcon)      %Will fail here!
 	end.
 
-fail_append_3(#cp{next = Next0, bs = Bs0, vn = Vn}, Cps, Db, A1, L, A3) ->
+fail_append_3(#cp{next = Next0, bs = Bs0, vn = Vn}, Cps, Db, A1, L, A3, Fcon) ->
 	H = {Vn},
 	T = {Vn + 1},
 	L1 = {Vn + 2},
 	Bs1 = erlog_core:add_binding(A1, [H | T], Bs0),    %A1 always a variable here.
 	Next1 = [{append, T, L, L1} | Next0],
-	erlog_core:unify_prove_body(A3, [H | L1], Next1, Cps, Bs1, Vn + 3, Db).
+	erlog_core:unify_prove_body(A3, [H | L1], Next1, Cps, Bs1, Vn + 3, Db, Fcon).
 
 %% insert_3(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% insert(L, X, [X|L]).
 %% insert([H|L], X, [H|L1]) :- insert(L, X, L1).
-insert_3({insert, A1, A2, A3}, Next, Cps, Bs, Vn, Db) ->
+insert_3({insert, A1, A2, A3}, Next, Cps, Bs, Vn, Db, Fcon) ->
 	FailFun = fun(LCp, LCps, LDb) ->
-		fail_insert_3(LCp, LCps, LDb, A1, A2, A3)
+		fail_insert_3(LCp, LCps, LDb, A1, A2, A3, Fcon)
 	end,
 	Cp = #cp{type = compiled, data = FailFun, next = Next, bs = Bs, vn = Vn},
-	erlog_core:unify_prove_body(A3, [A2 | A1], Next, [Cp | Cps], Bs, Vn, Db).
+	erlog_core:unify_prove_body(A3, [A2 | A1], Next, [Cp | Cps], Bs, Vn, Db, Fcon).
 
-fail_insert_3(#cp{next = Next0, bs = Bs, vn = Vn}, Cps, Db, A1, X, A3) ->
+fail_insert_3(#cp{next = Next0, bs = Bs, vn = Vn}, Cps, Db, A1, X, A3, Fcon) ->
 	H = {Vn},
 	L = {Vn + 1},
 	L1 = {Vn + 2},
 	Next1 = [{insert, L, X, L1} | Next0],
-	erlog_core:unify_prove_body(A1, [H | L], A3, [H | L1], Next1, Cps, Bs, Vn + 3, Db).
+	erlog_core:unify_prove_body(A1, [H | L], A3, [H | L1], Next1, Cps, Bs, Vn + 3, Db, Fcon).
 
 %% member_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% member(X, [X|_]).
 %% member(X, [_|T]) :- member(X, T).
-member_2({member, A1, A2}, Next, Cps, Bs, Vn, Db) ->
+member_2({member, A1, A2}, Next, Cps, Bs, Vn, Db, Fcon) ->
 	FailFun = fun(LCp, LCps, LDb) ->
-		fail_member_2(LCp, LCps, LDb, A1, A2)
+		fail_member_2(LCp, LCps, LDb, A1, A2, Fcon)
 	end,
 	Cp = #cp{type = compiled, data = FailFun, next = Next, bs = Bs, vn = Vn},
 	T = {Vn},
-	erlog_core:unify_prove_body(A2, [A1 | T], Next, [Cp | Cps], Bs, Vn + 1, Db).
+	erlog_core:unify_prove_body(A2, [A1 | T], Next, [Cp | Cps], Bs, Vn + 1, Db, Fcon).
 
-fail_member_2(#cp{next = Next0, bs = Bs, vn = Vn}, Cps, Db, A1, A2) ->
+fail_member_2(#cp{next = Next0, bs = Bs, vn = Vn}, Cps, Db, A1, A2, Fcon) ->
 	H = {Vn},
 	T = {Vn + 1},
 	Next1 = [{member, A1, T} | Next0],
-	erlog_core:unify_prove_body(A2, [H | T], Next1, Cps, Bs, Vn + 2, Db).
+	erlog_core:unify_prove_body(A2, [H | T], Next1, Cps, Bs, Vn + 2, Db, Fcon).
 
 %% memberchk_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% memberchk(X, [X|_]) :- !.
 %% memberchk(X, [_|T]) :- member(X, T).
 %%  We don't build the list and we never backtrack so we can be smart
 %%  and match directly. Should we give a type error?
-memberchk_2({memberchk, A1, A2}, Next, Cps, Bs0, Vn, Db) ->
+memberchk_2({memberchk, A1, A2}, Next, Cps, Bs0, Vn, Db, Fcon) ->
 	case erlog_core:deref(A2, Bs0) of
 		[H | T] ->
 			case erlog_core:unify(A1, H, Bs0) of
 				{succeed, Bs1} ->
-					erlog_core:prove_body(Next, Cps, Bs1, Vn, Db);
+					erlog_core:prove_body(Next, Cps, Bs1, Vn, Db, Fcon);
 				fail ->
-					memberchk_2({memberchk, A1, T}, Next, Cps, Bs0, Vn, Db)
+					memberchk_2({memberchk, A1, T}, Next, Cps, Bs0, Vn, Db, Fcon)
 			end;
 		{_} -> erlog_errors:instantiation_error();
-		_ -> erlog_errors:fail(Cps, Db)
+		_ -> erlog_errors:fail(Cps, Db, Fcon)
 	end.
 
 %% reverse_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% reverse([], []).
 %% reverse([H|L1], L) :- reverse(L1, L2), append(L2, [H], L).
 %%  Here we attempt to compile indexing in the first argument.
-reverse_2({reverse, A1, A2}, Next0, Cps, Bs0, Vn, Db) ->
+reverse_2({reverse, A1, A2}, Next0, Cps, Bs0, Vn, Db, Fcon) ->
 	case erlog_core:deref(A1, Bs0) of
 		[] ->
-			erlog_core:unify_prove_body(A2, [], Next0, Cps, Bs0, Vn, Db);
+			erlog_core:unify_prove_body(A2, [], Next0, Cps, Bs0, Vn, Db, Fcon);
 		[H | T] ->
 			L = {Vn},
 			L1 = A2,
@@ -146,18 +146,18 @@ reverse_2({reverse, A1, A2}, Next0, Cps, Bs0, Vn, Db) ->
 			%%prove_body(Next1, Cps, Bs0, Vn+1, Db);
 			%% Smarter direct calling of local function.
 			Next1 = [{append, L, [H], L1} | Next0],
-			reverse_2({reverse, T, L}, Next1, Cps, Bs0, Vn + 1, Db);
+			reverse_2({reverse, T, L}, Next1, Cps, Bs0, Vn + 1, Db, Fcon);
 		{_} = Var ->
 			FailFun = fun(LCp, LCps, LDb) ->
-				fail_reverse_2(LCp, LCps, LDb, Var, A2)
+				fail_reverse_2(LCp, LCps, LDb, Var, A2, Fcon)
 			end,
 			Cp = #cp{type = compiled, data = FailFun, next = Next0, bs = Bs0, vn = Vn},
 			Bs1 = erlog_core:add_binding(Var, [], Bs0),
-			erlog_core:unify_prove_body(A2, [], Next0, [Cp | Cps], Bs1, Vn, Db);
-		_ -> erlog_errors:fail(Cps, Db)      %Will fail here!
+			erlog_core:unify_prove_body(A2, [], Next0, [Cp | Cps], Bs1, Vn, Db, Fcon);
+		_ -> erlog_errors:fail(Cps, Db, Fcon)      %Will fail here!
 	end.
 
-fail_reverse_2(#cp{next = Next, bs = Bs0, vn = Vn}, Cps, Db, A1, A2) ->
+fail_reverse_2(#cp{next = Next, bs = Bs0, vn = Vn}, Cps, Db, A1, A2, Fcon) ->
 	H = {Vn},
 	T = {Vn + 1},
 	L1 = A2,
@@ -166,11 +166,11 @@ fail_reverse_2(#cp{next = Next, bs = Bs0, vn = Vn}, Cps, Db, A1, A2) ->
 	%%Next1 = [{reverse,T,L},{apperse,L,[H],L1}|Next],
 	%%prove_body(Next1, Cps, Bs1, Vn+3, Db).
 	Next1 = [{append, L, [H], L1} | Next],
-	reverse_2({reverse, T, L}, Next1, Cps, Bs1, Vn + 3, Db).
+	reverse_2({reverse, T, L}, Next1, Cps, Bs1, Vn + 3, Db, Fcon).
 
 %% sort_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% sort(List, SortedList).
-sort_2({sort, L0, S}, Next, Cps, Bs, Vn, Db) ->
+sort_2({sort, L0, S}, Next, Cps, Bs, Vn, Db, Fcon) ->
 	%% This may throw an erlog error, we don't catch it here.
 	L1 = lists:usort(erlog_core:dderef_list(L0, Bs)),
-	erlog_core:unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db).
+	erlog_core:unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db, Fcon).
