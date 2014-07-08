@@ -2,6 +2,7 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+
 cops() ->
     oneof([{'=:=', fun (I,J) ->
 			   I == J
@@ -43,6 +44,32 @@ is_atomic(A) when is_tuple(A) ->
     false;
 is_atomic(_) ->
     true.
+
+prop_atom() ->
+    ?FORALL(MaybeAtom,
+	    oneof([int(),atom()]),
+	    begin
+		{ok, PID}    = erlog:start_link(),
+                case {erlog:prove(PID, {atom,  MaybeAtom}), is_atom(MaybeAtom)} of
+		    {{succeed,_}, true} -> true;
+		    {fail, false} -> true;
+		    _  -> false
+		end
+	    end).
+
+
+prop_is_integer() ->
+    ?FORALL(MaybeAtom,
+	    oneof([int(),atom(), real()]),
+	    begin
+		{ok, PID}    = erlog:start_link(),
+                case {erlog:prove(PID, {integer,  MaybeAtom}), is_integer(MaybeAtom)} of
+		    {{succeed,_}, true} -> true;
+		    {fail, false} -> true;
+		    _  -> false
+		end
+	    end).
+
 
 prop_atomic_and_compound() ->
     ?FORALL(Atom,
