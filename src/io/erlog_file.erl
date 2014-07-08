@@ -30,8 +30,7 @@
 -spec consult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
 consult(Fun, File, Db) ->
 	case Fun(File) of %default is erlog_io:read_file/1
-		{ok, Terms} ->
-			consult_terms(fun consult_assert/2, Db, Terms);
+		{ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
 		Error -> Error
 	end.
 

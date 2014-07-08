@@ -79,8 +79,7 @@ read_stream(Fd, L0) ->
 		{ok, Toks, L1} ->
 			case erlog_parse:term(Toks, L0) of
 				{ok, end_of_file} -> [];    %Prolog does this.
-				{ok, Term} ->
-					[Term | read_stream(Fd, L1)];
+				{ok, Term} -> [Term | read_stream(Fd, L1)]; %TODO recurstion is not tail!
 				{error, What} -> throw({error, What})
 			end;
 		{error, Error, _} -> throw({error, Error});

@@ -8,3 +8,4 @@ erlog_scan.erl
 *.dump
 rel/erlog
 .rebar
+.eunit
