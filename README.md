@@ -1,3 +1,8 @@
+
+[![Build Status](https://travis-ci.org/zkessin/erlog.svg?branch=master)](https://travis-ci.org/zkessin/erlog)
+
+## Erlog - Prolog for an Erlang Application
+
 Erlog is a Prolog interpreter implemented in Erlang and integrated
 with the Erlang runtime system. It is a subset of the Prolog standard.
 An erlog shell (REPL) is also included.
@@ -13,7 +18,7 @@ like SWI Prolog.
 There are currently 3 ways of interacting with Erlog, you can use the
 Erlog REPL for ad hoc testing, you can create an Erlog implementation
 in a closure or you can create an Erlog instance in a
-gen_se1rver. Which version you should use depends on your application.
+gen_server. Which version you should use depends on your application.
 
 ## The Fuction interface
 
