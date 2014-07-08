@@ -15,6 +15,8 @@ Erlog REPL for ad hoc testing, you can create an Erlog implementation
 in a closure or you can create an Erlog instance in a
 gen_se1rver. Which version you should use depends on your application.
 
+## The Fuction interface
+
 To create an erlog instance in a closure use +erlog:new()+ this will
 return a function that can be invoked to run an erlog program. To
 prove a clause you can then run _E({prove, ...})_ This will return a
@@ -29,7 +31,7 @@ and *B*. The return value is designated with a 1 tuple with an atom
 value for the return variable, in this case *{'Z'}*. 
 
 If the prolog code works correctly it will return the tuple {{succeed,
-[{'Z', Value}]}, E1}. Here E1 is the new state of theerlog interpreter.
+[{'Z', Value}]}, E1}. Here E1 is the new state of the erlog interpreter.
 
 
 
@@ -48,29 +50,42 @@ Erlog prove has a type signature like this:
 ````erlang
 -type erlog_return() :: fail|{succeed, [{atom(), any()}]}.
 ````
+## The gen_server interface
 
 *NOTE THIS INTERFACE MAY GO AWAY*
 
 If you want to setup erlog in its own server then you can use the
 command _erlog:start()_ or _erlog:start_link()_ from there you can
 load files with _erlog:consult(PID, FILE)_ and run code with
-_erlog:prove(PID,{...})_ 
+_erlog:prove(PID,{...})_. You can also provide the prolog code in a
+string or as a pre-compiled tuple.
+
+
 
 The thing to note with this interface is that the erlog process can be
 accessed from any process that knows about the server, so it is
 possible to have strange concurrency errors, for example with the
 _erlog:next_solution/1_ function.   
 
+## Using ETS
 
 Erlog can also share data with an erlang program by way of an ETS
 table. Erlog includes commands to unify a goal with the contents of an
 ets table. It should also be possible to work with mnesia tables, but
 this has not yet been done.
 
+If you want to use erlog with ets you need to load the erlog_ets
+module into erlog. To do that you call _erlog:load(PID,erlog_ets)_ or
+_E({load,erlog_ets})_. You can match on an ets table with
+_ets_match(TableId, Value)_.
+
+
+## Including with rebar
 
 You can include erlog in your application with rebar, by adding it to
 the deps section of your rebar config file.
 
+## Testing
 
 Erlog is tested to work with Erlang versions R14B02 - 17, the tests
 are quick-check properties, if you do not have quickcheck don't worry
