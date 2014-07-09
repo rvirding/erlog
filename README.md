@@ -99,5 +99,8 @@ properties. Check the .travis.yml file to see how to download
 quickcheck mini. You can then run the tests with _make test_
 
 
+## Licence 
 
+Erlog was created by Robert Virding and is can be used under the
+Apache 2.0 Licence. 
 
