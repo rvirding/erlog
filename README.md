@@ -95,9 +95,18 @@ the deps section of your rebar config file.
 Erlog is tested to work with Erlang versions R14B02 - 17, the tests
 are quick-check properties, if you do not have quickcheck don't worry
 you can still use erlog, you just won't be able to run the
-properties. Check the .travis.yml file to see how to download
-quickcheck mini. You can then run the tests with _make test_
+properties. 
 
+If you want to run the tests you will need to install quickcheck mini
+(Or the full quickcheck) you can do this with these commands:
+
+````bash
+   wget http://www.quviq.com/downloads/eqcmini.zip
+   unzip eqcmini.zip
+   export ERL_LIBS=eqcmini:$ERL_LIBS
+````
+
+to run the tests then run _rebar qc_
 
 ## Licence 
 
