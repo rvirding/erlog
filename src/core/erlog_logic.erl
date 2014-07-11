@@ -49,23 +49,24 @@ reconsult_files([F | Fs], Db, Fun) ->
 reconsult_files(Other, _Db, _Fun) -> {error, {type_error, list, Other}}.
 
 shell_prove_result({succeed, Vs}) -> show_bindings(Vs);
-shell_prove_result(fail) -> <<"No">>;
+shell_prove_result(fail) -> false;
 shell_prove_result({error, Error}) -> erlog_io:format_error([Error]);
 shell_prove_result({'EXIT', Error}) -> erlog_io:format_error("EXIT", [Error]).
 
 %% show_bindings(VarList, Pid)
 %% Show the bindings and query user for next solution.
-show_bindings([]) -> <<"Yes">>;
-show_bindings(Vs) ->
+show_bindings([]) -> true;
+show_bindings(Vs) ->  %TODO where atoms are created?
 	Out = lists:foldr(
 		fun({Name, Val}, Acc) ->
-			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
+%% 			[erlog_io:writeq1({'=', {Name}, Val}) | Acc]
+			[{Name, Val} | Acc] %TODO. Test, is this suitable for all variants? If so - writeq can be deleted.
 		end, [], Vs), %format reply
-	{Out, select}.
+	{{true, Out}, select}.
 
 select_bindings(Selection, Next) ->
 	case string:chr(Selection, $;) of
-		0 -> <<"Yes">>;
+		0 -> true;
 		_ -> shell_prove_result(Next)
 	end.
 
