@@ -7,7 +7,7 @@
 %%% @end
 %%% Created : 26. май 2014 20:05
 %%%-------------------------------------------------------------------
--module(erlog_shell).
+-module(erlog_remote_shell).
 -author("tihon").
 
 -behaviour(gen_server).
@@ -103,7 +103,7 @@ handle_cast(accept, State = #state{socket = ListenSocket}) ->
 	erlog_shell_sup:start_socket(),
 	Version = list_to_binary(erlang:system_info(version)),
 	gen_tcp:send(AcceptSocket, [<<<<"Erlog Shell V">>/binary, Version/binary, <<" (abort with ^G)\n| ?- ">>/binary>>]),
-	{ok, Pid} = erlog:start_link(),
+	{ok, Pid} = erlog:start_link([{database, erlog_ets}, {event_h, {erlog_remote_eh, AcceptSocket}}]),
 	{noreply, State#state{socket = AcceptSocket, core = Pid}};
 handle_cast(_Request, State) ->
 	{noreply, State}.

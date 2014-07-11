@@ -28,6 +28,19 @@
 -record(cp, {type, label, data, next, bs, vn}).
 -record(cut, {label, next}).
 
+%% record for passing arguments to erlog_core:prove_goal
+-record(param,
+{
+	goal,
+	next_goal,
+	choice,
+	bindings,
+	var_num,
+	database,
+	event_man,
+	f_consulter
+}).
+
 -define(ERLOG_BIPS,
 	[
 		%% Term unification and comparison
@@ -109,9 +122,10 @@
 		%% All solutions
 		%% External interface
 		{ecall, 2},
-		%% Non-standard but useful
-		{display, 1},
 		%% File utils
-		{consult, 1}
+		{consult, 1},
+		{reconsult, 1},
+		%% Debug functions
+		{writeln, 1}
 	]
 ).

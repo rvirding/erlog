@@ -43,6 +43,7 @@
 {
 	db :: atom(), %database
 	f_consulter :: fun(), %file consulter
+	e_man :: pid(), %event manager, used for debuging and other output (not for return)
 	state = normal :: normal | list() %state for solution selecting.
 }).
 
@@ -58,39 +59,35 @@ start_link(Params) ->
 	gen_server:start_link(?MODULE, Params, []).
 
 init([]) -> % use built in database
-	{ok, Db} = erlog_memory:start_link(erlog_ets), %default database is ets module
-	load_built_in(Db),
-	F = fun erlog_io:read_file/1, %set default consult function
-	{ok, #state{db = Db, f_consulter = F}};
+	{ok, Db} = init_database([]), %default database is ets module
+	F = init_consulter([]),
+	{ok, E} = gen_event:start_link(),
+	gen_event:add_handler(E, erlog_simple_printer, []), %set the default debug module
+	{ok, #state{db = Db, f_consulter = F, e_man = E}};
 init(Params) -> % use custom database implementation
-	Database = proplists:get_value(database, Params),
-	Args = proplists:get_value(arguments, Params),
-	FileCon = case proplists:get_value(f_consulter, Params) of  %get function from params or default
-		          undefined -> fun erlog_io:read_file/1;
-		          Other -> Other
-	          end,
-	{ok, Db} = erlog_memory:start_link(Database, Args),
-	load_built_in(Db),
-	{ok, #state{db = Db, f_consulter = FileCon}}.
+	FileCon = init_consulter(Params),
+	{ok, Db} = init_database(Params),
+	{ok, E} = gen_event:start_link(),
+	case proplists:get_value(event_h, Params) of  %register handler, if any
+		undefined -> ok;
+		{Module, Arguments} -> gen_event:add_handler(E, Module, Arguments)
+	end,
+	{ok, #state{db = Db, f_consulter = FileCon, e_man = E}}.
 
 handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
-	{Res, UpdateState} = case erlog_scan:tokens([], Command, 1) of
-		                     {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
-		                     {more, _} -> {{ok, more}, State} % unfinished command. Ask for ending.
-	                     end,
-	NewState = case Res of  % change state, depending on reply
-		           {_, select} -> UpdateState;
-		           _ -> UpdateState#state{state = normal}
-	           end,
+	{Res, _} = Repl = case erlog_scan:tokens([], Command, 1) of
+		                  {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
+		                  {more, _} -> {{ok, more}, State} % unfinished command. Report it and do nothing.
+	                  end,
+	NewState = change_state(Repl),
 	{reply, Res, NewState};
 handle_call({execute, Command}, _From, State) ->  %in selection solutions mode
-	{Reply, NewState} = case preprocess_command({select, Command}, State) of  % change state, depending on reply
-		                    {{_, select} = Res, UpdatedState} -> {Res, UpdatedState};
-		                    {Res, UpdatedState} -> {Res, UpdatedState#state{state = normal}}
-	                    end,
-	{reply, Reply, NewState}.
+	{Res, _} = Repl = preprocess_command({select, Command}, State),
+	NewState = change_state(Repl), % change state, depending on reply
+	{reply, Res, NewState}.
 
-handle_cast(halt, St) ->
+handle_cast(halt, St = #state{e_man = E}) ->
+	gen_event:stop(E),  %stom all handlers and event man
 	{stop, normal, St}.
 
 handle_info(_, St) ->
@@ -104,6 +101,32 @@ code_change(_, _, St) -> {ok, St}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+%% @private
+% change state, depending on reply
+change_state({{_, select}, State}) -> State;
+change_state({_, State}) -> State#state{state = normal}.
+
+%% @private
+%% Configurates database with arguments, populates it and returns.
+-spec init_database(Params :: proplists:proplist()) -> {ok, Pid :: pid()}.
+init_database(Params) ->
+	{ok, DbPid} = case proplists:get_value(database, Params) of
+		              undefined -> erlog_memory:start_link(erlog_ets);
+		              Module ->
+			              Args = proplists:get_value(arguments, Params),
+			              erlog_memory:start_link(Module, Args)
+	              end,
+	load_built_in(DbPid),
+	{ok, DbPid}.
+
+%% @private
+-spec init_consulter(Params :: proplists:proplist()) -> fun() | any().
+init_consulter(Params) ->
+	case proplists:get_value(f_consulter, Params) of  %get function from params or default
+		undefined -> fun erlog_io:read_file/1;
+		Other -> Other
+	end.
+
 %% @private
 load_built_in(Database) ->
 	link(Database), %TODO some better solution to clean database, close it properly and free memory after erlog terminates
@@ -151,7 +174,7 @@ process_command({prove, Goal}, State) ->
 process_command(next, State = #state{state = normal}) ->  % can't select solution, when not in select mode
 	{fail, State};
 process_command(next, State = #state{state = [Vs, Cps], db = Db, f_consulter = Fcon}) ->
-	case erlog_logic:prove_result(catch erlog_errors:fail(Cps, Db, Fcon), Vs) of
+	case erlog_logic:prove_result(catch erlog_errors:fail(#param{choice = Cps, database = Db, f_consulter = Fcon}), Vs) of
 		{Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
 		Other -> {Other, State}
 	end;
@@ -160,13 +183,13 @@ process_command(halt, State) ->
 	{ok, State}.
 
 %% @private
-prove_goal(Goal0, State = #state{db = Db, f_consulter = Fcon}) ->
+prove_goal(Goal0, State = #state{db = Db, f_consulter = Fcon, e_man = Event}) ->
 	Vs = erlog_logic:vars_in(Goal0),
 	%% Goal may be a list of goals, ensure proper goal.
 	Goal1 = erlog_logic:unlistify(Goal0),
 	%% Must use 'catch' here as 'try' does not do last-call
 	%% optimisation.
-	case erlog_logic:prove_result(catch erlog_core:prove_goal(Goal1, Db, Fcon), Vs) of
+	case erlog_logic:prove_result(catch erlog_core:prove_goal(Goal1, Db, Fcon, Event), Vs) of
 		{succeed, Res, Args} -> {{succeed, Res}, State#state{state = Args}};
 		OtherRes -> {OtherRes, State}
 	end.

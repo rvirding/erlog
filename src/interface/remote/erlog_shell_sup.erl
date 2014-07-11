@@ -23,7 +23,7 @@
 %%% API functions
 %%%===================================================================
 % for console
-start_socket() ->	supervisor:start_child(?MODULE, []).
+start_socket() -> supervisor:start_child(?MODULE, []).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -62,10 +62,10 @@ init([]) ->
 	Opts = [{active, true}, {keepalive, true}, {packet, 0}, {reuseaddr, true}],
 	case gen_tcp:listen(Port, Opts) of
 		{ok, ListenSocket} ->
-			io:fwrite("~w:Listening on port ~p~n", [?MODULE, Port]),  %TODO lager
+			io:fwrite("~w:Listening on port ~p~n", [?MODULE, Port]),
 			RestartStrategy = {simple_one_for_one, 10, 60},
-			Listener = {erlog_shell, {erlog_shell, start_link, [{tcp, ListenSocket}]},
-				temporary, 2000, worker, [erlog_shell]},
+			Listener = {erlog_remote_shell, {erlog_remote_shell, start_link, [{tcp, ListenSocket}]},
+				temporary, 2000, worker, [erlog_remote_shell]},
 			spawn_link(fun start_socket/0),
 			{ok, {RestartStrategy, [Listener]}};
 		{error, Reason} ->

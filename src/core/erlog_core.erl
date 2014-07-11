@@ -135,16 +135,16 @@
 	unify/3,
 	dderef_list/2,
 	make_vars/2,
-	prove_goal/3,
-	unify_prove_body/10,
-	prove_body/6,
-	unify_clauses/9,
-	retract_clauses/9,
-	prove_predicates/8,
-	prove_goal_clauses/8,
+	prove_goal/4,
+	unify_prove_body/5,
+	prove_body/1,
+	unify_clauses/4,
+	retract_clauses/4,
+	prove_predicates/3,
+	prove_goal_clauses/3,
 	pred_ind/1,
 	well_form_body/3,
-	deref_list/2, unify_prove_body/8, dderef/2, deref/2, add_binding/3]).
+	deref_list/2, unify_prove_body/3, dderef/2, deref/2, add_binding/3]).
 %% Bindings, unification and dereferncing.
 -export([functor/1]).
 %% Creating term and body instances.
@@ -162,44 +162,47 @@ load(Db) ->
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
 %% everything is consistent then prove the goal as a call.
-prove_goal(Goal0, Db, Fcon) ->
+-spec prove_goal(Goal0 :: term(), Db :: pid(), Fcon :: fun(), Event :: pid()) -> term().
+prove_goal(Goal0, Db, Fcon, Event) ->
 	%% put(erlog_cut, orddict:new()),
 	%% put(erlog_cps, orddict:new()),
 	%% put(erlog_var, orddict:new()),
 	%% Check term and build new instance of term with bindings.
 	{Goal1, Bs, Vn} = initial_goal(Goal0),
-	prove_body([{call, Goal1}], [], Bs, Vn, Db, Fcon). %TODO use lists:foldr instead!
+	Params = #param{goal = [{call, Goal1}], choice = [], bindings = Bs, var_num = Vn,
+		event_man = Event, database = Db, f_consulter = Fcon},
+	prove_body(Params). %TODO use lists:foldr instead!
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
 %%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
 %% Prove the goals in a body. Remove the first goal and try to prove
 %% it. Return when there are no more goals. This is how proving a
 %% goal/body succeeds.
-prove_body([G | Gs], Cps, Bs0, Vn0, Db, Fcon) -> %TODO use lists:foldr instead!
+prove_body(Params = #param{goal = [G | Gs]}) -> %TODO use lists:foldr instead!
 	%%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
-	prove_goal(G, Gs, Cps, Bs0, Vn0, Db, Fcon);
-prove_body([], Cps, Bs, Vn, Db, _) ->
+	prove_goal(Params#param{goal = G, next_goal = Gs});
+prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
 	%%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
 	%%      [get(erlog_cps),get(erlog_cut),get(erlog_var),dict:size(Bs)]),
 	%%io:fwrite("PB: ~p\n", [Cps]),
-	{succeed, Cps, Bs, Vn, Db}.      %No more body
+	{succeed, Cps, Bs, Vn, Db}.      %No more body  %TODO why should we return database?
 
 %% unify_prove_body(Term1, Term2, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
 %% Unify Term1 = Term2, on success prove body Next else fail.
-unify_prove_body(T1, T2, Next, Cps, Bs0, Vn, Db, Fcon) ->
+unify_prove_body(T1, T2, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	case unify(T1, T2, Bs0) of
-		{succeed, Bs1} -> prove_body(Next, Cps, Bs1, Vn, Db, Fcon);
-		fail -> erlog_errors:fail(Cps, Db, Fcon)
+		{succeed, Bs1} -> prove_body(Params#param{goal = Next, bindings = Bs1});
+		fail -> erlog_errors:fail(Params)
 	end.
 
 %% unify_prove_body(A1, B1, A2, B2, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
 %% Unify A1 = B1, A2 = B2, on success prove body Next else fail.
-unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db, Fcon) ->
+unify_prove_body(A1, B1, A2, B2, Params = #param{bindings = Bs0}) ->
 	case unify(A1, B1, Bs0) of
-		{succeed, Bs1} -> unify_prove_body(A2, B2, Next, Cps, Bs1, Vn, Db, Fcon);
-		fail -> erlog_errors:fail(Cps, Db, Fcon)
+		{succeed, Bs1} -> unify_prove_body(A2, B2, Params#param{bindings = Bs1});
+		fail -> erlog_errors:fail(Params)
 	end.
 
 %% deref(Term, Bindings) -> Term.
@@ -268,97 +271,98 @@ make_vars(I, Vn) ->
 
 %% Logic and control. Conjunctions are handled in prove_body and true
 %% has been compiled away.
-prove_goal({call, G}, Next0, Cps, Bs, Vn, Db, Fcon) ->  %TODO refactor this hell!
+prove_goal(Param = #param{goal = {call, G}, next_goal = Next0, choice = Cps,
+	bindings = Bs, var_num = Vn, database = Db}) ->
 	%% Only add cut CP to Cps if goal contains a cut.
 	Label = Vn,
 	case check_goal(G, Next0, Bs, Db, false, Label) of
 		{Next1, true} ->
 			%% Must increment Vn to avoid clashes!!!
 			Cut = #cut{label = Label},
-			prove_body(Next1, [Cut | Cps], Bs, Vn + 1, Db, Fcon);
-		{Next1, false} -> prove_body(Next1, Cps, Bs, Vn + 1, Db, Fcon)
+			prove_body(Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
+		{Next1, false} -> prove_body(Param#param{goal = Next1, var_num = Vn + 1})
 	end;
-prove_goal({{cut}, Label, Last}, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = {{cut}, Label, Last}}) ->
 	%% Cut succeeds and trims back to cut ancestor.
-	cut(Label, Last, Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({{disj}, R}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	cut(Label, Last, Param);
+prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	%% There is no L here, it has already been prepended to Next.
 	Cp = #cp{type = disjunction, next = R, bs = Bs, vn = Vn},
-	prove_body(Next, [Cp | Cps], Bs, Vn, Db, Fcon);
-prove_goal(fail, _Next, Cps, _Bs, _Vn, Db, Fcon) -> erlog_errors:fail(Cps, Db, Fcon);
-prove_goal({{if_then}, Label}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
+prove_goal(Params = #param{goal = fail}) -> erlog_errors:fail(Params);
+prove_goal(Param = #param{goal = {{if_then}, Label}, next_goal = Next, choice = Cps}) ->
 	%% We effetively implement ( C -> T ) with ( C, !, T ) but cuts in
 	%% C are local to C.
 	%% There is no ( C, !, T ) here, it has already been prepended to Next.
 	%%io:fwrite("PG(->): ~p\n", [{Next}]),
 	Cut = #cut{label = Label},
-	prove_body(Next, [Cut | Cps], Bs, Vn, Db, Fcon);
-prove_goal({{if_then_else}, Else, Label}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
+prove_goal(Param = #param{goal = {{if_then_else}, Else, Label}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	%% Need to push a choicepoint to fail back to inside Cond and a cut
 	%% to cut back to before Then when Cond succeeds. #cp{type=if_then_else}
 	%% functions as both as is always removed whatever the outcome.
 	%% There is no ( C, !, T ) here, it has already been prepended to Next.
 	Cp = #cp{type = if_then_else, label = Label, next = Else, bs = Bs, vn = Vn},
 	%%io:fwrite("PG(->;): ~p\n", [{Next,Else,[Cp|Cps]}]),
-	prove_body(Next, [Cp | Cps], Bs, Vn, Db, Fcon);
-prove_goal({'\\+', G}, Next0, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
+prove_goal(Param = #param{goal = {'\\+', G}, next_goal = Next0, choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
 	%% We effectively implementing \+ G with ( G -> fail ; true ).
 	Label = Vn,
 	{Next1, _} = check_goal(G, [{{cut}, Label, true}, fail], Bs, Db, true, Label),
 	Cp = #cp{type = if_then_else, label = Label, next = Next0, bs = Bs, vn = Vn},
 	%%io:fwrite("PG(\\+): ~p\n", [{G1,[Cp|Cps]]),
 	%% Must increment Vn to avoid clashes!!!
-	prove_body(Next1, [Cp | Cps], Bs, Vn + 1, Db, Fcon);
-prove_goal({{once}, Label}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next1, choice = [Cp | Cps], var_num = Vn + 1});
+prove_goal(Param = #param{goal = {{once}, Label}, next_goal = Next, choice = Cps}) ->
 	%% We effetively implement once(G) with ( G, ! ) but cuts in
 	%% G are local to G.
 	%% There is no ( G, ! ) here, it has already been prepended to Next.
 	Cut = #cut{label = Label},
-	prove_body(Next, [Cut | Cps], Bs, Vn, Db, Fcon);
-prove_goal(repeat, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
+prove_goal(Param = #param{goal = repeat, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	Cp = #cp{type = disjunction, next = [repeat | Next], bs = Bs, vn = Vn},
-	prove_body(Next, [Cp | Cps], Bs, Vn, Db, Fcon);
+	prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 %% Clause creation and destruction.
-prove_goal({abolish, Pi0}, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = {abolish, Pi0}, next_goal = Next, bindings = Bs, database = Db}) ->
 	case dderef(Pi0, Bs) of
 		{'/', N, A} when is_atom(N), is_integer(A), A > 0 ->
 			erlog_memory:abolish_clauses(Db, {N, A}),
-			prove_body(Next, Cps, Bs, Vn, Db, Fcon);
+			prove_body(Param#param{goal = Next});
 		Pi -> erlog_errors:type_error(predicate_indicator, Pi, Db)
 	end;
-prove_goal({assert, C0}, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = {assert, C0}, next_goal = Next, bindings = Bs, database = Db}) ->
 	C = dderef(C0, Bs),
 	erlog_memory:assertz_clause(Db, C),
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({asserta, C0}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {asserta, C0}, next_goal = Next, bindings = Bs, database = Db}) ->
 	C = dderef(C0, Bs),
 	erlog_memory:asserta_clause(Db, C),
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({assertz, C0}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {assertz, C0}, next_goal = Next, bindings = Bs, database = Db}) ->
 	C = dderef(C0, Bs),
 	erlog_memory:assertz_clause(Db, C),
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({retract, C0}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {retract, C0}, bindings = Bs}) ->
 	C = dderef(C0, Bs),
-	prove_retract(C, Next, Cps, Bs, Vn, Db, Fcon);
+	prove_retract(C, Param);
 %% Clause retrieval and information
-prove_goal({clause, H0, B}, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = {clause, H0, B}, bindings = Bs}) ->
 	H1 = dderef(H0, Bs),
-	prove_clause(H1, B, Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({current_predicate, Pi0}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_clause(H1, B, Param);
+prove_goal(Param = #param{goal = {current_predicate, Pi0}, bindings = Bs}) ->
 	Pi = dderef(Pi0, Bs),
-	prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({predicate_property, H0, P}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_current_predicate(Pi, Param);
+prove_goal(Param = #param{goal = {predicate_property, H0, P}, bindings = Bs, database = Db}) ->
 	H = dderef(H0, Bs),
 	case catch erlog_memory:get_procedure_type(Db, functor(H)) of
-		built_in -> unify_prove_body(P, built_in, Next, Cps, Bs, Vn, Db, Fcon);
-		compiled -> unify_prove_body(P, compiled, Next, Cps, Bs, Vn, Db, Fcon);
-		interpreted -> unify_prove_body(P, interpreted, Next, Cps, Bs, Vn, Db, Fcon);
-		undefined -> erlog_errors:fail(Cps, Db, Fcon);
+		built_in -> unify_prove_body(P, built_in, Param);
+		compiled -> unify_prove_body(P, compiled, Param);
+		interpreted -> unify_prove_body(P, interpreted, Param);
+		undefined -> erlog_errors:fail(Param);
 		{erlog_error, E} -> erlog_errors:erlog_error(E, Db)
 	end;
 %% External interface
-prove_goal({ecall, C0, Val}, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = {ecall, C0, Val}, bindings = Bs, database = Db}) ->
 	%% Build the initial call.
 	%%io:fwrite("PG(ecall): ~p\n   ~p\n   ~p\n", [dderef(C0, Bs),Next,Cps]),
 	Efun = case dderef(C0, Bs) of
@@ -374,52 +378,52 @@ prove_goal({ecall, C0, Val}, Next, Cps, Bs, Vn, Db, Fcon) ->
 		       Fun when is_function(Fun) -> Fun;
 		       Other -> erlog_errors:type_error(callable, Other, Db)
 	       end,
-	prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db, Fcon);
+	prove_ecall(Efun, Val, Param);
 %% Non-standard but useful.
-prove_goal({display, T}, Next, Cps, Bs, Vn, Db, Fcon) ->
-	%% A very simple display procedure.
-	io:fwrite("~p\n", [dderef(T, Bs)]),
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
+prove_goal(Param = #param{goal = {writeln, T}, next_goal = Next, bindings = Bs, event_man = Evman}) ->
+	%% Display procedure.
+	gen_event:notify(Evman, dderef(T, Bs)),
+	prove_body(Param#param{goal = Next});
 %% File utils
-prove_goal({consult, Name}, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = {consult, Name}, next_goal = Next, f_consulter = Fcon, database = Db}) ->
 	case erlog_file:consult(Fcon, Name, Db) of
 		ok -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			erlog_errors:erlog_error(Error, Db)
 	end,
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-prove_goal({reconsult, Name}, Next, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulter = Fcon, database = Db}) ->
 	case erlog_file:reconsult(Fcon, Name, Db) of
 		ok -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			erlog_errors:erlog_error(Error, Db)
 	end,
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
+	prove_body(Param#param{goal = Next});
 %% Now look up the database.
-prove_goal(G, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
 	case catch erlog_memory:get_procedure(Db, functor(G)) of
-		built_in -> erlog_bips:prove_goal(G, Next, Cps, Bs, Vn, Db, Fcon);
-		{code, {Mod, Func}} -> Mod:Func(G, Next, Cps, Bs, Vn, Db, Fcon);
-		{clauses, Cs} -> prove_goal_clauses(G, Cs, Next, Cps, Bs, Vn, Db, Fcon);
-		undefined -> erlog_errors:fail(Cps, Db, Fcon);
+		built_in -> erlog_bips:prove_goal(G, Param);
+		{code, {Mod, Func}} -> Mod:Func(G, Param);
+		{clauses, Cs} -> prove_goal_clauses(G, Cs, Param);
+		undefined -> erlog_errors:fail(Param);
 	%% Getting built_in here is an error!
 		{erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
 	end.
 
 
-cut(Label, Last, Next, [#cut{label = Label} | Cps] = Cps0, Bs, Vn, Db, Fcon) ->
-	if Last -> prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-		true -> prove_body(Next, Cps0, Bs, Vn, Db, Fcon)
+cut(Label, Last, Param = #param{next_goal = Next, choice = [#cut{label = Label} | Cps] = Cps0}) ->
+	if Last -> prove_body(Param#param{goal = Next, choice = Cps});
+		true -> prove_body(Param#param{goal = Next, choice = Cps0})
 	end;
-cut(Label, Last, Next, [#cp{type = if_then_else, label = Label} | Cps] = Cps0, Bs, Vn, Db, Fcon) ->
-	if Last -> prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-		true -> prove_body(Next, Cps0, Bs, Vn, Db, Fcon)
+cut(Label, Last, Param = #param{next_goal = Next, choice = [#cp{type = if_then_else, label = Label} | Cps] = Cps0}) ->
+	if Last -> prove_body(Param#param{goal = Next, choice = Cps});
+		true -> prove_body(Param#param{goal = Next, choice = Cps0})
 	end;
-cut(Label, Last, Next, [#cp{type = goal_clauses, label = Label} = Cp | Cps], Bs, Vn, Db, Fcon) ->
-	cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db, Fcon);
-cut(Label, Last, Next, [_Cp | Cps], Bs, Vn, Db, Fcon) ->
-	cut(Label, Last, Next, Cps, Bs, Vn, Db, Fcon).
+cut(Label, Last, Param = #param{choice = [#cp{type = goal_clauses, label = Label} = Cp | Cps]}) ->
+	cut_goal_clauses(Last, Cp, Param#param{choice = Cps});
+cut(Label, Last, Param = #param{choice = [_Cp | Cps]}) ->
+	cut(Label, Last, Param#param{choice = Cps}).
 
 %% cut(Label, Last, Next, Cps, Bs, Vn, Db) ->
 %%     cut(Label, Last, Next, Cps, Bs, Vn, Db, 1).
@@ -458,49 +462,49 @@ check_goal(G0, Next, Bs, Db, Cut, Label) ->
 %% Call an external (Erlang) generator and handle return value, either
 %% succeed or fail.
 
-prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	case Efun() of
 		{succeed, Ret, Cont} ->      %Succeed and more choices
 			Cp = #cp{type = ecall, data = {Cont, Val}, next = Next, bs = Bs, vn = Vn},
-			unify_prove_body(Val, Ret, Next, [Cp | Cps], Bs, Vn, Db, Fcon);
+			unify_prove_body(Val, Ret, Param#param{choice = [Cp | Cps]});
 		{succeed_last, Ret} ->      %Succeed but last choice
-			unify_prove_body(Val, Ret, Next, Cps, Bs, Vn, Db, Fcon);
-		fail -> erlog_errors:fail(Cps, Db, Fcon)      %No more
+			unify_prove_body(Val, Ret, Param);
+		fail -> erlog_errors:fail(Param)      %No more
 	end.
 
 %% prove_clause(Head, Body, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
 %%      void.
 %% Unify clauses matching with functor from Head with both Head and Body.
 
-prove_clause(H, B, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_clause(H, B, Param = #param{database = Db}) ->
 	Functor = functor(H),
 	case erlog_memory:get_procedure(Db, Functor) of
-		{clauses, Cs} -> unify_clauses(H, B, Cs, Next, Cps, Bs, Vn, Db, Fcon);
+		{clauses, Cs} -> unify_clauses(H, B, Cs, Param);
 		{code, _} ->
 			erlog_errors:permission_error(access, private_procedure, pred_ind(Functor), Db);
 		built_in ->
 			erlog_errors:permission_error(access, private_procedure, pred_ind(Functor), Db);
-		undefined -> erlog_errors:fail(Cps, Db, Fcon)
+		undefined -> erlog_errors:fail(Param)
 	end.
 
 %% unify_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to unify Head and Body using Clauses which all have the same functor.
 
-unify_clauses(Ch, Cb, [C], Next, Cps, Bs0, Vn0, Db, Fcon) ->
+unify_clauses(Ch, Cb, [C], Param = #param{next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
 	%% No choice point on last clause
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
-		{succeed, Bs1, Vn1} -> prove_body(Next, Cps, Bs1, Vn1, Db, Fcon);
-		fail -> erlog_errors:fail(Cps, Db, Fcon)
+		{succeed, Bs1, Vn1} -> prove_body(Param#param{goal = Next, bindings = Bs1, var_num = Vn1});
+		fail -> erlog_errors:fail(Param)
 	end;
-unify_clauses(Ch, Cb, [C | Cs], Next, Cps, Bs0, Vn0, Db, Fcon) ->
+unify_clauses(Ch, Cb, [C | Cs], Param = #param{next_goal = Next, bindings = Bs0, var_num = Vn0, choice = Cps}) ->
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			Cp = #cp{type = clause, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
-			prove_body(Next, [Cp | Cps], Bs1, Vn1, Db, Fcon);
-		fail -> unify_clauses(Ch, Cb, Cs, Next, Cps, Bs0, Vn0, Db, Fcon)
+			prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+		fail -> unify_clauses(Ch, Cb, Cs, Param)
 	end;
-unify_clauses(_Ch, _Cb, [], _Next, Cps, _Bs, _Vn, Db, Fcon) -> erlog_errors:fail(Cps, Db, Fcon).
+unify_clauses(_Ch, _Cb, [], Param) -> erlog_errors:fail(Param).
 
 unify_clause(Ch, Cb, {_Tag, H0, {B0, _}}, Bs0, Vn0) ->
 	{H1, Rs1, Vn1} = term_instance(H0, Vn0),  %Unique vars on head first
@@ -518,40 +522,40 @@ unify_clause(Ch, Cb, {_Tag, H0, {B0, _}}, Bs0, Vn0) ->
 %%      void.
 %% Match functors of existing user (interpreted) predicate with PredInd.
 
-prove_current_predicate(Pi, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_current_predicate(Pi, Param = #param{database = Db}) ->
 	case Pi of
 		{'/', _, _} -> ok;
 		{_} -> ok;
 		Other -> erlog_errors:type_error(predicate_indicator, Other)
 	end,
 	Fs = erlog_memory:get_interp_functors(Db),
-	prove_predicates(Pi, Fs, Next, Cps, Bs, Vn, Db, Fcon).
+	prove_predicates(Pi, Fs, Param).
 
-prove_predicates(Pi, [F | Fs], Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_predicates(Pi, [F | Fs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	Cp = #cp{type = current_predicate, data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn},
-	unify_prove_body(Pi, pred_ind(F), Next, [Cp | Cps], Bs, Vn, Db, Fcon);
-prove_predicates(_Pi, [], _Next, Cps, _Bs, _Vn, Db, Fcon) -> erlog_errors:fail(Cps, Db, Fcon).
+	unify_prove_body(Pi, pred_ind(F), Param#param{choice = [Cp | Cps]});
+prove_predicates(_Pi, [], Param) -> erlog_errors:fail(Param).
 
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
-prove_goal_clauses(G, [C], Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal_clauses(G, [C], Params = #param{choice = Cps, var_num = Vn}) ->
 	%% Must be smart here and test whether we need to add a cut point.
 	%% C has the structure {Tag,Head,{Body,BodyHasCut}}.
 	case element(2, element(3, C)) of
 		true ->
 			Cut = #cut{label = Vn},
-			prove_goal_clause(G, C, Next, [Cut | Cps], Bs, Vn, Db, Fcon);
+			prove_goal_clause(G, C, Params#param{choice = [Cut | Cps]});
 		false ->
-			prove_goal_clause(G, C, Next, Cps, Bs, Vn, Db, Fcon)
+			prove_goal_clause(G, C, Params)
 	end;
 %% prove_goal_clause(G, C, Next, Cps, Bs, Vn, Db);
-prove_goal_clauses(G, [C | Cs], Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_goal_clauses(G, [C | Cs], Params = #param{next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps}) ->
 	Cp = #cp{type = goal_clauses, label = Vn, data = {G, Cs}, next = Next, bs = Bs, vn = Vn},
-	prove_goal_clause(G, C, Next, [Cp | Cps], Bs, Vn, Db, Fcon);
-prove_goal_clauses(_G, [], _Next, Cps, _Bs, _Vn, Db, Fcon) -> erlog_errors:fail(Cps, Db, Fcon).
+	prove_goal_clause(G, C, Params#param{choice = [Cp | Cps]});
+prove_goal_clauses(_G, [], Param) -> erlog_errors:fail(Param).
 
-prove_goal_clause(G, {_Tag, H0, {B0, _}}, Next, Cps, Bs0, Vn0, Db, Fcon) ->
+prove_goal_clause(G, {_Tag, H0, {B0, _}}, Param = #param{next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
 	%% io:fwrite("PGC1: ~p\n", [{G,H0,B0}]),
 	Label = Vn0,
 	case unify_head(G, H0, Bs0, Vn0 + 1) of
@@ -559,53 +563,53 @@ prove_goal_clause(G, {_Tag, H0, {B0, _}}, Next, Cps, Bs0, Vn0, Db, Fcon) ->
 			%% io:fwrite("PGC2: ~p\n", [{Rs0}]),
 			{B1, _Rs2, Vn2} = body_instance(B0, Next, Rs0, Vn1, Label),
 			%% io:fwrite("PGC3: ~p\n", [{B1,Next,Cps}]),
-			prove_body(B1, Cps, Bs1, Vn2, Db, Fcon);
-		fail -> erlog_errors:fail(Cps, Db, Fcon)
+			prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
+		fail -> erlog_errors:fail(Param)
 	end.
 
 %% cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db).
-cut_goal_clauses(true, Next, #cp{label = _}, Cps, Bs, Vn, Db, Fcon) ->
+cut_goal_clauses(true, #cp{label = _}, Param = #param{next_goal = Next}) ->
 	%% Just remove the choice point completely and continue.
-	prove_body(Next, Cps, Bs, Vn, Db, Fcon);
-cut_goal_clauses(false, Next, #cp{label = L}, Cps, Bs, Vn, Db, Fcon) ->
+	prove_body(Param#param{goal = Next});
+cut_goal_clauses(false, #cp{label = L}, Param = #param{next_goal = Next, choice = Cps}) ->
 	%% Replace choice point with cut point then continue.
 	Cut = #cut{label = L},
-	prove_body(Next, [Cut | Cps], Bs, Vn, Db, Fcon).
+	prove_body(Param#param{goal = Next, choice = [Cut | Cps]}).
 
 %% prove_retract(Clause, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Retract clauses in database matching Clause.
 
-prove_retract({':-', H, B}, Next, Cps, Bs, Vn, Db, Fcon) ->
-	prove_retract(H, B, Next, Cps, Bs, Vn, Db, Fcon);
-prove_retract(H, Next, Cps, Bs, Vn, Db, Fcon) ->
-	prove_retract(H, true, Next, Cps, Bs, Vn, Db, Fcon).
+prove_retract({':-', H, B}, Params) ->
+	prove_retract(H, B, Params);
+prove_retract(H, Params) ->
+	prove_retract(H, true, Params).
 
-prove_retract(H, B, Next, Cps, Bs, Vn, Db, Fcon) ->
+prove_retract(H, B, Params = #param{database = Db}) ->
 	Functor = functor(H),
 	case erlog_memory:get_procedure(Db, Functor) of
-		{clauses, Cs} -> retract_clauses(H, B, Cs, Next, Cps, Bs, Vn, Db, Fcon);
+		{clauses, Cs} -> retract_clauses(H, B, Cs, Params);
 		{code, _} ->
 			erlog_errors:permission_error(modify, static_procedure, pred_ind(Functor), Db);
 		built_in ->
 			erlog_errors:permission_error(modify, static_procedure, pred_ind(Functor), Db);
-		undefined -> erlog_errors:fail(Cps, Db, Fcon)
+		undefined -> erlog_errors:fail(Params)
 	end.
 
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
 
-retract_clauses(Ch, Cb, [C | Cs], Next, Cps, Bs0, Vn0, Db, Fcon) -> %TODO foreach vs handmaid recursion?
+retract_clauses(Ch, Cb, [C | Cs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}) -> %TODO foreach vs handmade recursion?
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			%% We have found a right clause so now retract it.
 			erlog_memory:retract_clause(Db, functor(Ch), element(1, C)),
 			Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
-			prove_body(Next, [Cp | Cps], Bs1, Vn1, Db, Fcon);
-		fail -> retract_clauses(Ch, Cb, Cs, Next, Cps, Bs0, Vn0, Db, Fcon)
+			prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+		fail -> retract_clauses(Ch, Cb, Cs, Param)
 	end;
-retract_clauses(_Ch, _Cb, [], _Next, Cps, _Bs, _Vn, Db, Fcon) -> erlog_errors:fail(Cps, Db, Fcon).
+retract_clauses(_Ch, _Cb, [], Param) -> erlog_errors:fail(Param).
 
 unify_args(_, _, Bs, I, S) when I > S -> {succeed, Bs};
 unify_args(S1, S2, Bs0, I, S) ->

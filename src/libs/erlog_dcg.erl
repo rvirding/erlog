@@ -21,7 +21,7 @@
 -include("erlog_int.hrl").
 
 -export([expand_term/1, expand_term/2]).
--export([expand_term_2/7, phrase_3/7]).
+-export([expand_term_2/1, phrase_3/1]).
 -export([load/1]).
 
 load(Db) ->
@@ -44,22 +44,22 @@ load(Db) ->
 %% expand_term_2(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%     void
 %%  Call the expand_term/2 predicate.
-expand_term_2(Goal, Next, Cps, Bs, Vn0, Db, Fcon) ->
+expand_term_2(Param = #param{goal = Goal, bindings = Bs, var_num = Vn0}) ->
 	{expand_term, DCGRule, A2} = erlog_core:dderef(Goal, Bs),
 	{Exp, Vn1} = expand_term(DCGRule, Vn0),
-	erlog_core:unify_prove_body(A2, Exp, Next, Cps, Bs, Vn1, Db, Fcon).
+	erlog_core:unify_prove_body(A2, Exp, Param#param{var_num = Vn1}).
 
 %% phrase_3(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Call the phrase/3 preidicate. We could easily do this in prolog
 %%  except for that it calls dcg_body/4 which is not exported.
 %%
 %%  phrase(GRBody, S0, S) -> dcg_body(GRBody, S0, S, Goal), call(Goal).
-phrase_3(Goal, Next0, Cps, Bs, Vn0, Db, Fcon) ->
+phrase_3(Param = #param{goal = Goal, next_goal = Next0, bindings = Bs, var_num = Vn0}) ->
 	{phrase, GRBody, S0, S} = erlog_core:dderef(Goal, Bs),
 	{Body, Vn1} = dcg_body(GRBody, S0, S, Vn0),
 	%% io:format("~p\n", [Body]),
 	Next1 = [{call, Body} | Next0],    %Evaluate body
-	erlog_core:prove_body(Next1, Cps, Bs, Vn1, Db, Fcon).
+	erlog_core:prove_body(Param#param{goal = Next1, var_num = Vn1}).
 
 %% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
