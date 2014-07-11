@@ -22,10 +22,10 @@ run_one(File) ->
 	?debugMsg(File),
 	Res = erlog:execute(ErlogWorker, string:join(["consult(", File, ")."], "\"")),
 	?debugMsg(Res),
-	?assertEqual(<<"Yes">>, Res),
+	?assertEqual(true, Res),
 	Res1 = erlog:execute(ErlogWorker, "test_all."),
 	?debugMsg(Res1),
-	?assertEqual(<<"Yes">>, Res1),
+	?assertEqual(true, Res1),
 	ok.
 
 get_absolute_names(FileNames) ->
