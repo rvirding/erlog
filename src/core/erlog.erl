@@ -33,7 +33,7 @@
 -include("erlog_int.hrl").
 
 %% Interface to server.
--export([start_link/1, start_link/0, execute/2]).
+-export([start_link/1, start_link/0, execute/2, select/2]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -48,6 +48,7 @@
 }).
 
 execute(Worker, Command) -> gen_server:call(Worker, {execute, trim_command(Command)}).
+select(Worker, Command) -> gen_server:call(Worker, {select, trim_command(Command)}).
 
 -spec start_link() -> pid().
 start_link() ->
@@ -74,14 +75,14 @@ init(Params) -> % use custom database implementation
 	end,
 	{ok, #state{db = Db, f_consulter = FileCon, e_man = E}}.
 
-handle_call({execute, Command}, _From, State = #state{state = normal}) -> %in normal mode
+handle_call({execute, Command}, _From, State) -> %running prolog code in normal mode
 	{Res, _} = Repl = case erlog_scan:tokens([], Command, 1) of
 		                  {done, Result, _Rest} -> run_command(Result, State); % command is finished, run.
 		                  {more, _} -> {{ok, more}, State} % unfinished command. Report it and do nothing.
 	                  end,
 	NewState = change_state(Repl),
 	{reply, Res, NewState};
-handle_call({execute, Command}, _From, State) ->  %in selection solutions mode
+handle_call({select, Command}, _From, State) ->  %in selection solutions mode
 	{Res, _} = Repl = preprocess_command({select, Command}, State),
 	NewState = change_state(Repl), % change state, depending on reply
 	{reply, Res, NewState}.

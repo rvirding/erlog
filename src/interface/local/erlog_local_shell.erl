@@ -35,7 +35,10 @@ start() ->
 server_loop(Core, State, Line) ->
 	case io:fread('| ?- ', "~s") of
 		{ok, [Term]} ->
-			Res = erlog:execute(Core, lists:append(Line, Term)),
+			Res = case State of
+				      select -> erlog:select(Core, lists:append(Line, Term));
+				      _ -> erlog:execute(Core, lists:append(Line, Term))
+			      end,
 			{NewState, NewLine} = process_execute(Res, State, Line, Term),
 			server_loop(Core, NewState, NewLine);
 		{error, {_, Em, E}} ->
@@ -56,7 +59,7 @@ process_execute(Reply, _, _, _) ->
 %% Processes reply from prolog. Form it to normal view.
 -spec process_reply(tuple()) -> tuple().
 process_reply({Res, select}) ->
-	io:format("~p~n: ", [Res]),
+	io:format("~p~n: ", [{Res, select}]),
 	{select, []};
 process_reply(Res) ->
 	io:format("~p~n", [Res]),

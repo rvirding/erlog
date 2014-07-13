@@ -122,8 +122,8 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_info({tcp, _, CommandRaw}, State = #state{line = Line, core = Core, socket = Socket}) ->
-	try erlog:execute(Core, lists:append(Line, CommandRaw)) of
+handle_info({tcp, _, CommandRaw}, State = #state{spike = Spike, line = Line, core = Core, socket = Socket}) ->
+	try call_prolog(Spike, Core, Line, CommandRaw) of
 		{ok, halt} ->
 			gen_tcp:send(Socket, <<"Ok.\n">>),
 			{stop, normal, State};
@@ -180,14 +180,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+call_prolog(select, Core, Line, Term) -> erlog:select(Core, lists:append(Line, Term));
+call_prolog(_, Core, Line, Term) -> erlog:execute(Core, lists:append(Line, Term)).
+
 % process reply from prolog
 process_reply(State = #state{socket = Socket}, {Res, select}) ->
 	io:format("Reply = ~p~n", [Res]),
-	gen_tcp:send(Socket, Res),
+	gen_tcp:send(Socket, io_lib:format("~p", [Res])),
 	gen_tcp:send(Socket, <<"\n: ">>),
 	{noreply, State#state{spike = select, line = []}};
 process_reply(State = #state{socket = Socket}, Res) ->
 	io:format("Reply = ~p~n", [Res]),
-	gen_tcp:send(Socket, Res),
+	gen_tcp:send(Socket, io_lib:format("~p", [Res])),
 	gen_tcp:send(Socket, <<"\n| ?- ">>),
 	{noreply, State#state{spike = normal, line = []}}.
