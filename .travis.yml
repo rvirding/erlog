@@ -9,6 +9,7 @@ install:
   - export ERL_LIBS=eqcmini
 
 script:
+  - rebar get-deps
   - make compile 
   - |
      if [ $TRAVIS_OTP_RELEASE == 17.0 ] 

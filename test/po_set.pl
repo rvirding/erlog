@@ -1,6 +1,6 @@
 /* -*-Prolog -*- */
 
-
+export(path/3).
 edge(a,b).
 edge(a,c).
 edge(c,d).

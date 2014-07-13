@@ -9,3 +9,10 @@ doc/*
 src/erlog_scan.erl
 deps/*
 .rebar/*
+projmake
+.eqc-info
+current_counterexample.eqc
+eqcmini 
+rebar
+
+erl_crash.dump

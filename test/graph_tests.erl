@@ -3,6 +3,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 
+
+
 prop_partially_ordered_set() ->
     {ok, PID}   =				erlog:start_link(),
     ok          =				erlog:consult(PID, "test/po_set.pl"),    
@@ -33,7 +35,7 @@ prop_travel() ->
 					      {{succeed, _},E2} = EI({prove, {assertz,Node}}),
 					      E2
 				      end, E1,Nodes),
-		    
+
 		    true = lists:all(fun({edge,Start,_})->
 					     {{succeed, R},_}  = E2({prove, {path, Start, {'End'},{'Path'}}}),
 					     End  = proplists:get_value('End',  R),
@@ -42,6 +44,7 @@ prop_travel() ->
 					     true
 				     end, Nodes)
 			 end).
+
 
 
 

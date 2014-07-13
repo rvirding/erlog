@@ -31,7 +31,7 @@
 -include("erlog_int.hrl").
 
 %% Basic evaluator interface.
--export([new/0]).
+-export([new/0,new/1]).
 %% Interface to server.
 -export([start/0,start_link/0]).
 -export([prove/2,next_solution/1,
@@ -47,22 +47,35 @@
 -behaviour(gen_server).
 -vsn('0.6').
 
+
 %% -compile(export_all).
 
 %% new() -> erlog().
 %%  Define an Erlog instance. This is a fun which is called with the
 %%  top-level command and returns the result and the continutation in
 %%  a new fun.
+-type erlog_db() :: dict().
 
+-type erlog_prove_return()     :: fail|{succeed, [{atom(), any()}]}.
+-type erlog_operation_return() :: ok|{error,_}|{erlog_error,_}.
+-type erlog_fn()               :: fun((tuple()) -> {erlog_prove_return()|erlog_operation_return(), erlog_fn()}).
+-export_type([erlog_db/0, erlog_fn/0, erlog_prove_return/0, erlog_operation_return/0]).
+
+-spec(new() ->erlog_fn()).
 new() ->
     Db0 = erlog_int:built_in_db(),		%Basic interpreter predicates
-    Db1 = foldl(fun (Mod, Db) -> Mod:load(Db) end, Db0,
+    new(Db0).
+
+
+-spec(new(erlog_db()) ->erlog_fn()).
+new(DB0) ->
+    Db1 = foldl(fun (Mod, Db) -> Mod:load(Db) end, DB0,
 		[erlog_bips,			%Built in predicates
 		 erlog_dcg,			%DCG predicates
 		 erlog_lists			%Common lists library
 		]),
     fun (Cmd) -> top_cmd(Cmd, Db1) end.
-
+    
 top_cmd({prove,Goal}, Db) ->
     prove_goal(Goal, Db);
 top_cmd(next_solution, Db) ->

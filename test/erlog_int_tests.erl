@@ -2,15 +2,40 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
+
+
+
+prop_equal() ->
+    ?FORALL({I,J},
+	    {int(),int()},
+	    begin
+		E   = erlog:new(),
+	        case E({prove, {'==',I,J}}) of
+		    {fail, _} ->
+			I =/= J;
+		    {{succeed,[]},_} ->
+			I == J
+		end
+	    end).
+
+prop_not_equal() ->
+    ?FORALL({I,J, Op},
+	    {int(),int(), oneof(['\\==','\\='])},
+	    begin
+		E   = erlog:new(),
+	        case E({prove, {Op,I,J}}) of
+		    {fail, _} ->
+			I == J;
+		    {{succeed,[]},_} ->
+			I =/= J
+		end
+	    end).
+
 prop_fail() ->
     {ok, PID}   = erlog:start_link(),
     ?assertEqual(fail,erlog:prove(PID, fail)),
     true.
 
-prop_not_equal() ->
-    {ok, PID}   = erlog:start_link(),
-    ?assertEqual(fail,erlog:prove(PID, {'\=', 1,2})),
-    true.
 
 
 keys() ->
@@ -36,15 +61,19 @@ keys() ->
      "537E16D9"].
 
 prop_bool() ->
-    {ok,E} = erlog:start_link(),
-    ?assertEqual({succeed, []}, erlog:prove(E, true)),
-    ?assertEqual(fail, erlog:prove(E, false)),
+    E = erlog:new(),
+    {{succeed, []},_} =  E({prove, true}),
+    {fail,_}          =  E({prove, false}),
+    {fail,_}          =  E({prove, fail}),
     true.
+
+
+
 
 option() ->
     oneof([assert, asserta, assertz]).
 value() ->
-    {model, oneof(keys()), int()}.
+    {model, elements(keys()), int()}.
 
 prop_assert() ->
     ?FORALL({Op, Value},

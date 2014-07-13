@@ -137,5 +137,3 @@ prop_sort_list2() ->
                 end
             end).
 
-
-

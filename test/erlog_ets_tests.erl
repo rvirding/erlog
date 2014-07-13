@@ -76,5 +76,3 @@ prop_ets_match() ->
                 end
             end).
 
-
-

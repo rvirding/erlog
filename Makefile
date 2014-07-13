@@ -76,12 +76,15 @@ update-deps:
 	$(REBAR) update-deps
 	$(REBAR) compile
 
+
+
 eunit: compile
-	$(REBAR)  eunit skip_deps=true --verbose
+	$(REBAR)  eunit skip_deps=true
 
 
 qc: compile 
 	$(REBAR) qc 
+
 
 
 compile:
@@ -98,9 +101,11 @@ doc:
 
 
 ct: compile 
-	$(REBAR)   skip_deps=true ct
+	$(REBAR)  skip_deps=true ct
 
-test: compile eunit qc
+
+test: compile  qc
+
 
 start: compile 
 	erl -name erlog  -pa ebin  -pa deps/*/ebin   #-s reloader 
@@ -133,6 +138,8 @@ clean:
 	- rm -rf $(CURDIR)/test/*.beam
 	- rm -rf $(CURDIR)/logs
 	- rm -rf $(CURDIR)/ebin
+	- rm -rf $(CURDIR)/.eunit
+	- rm -rf $(CURDIR)/.qc
 	$(REBAR) skip_deps=true clean
 
 distclean: clean

@@ -9,14 +9,14 @@ edge(b,e).
 edge(d,f).
 edge(b,f).
 %--------------------------------------------------------------------------------
-erl_export(sib/3).
-erl_export(path/3).
-erl_export(add_edge/3).
+erl_export(path/3, return, 'Path').
+erl_export(add_edge/2, return, boolean).
+erl_export(sib/2, return, boolean).
 
-add_edge(A,B,ok) :-
+add_edge(A,B) :-
 	appenda(edge(A,B)).
 
-sib(A,B,ok) :-
+sib(A,B) :-
 	sib(A,B).
 
 %--------------------------------------------------------------------------------
