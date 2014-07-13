@@ -184,9 +184,9 @@ call_prolog(select, Core, Line, Term) -> erlog:select(Core, lists:append(Line, T
 call_prolog(_, Core, Line, Term) -> erlog:execute(Core, lists:append(Line, Term)).
 
 % process reply from prolog
-process_reply(State = #state{socket = Socket}, {Res, select}) ->
-	io:format("Reply = ~p~n", [Res]),
-	gen_tcp:send(Socket, io_lib:format("~p", [Res])),
+process_reply(State = #state{socket = Socket}, {_, select} = Reply) ->
+	io:format("Reply = ~p~n", [Reply]),
+	gen_tcp:send(Socket, io_lib:format("~p", [Reply])),
 	gen_tcp:send(Socket, <<"\n: ">>),
 	{noreply, State#state{spike = select, line = []}};
 process_reply(State = #state{socket = Socket}, Res) ->

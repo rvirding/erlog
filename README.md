@@ -26,15 +26,21 @@ And connect to it via console:
 Port can be set up in `src/erlog.app.src`. 
 
 #### Processing prolog code from erlang:
+##### Starting
 Spawn new logic core: 
 
     {ok, Pid} = erlog:start_link().
+##### Executing
 Process prolog terms, using your core:
 
     erlog:execute(Worker, Command).
 Where:  
 `Command` is a command, ended with dot,  
-`Worker` is a pid of your prolog logic core.  
+`Worker` is a pid of your prolog logic core. 
+##### Selecting
+When erlog:execute returns `select` in result - you can select for some other result calling `erlog:select/2` instead of execute.
+
+    erlog:select(Worker, ";").
 Full Example:
 
     (erlog@127.0.0.1)1> {ok, Pid} = erlog:start_link().
@@ -44,6 +50,10 @@ Full Example:
     (erlog@127.0.0.1)3> erlog:execute(Pid, "father('victor', 'andrey').").        
     true
     (erlog@127.0.0.1)4> erlog:execute(Pid, "father('victor', 'vasya')."). 
+    false
+    (erlog@127.0.0.1)5> erlog:execute(Pid, "run(S)."). 
+    {{true,[{'S',600}]}, select}
+    (erlog@127.0.0.1)6> erlog:select(Pid, ";"). 
     false
 
 #### Custom database server:
