@@ -21,6 +21,8 @@
 
 -callback asserta_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 
+-callback findall(State :: term(), Functor :: tuple()) -> {Res :: list(), NewState :: term()}.
+
 -callback retract_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 
 -callback abolish_clauses(State :: term(), Func :: term()) -> {ok, NewState :: term()}.

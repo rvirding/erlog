@@ -126,6 +126,10 @@
 		{consult, 1},
 		{reconsult, 1},
 		%% Debug functions
-		{writeln, 1}
+		{writeln, 1},
+		%% Searching functions
+		{findall, 3},
+		{bagof, 3},
+		{setof, 3}
 	]
 ).

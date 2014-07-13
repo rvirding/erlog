@@ -272,7 +272,7 @@ make_vars(I, Vn) ->
 %% Logic and control. Conjunctions are handled in prove_body and true
 %% has been compiled away.
 prove_goal(Param = #param{goal = {call, G}, next_goal = Next0, choice = Cps,
-	bindings = Bs, var_num = Vn, database = Db}) ->
+	bindings = Bs, var_num = Vn, database = Db}) -> %TODO move me to other modules
 	%% Only add cut CP to Cps if goal contains a cut.
 	Label = Vn,
 	case check_goal(G, Next0, Bs, Db, false, Label) of
@@ -399,6 +399,16 @@ prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulte
 			erlog_errors:erlog_error(Error, Db)
 	end,
 	prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {findall, Goal, Fun, Res}, bindings = Bs0, next_goal = Next, database = Db}) ->
+	Predicates = erlog_memory:finadll(Db, Fun),
+	Element = index_of(Goal, tuple_to_list(Fun)) - 1,
+	Result = lists:foldr(
+		fun({_, Pred, _}, Acc) ->
+			[_ | ParamList] = tuple_to_list(Pred),
+			[lists:nth(Element, ParamList) | Acc]
+		end, [], Predicates),
+	Bs1 = erlog_core:add_binding(Res, Result, Bs0),
+	prove_body(Param#param{goal = Next, bindings = Bs1});
 %% Now look up the database.
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
@@ -461,7 +471,6 @@ check_goal(G0, Next, Bs, Db, Cut, Label) ->
 %%	void.
 %% Call an external (Erlang) generator and handle return value, either
 %% succeed or fail.
-
 prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	case Efun() of
 		{succeed, Ret, Cont} ->      %Succeed and more choices
@@ -475,7 +484,6 @@ prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings =
 %% prove_clause(Head, Body, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
 %%      void.
 %% Unify clauses matching with functor from Head with both Head and Body.
-
 prove_clause(H, B, Param = #param{database = Db}) ->
 	Functor = functor(H),
 	case erlog_memory:get_procedure(Db, Functor) of
@@ -490,7 +498,6 @@ prove_clause(H, B, Param = #param{database = Db}) ->
 %% unify_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to unify Head and Body using Clauses which all have the same functor.
-
 unify_clauses(Ch, Cb, [C], Param = #param{next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
 	%% No choice point on last clause
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
@@ -521,7 +528,6 @@ unify_clause(Ch, Cb, {_Tag, H0, {B0, _}}, Bs0, Vn0) ->
 %% prove_current_predicate(PredInd, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
 %%      void.
 %% Match functors of existing user (interpreted) predicate with PredInd.
-
 prove_current_predicate(Pi, Param = #param{database = Db}) ->
 	case Pi of
 		{'/', _, _} -> ok;
@@ -599,7 +605,6 @@ prove_retract(H, B, Params = #param{database = Db}) ->
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
-
 retract_clauses(Ch, Cb, [C | Cs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}) -> %TODO foreach vs handmade recursion?
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
@@ -806,7 +811,6 @@ unify_head_args(G, H, Rs0, Bs0, Vn0, I, S) ->
 %%  check Term as it should already be checked. Use term_instance to
 %%  handle goals. N.B. We have to be VERY careful never to go into the
 %%  original tail as this will cause havoc.
-
 body_instance([{{cut} = Cut, _, Last} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
 	{[{Cut, Label, Last} | Gs1], Rs1, Vn1};
@@ -845,7 +849,6 @@ body_instance([], Tail, Rs, Vn, _Label) -> {Tail, Rs, Vn}.
 %%  overlapping integer ranges. Don't check Term as it should already
 %%  be checked. Use orddict as there will seldom be many variables and
 %%  it it fast to setup.
-
 body_term([{{cut}, _, _} | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
 	{body_conj('!', Gs1), Rs1, Vn1};
@@ -918,3 +921,9 @@ initial_goal(S, Bs0, Vn0) when ?IS_FUNCTOR(S) ->
 	{list_to_tuple([element(1, S) | As1]), Bs1, Vn1};
 initial_goal(T, Bs, Vn) when ?IS_ATOMIC(T) -> {T, Bs, Vn};
 initial_goal(T, _Bs, _Vn) -> erlog_errors:type_error(callable, T).
+
+index_of(Item, List) -> index_of(Item, List, 1).
+
+index_of(_, [], _) -> not_found;
+index_of(Item, [Item | _], Index) -> Index;
+index_of(Item, [_ | Tl], Index) -> index_of(Item, Tl, Index + 1).

@@ -21,7 +21,8 @@
 	abolish_clauses/2,
 	get_procedure/2,
 	get_procedure_type/2,
-	get_interp_functors/1]).
+	get_interp_functors/1,
+	findall/2]).
 
 %% API
 -export([]).
@@ -106,3 +107,6 @@ clause(Head, Body0, Db, ClauseFun) ->
 				erlog_errors:permission_error(modify, static_procedure, erlog_core:pred_ind(Functor), Db);
 			({clauses, T, Cs}) -> ClauseFun(T, Body, Cs)
 		end, {clauses, 1, [{0, Head, Body}]}, Db).
+
+findall(State, Functor) ->  %TODO implement me!
+	erlang:error(not_implemented).

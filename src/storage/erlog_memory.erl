@@ -16,7 +16,7 @@
 %% API
 -export([start_link/1, start_link/2, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
 	retract_clause/3, abolish_clauses/2, get_procedure/2, get_procedure_type/2,
-	get_interp_functors/1, assertz_clause/2, asserta_clause/2]).
+	get_interp_functors/1, assertz_clause/2, asserta_clause/2, finadll/2]).
 
 -export([add_built_in/2]).
 
@@ -50,6 +50,8 @@ assertz_clause(Database, Head, Body) -> gen_server:call(Database, {assertz_claus
 asserta_clause(Database, {':-', H, B}) -> asserta_clause(Database, H, B);
 asserta_clause(Database, H) -> asserta_clause(Database, H, true).
 asserta_clause(Database, Head, Body) -> gen_server:call(Database, {asserta_clause, {Head, Body}}).
+
+finadll(Database, Fun) -> gen_server:call(Database, {findall, Fun}).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
 

@@ -23,7 +23,8 @@
 	abolish_clauses/2,
 	get_procedure/2,
 	get_procedure_type/2,
-	get_interp_functors/1]).
+	get_interp_functors/1,
+	findall/2]).
 
 new() -> {ok, ets:new(eets, [])}.
 
@@ -45,6 +46,7 @@ add_compiled_proc(Db, {Functor, M, F}) ->
 assertz_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
+			io:format("insert functor ~p~n", [Functor]),
 			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]})
 		end),
 	{ok, Db}.
@@ -77,6 +79,13 @@ abolish_clauses(Db, Functor) ->
 		[] -> ok        %Do nothing
 	end,
 	{ok, Db}.
+
+findall(Db, Functor) ->
+	Params = tuple_to_list(Functor),
+	Fun = hd(Params),
+	Len = length(Params) - 1,
+	[{_, _, _, Body}] = ets:lookup(Db, {Fun, Len}),
+	{Body, Db}.
 
 get_procedure(Db, Functor) ->
 	{case ets:lookup(Db, Functor) of
