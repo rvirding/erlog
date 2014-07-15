@@ -137,7 +137,8 @@ load_built_in(Database) ->
 			erlog_core,       %Core predicates
 			erlog_bips,       %Built in predicates
 			erlog_dcg,        %DCG predicates
-			erlog_lists       %Common lists library
+			erlog_lists,      %Common lists library
+			erlog_time        %Bindings for working with data and time
 		]).
 
 %% @private

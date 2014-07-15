@@ -27,7 +27,7 @@
 %% Define the choice point record
 -record(cp, {type, label, data, next, bs, vn}).
 -record(cut, {label, next}).
-
+%TODO move me to different hrl files (one lib - one file)
 %% record for passing arguments to erlog_core:prove_goal
 -record(param,
 {
@@ -83,6 +83,11 @@
 	[
 		{{expand_term, 2}, erlog_dcg, expand_term_2},
 		{{phrase, 3}, erlog_dcg, phrase_3}
+	]).
+
+-define(ERLOG_TIME,
+	[
+		{{localtime, 1}, ?MODULE, localtime_1}
 	]).
 
 -define(ERLOG_LISTS,
