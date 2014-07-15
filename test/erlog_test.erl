@@ -18,7 +18,8 @@ run_all_test() ->
 
 -spec run_one(File :: string()) -> ok.
 run_one(File) ->
-	{ok, ErlogWorker} = erlog:start_link(),
+	?debugFmt("~nChecking file ~p~n", [File]),
+	{ok, ErlogWorker} = erlog:start_link([{event_h, {erlog_test_handler, []}}]),
 	?debugMsg(File),
 	Res = erlog:execute(ErlogWorker, string:join(["consult(", File, ")."], "\"")),
 	?debugMsg(Res),

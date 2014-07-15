@@ -87,7 +87,8 @@
 
 -define(ERLOG_TIME,
 	[
-		{{localtime, 1}, ?MODULE, localtime_1}
+		{{localtime, 1}, ?MODULE, localtime_1},
+		{{datediff, 4}, ?MODULE, datediff_4}
 	]).
 
 -define(ERLOG_LISTS,
