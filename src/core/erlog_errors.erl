@@ -63,7 +63,7 @@ fail(#param{choice = [], database = Db}) -> {fail, Db}.
 
 %% @private
 fail_disjunction(#cp{next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
+	ec_body:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
@@ -71,7 +71,7 @@ fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
 
 %% @private
 fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:unify_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	ec_unify:unify_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->

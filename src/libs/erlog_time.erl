@@ -19,13 +19,13 @@ load(Db) ->
 
 localtime_1({localtime, Var}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	{M, S, _} = os:timestamp(),
-	Bs = erlog_core:add_binding(Var, {M, S}, Bs0),
-	erlog_core:prove_body(Params#param{goal = Next, bindings = Bs}).
+	Bs = ec_support:add_binding(Var, {M, S}, Bs0),
+	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 datediff_4({datediff, {M1, S1}, {M2, S2}, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = timer:now_diff({M1, S1, 0}, {M2, S2, 0}),
-	Bs = erlog_core:add_binding(Res, form_output(Diff, Format), Bs0),
-	erlog_core:prove_body(Params#param{goal = Next, bindings = Bs}).
+	Bs = ec_support:add_binding(Res, form_output(Diff, Format), Bs0),
+	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% @private
 %% Time in microseconds, atom for output format

@@ -45,9 +45,9 @@ load(Db) ->
 %%     void
 %%  Call the expand_term/2 predicate.
 expand_term_2(Param = #param{goal = Goal, bindings = Bs, var_num = Vn0}) ->
-	{expand_term, DCGRule, A2} = erlog_core:dderef(Goal, Bs),
+	{expand_term, DCGRule, A2} = ec_support:dderef(Goal, Bs),
 	{Exp, Vn1} = expand_term(DCGRule, Vn0),
-	erlog_core:unify_prove_body(A2, Exp, Param#param{var_num = Vn1}).
+	ec_body:unify_prove_body(A2, Exp, Param#param{var_num = Vn1}).
 
 %% phrase_3(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Call the phrase/3 preidicate. We could easily do this in prolog
@@ -55,11 +55,11 @@ expand_term_2(Param = #param{goal = Goal, bindings = Bs, var_num = Vn0}) ->
 %%
 %%  phrase(GRBody, S0, S) -> dcg_body(GRBody, S0, S, Goal), call(Goal).
 phrase_3(Param = #param{goal = Goal, next_goal = Next0, bindings = Bs, var_num = Vn0}) ->
-	{phrase, GRBody, S0, S} = erlog_core:dderef(Goal, Bs),
+	{phrase, GRBody, S0, S} = ec_support:dderef(Goal, Bs),
 	{Body, Vn1} = dcg_body(GRBody, S0, S, Vn0),
 	%% io:format("~p\n", [Body]),
 	Next1 = [{call, Body} | Next0],    %Evaluate body
-	erlog_core:prove_body(Param#param{goal = Next1, var_num = Vn1}).
+	ec_body:prove_body(Param#param{goal = Next1, var_num = Vn1}).
 
 %% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.

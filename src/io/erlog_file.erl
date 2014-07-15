@@ -86,5 +86,5 @@ consult_terms(Ifun, Params, [Term | Ts]) ->
 consult_terms(_, _, []) -> ok.
 
 %% @private
-functor({':-', H, _B}) -> erlog_core:functor(H);
-functor(T) -> erlog_core:functor(T).
+functor({':-', H, _B}) -> ec_support:functor(H);
+functor(T) -> ec_support:functor(T).

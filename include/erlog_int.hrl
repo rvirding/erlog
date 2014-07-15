@@ -24,6 +24,9 @@
 %% The old is_constant/1 ?
 -define(IS_CONSTANT(T), (not (is_tuple(T) orelse is_list(T)))).
 
+%%-define(BIND, orddict)
+-define(BIND, dict).
+
 %% Define the choice point record
 -record(cp, {type, label, data, next, bs, vn}).
 -record(cut, {label, next}).
