@@ -144,7 +144,9 @@ load_built_in(Database) ->
 %% Run scanned command
 run_command(Command, State) ->
 	case erlog_parse:parse_prolog_term(Command) of
-		{ok, halt} -> {ok, halt};
+		{ok, halt} ->
+			gen_server:cast(self(), halt),
+			{true, State};
 		PrologCmd -> preprocess_command(PrologCmd, State)
 	end.
 

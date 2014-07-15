@@ -45,10 +45,8 @@ erlog_error(E) -> throw({erlog_error, E}).
 %%  backwards over choice points until matching cut.
 fail(Param = #param{choice = [#cp{type = goal_clauses} = Cp | Cps]}) ->
 	fail_goal_clauses(Cp, Param#param{choice = Cps});
-fail(Param = #param{choice = [#cp{type = disjunction} = Cp | Cps]}) ->
+fail(Param = #param{choice = [#cp{type = Type} = Cp | Cps]}) when Type == disjunction; Type == if_then_else ->
 	fail_disjunction(Cp, Param#param{choice = Cps});
-fail(Param = #param{choice = [#cp{type = if_then_else} = Cp | Cps]}) ->
-	fail_if_then_else(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = clause} = Cp | Cps]}) ->
 	fail_clause(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = retract} = Cp | Cps]}) ->
@@ -65,10 +63,6 @@ fail(#param{choice = [], database = Db}) -> {fail, Db}.
 
 %% @private
 fail_disjunction(#cp{next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
-
-%% @private
-fail_if_then_else(#cp{next = Next, bs = Bs, vn = Vn}, Param) ->
 	erlog_core:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private

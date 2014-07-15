@@ -409,6 +409,18 @@ prove_goal(Param = #param{goal = {findall, Goal, Fun, Res}, bindings = Bs0, next
 		end, [], Predicates),
 	Bs1 = erlog_core:add_binding(Res, Result, Bs0),
 	prove_body(Param#param{goal = Next, bindings = Bs1});
+prove_goal(Param = #param{goal = {bagof, Goal, Fun, Res}, choice = Cs0, bindings = Bs0, next_goal = Next, var_num = Vn, database = Db}) ->
+	Predicates = erlog_memory:finadll(Db, Fun),
+	FunList = tuple_to_list(Fun),
+	ResultDict = collect_alternatives(Goal, FunList, Predicates),
+	Collected = dict:fetch_keys(ResultDict),
+	[UBs | Choises] = lists:foldr(
+		fun(Key, Acc) ->
+			UpdBs0 = update_result(Key, ResultDict, Res, Bs0),
+			UpdBs1 = update_vars(Goal, FunList, Key, UpdBs0),
+			[#cp{type = disjunction, label = Fun, next = Next, bs = UpdBs1, vn = Vn} | Acc]
+		end, Cs0, Collected),
+	prove_body(Param#param{goal = Next, bindings = UBs#cp.bs, choice = Choises, var_num = Vn + length(Choises)});
 %% Now look up the database.
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
@@ -927,3 +939,29 @@ index_of(Item, List) -> index_of(Item, List, 1).
 index_of(_, [], _) -> not_found;
 index_of(Item, [Item | _], Index) -> Index;
 index_of(Item, [_ | Tl], Index) -> index_of(Item, Tl, Index + 1).
+
+remove_nth(List, N) ->
+	{A, B} = lists:split(N - 1, List),
+	A ++ tl(B).
+
+collect_alternatives(Goal, FunList, Predicates) ->
+	Element = index_of(Goal, FunList) - 1,
+	lists:foldr(
+		fun({_, Pred, _}, Dict) ->
+			[_ | ParamList] = tuple_to_list(Pred),
+			Keys = remove_nth(ParamList, Element),
+			dict:append(Keys, lists:nth(Element, ParamList), Dict)
+		end, dict:new(), Predicates).
+
+update_result(Key, ResultDict, Res, Bs0) ->
+	case dict:find(Key, ResultDict) of
+		{ok, Value} -> erlog_core:add_binding(Res, Value, Bs0);
+		error -> Bs0
+	end.
+
+update_vars(Goal, FunList, Key, Bs) ->
+	Vars = tl(FunList) -- [Goal],
+	lists:foldl(
+		fun({N} = Var, UBs1) ->
+			erlog_core:add_binding(Var, lists:nth(N, Key), UBs1)
+		end, Bs, Vars).
