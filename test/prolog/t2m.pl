@@ -4,9 +4,9 @@
 %% https://drive.google.com/folderview?id=0B3uCF8tBzpM4bzBfaFBzNVFiRUk&usp=sharing
 %%%%%%%%%%%%%%
 
-%Проверка типов
+%пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 
-%числа
+%пїЅпїЅпїЅпїЅпїЅ
 
 plus(A,B,C):- nonvar(A), nonvar(B), C is A+B.
 
@@ -26,7 +26,7 @@ filter_list([X|T],[X|Tt],F) :- filter(F,X),!, filter_list(T,Tt,F).
 
 filter_list([_|T],Tt,F) :- filter_list(T,Tt,F).
 
-%параллельная рекурсия
+%пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 fib(1,1).
 
@@ -42,7 +42,7 @@ range(X,Y,X):-X=<Y.
 
 range(X,Y,Z):-X<Y, X1 is X+1, range(X1,Y,Z).
 
-%простые числа
+%пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 
 simple(X) :- not((range(2,X,Y),X\=Y, 0=:=X mod Y)).
 
@@ -50,7 +50,7 @@ simple2(X):-not((sbase(Y),Y\=X,0=:=X mod Y)),!,assert(sbase(X)).
 
 simples2(A,B):- assert(sbase(2)),range(A,B,X), simple2(X),write(X),write(' '),false,!;true.
 
-% взаимная рекурсия
+% пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 
 simple3(N,N,L,L):-!.
 
@@ -80,7 +80,7 @@ test1 :- plus(X,1,6), writeln(x=X),
 
  filter_list(Ls,At,at),writeln(atomics=At).
 
-test1m() :-
+test1m :-
  plus(X,1,6), X == 5,
 
  plus(1,5,Y), Y = 6,
@@ -103,7 +103,7 @@ test2m:-
 
  true.
 
-test3m():-
+test3m:-
 	simple3(1,100,[],Lst),
 	Lst = [97,89,83,79,73,71,67,61,59,53,47,43,41,37,31,29,23,19,17,13,11,7,5,3,2],
 	test3m([], L),
