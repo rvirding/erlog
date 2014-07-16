@@ -92,7 +92,9 @@
 	[
 		{{localtime, 1}, ?MODULE, localtime_1},
 		{{date_diff, 4}, ?MODULE, datediff_4},
-		{{date_add, 4}, ?MODULE, dateadd_4}
+		{{date_add, 4}, ?MODULE, dateadd_4},
+		{{dateprint, 4}, ?MODULE, dateprint_2},
+		{{dateparse, 4}, ?MODULE, dateparse_2}
 	]).
 
 -define(ERLOG_LISTS,
