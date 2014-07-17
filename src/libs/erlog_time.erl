@@ -53,26 +53,26 @@ time_4({time, H, M, S, Res}, Params = #param{next_goal = Next, bindings = Bs0}) 
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Calculates differense between two date tuples. Returns the result in specifyed format
-datediff_4({datediff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = timer:now_diff(ts_to_date(TS1), ts_to_date(TS2)),
 	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff, Format), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Adds number of seconds T2 in Type format to Time1. Returns the result in Type format
-dateadd_4({dateadd, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+dateadd_4({date_add, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = Time1 + date_to_seconds(T2, Type),
 	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff * 1000000, Type), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Converts timestamp to human readable format
-dateprint_2({dateprint, TS1, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+dateprint_2({date_print, TS1, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	{{Year, Month, Day}, {Hour, Minute, Second}} = date_to_data(ts_to_date(TS1)),
 	DateStr = lists:flatten(io_lib:format("~2w ~2..0w ~4w ~2w:~2..0w:~2..0w", [Day, Month, Year, Hour, Minute, Second])),
 	Bs = ec_support:add_binding(Res, DateStr, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Parses date string and returns timestamp.
-dateparse_2({dateparse, DataStr, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+dateparse_2({date_parse, DataStr, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Data = date_string_to_data(DataStr),
 	Bs = ec_support:add_binding(Res, data_to_ts(Data), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
