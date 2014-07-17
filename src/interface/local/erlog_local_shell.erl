@@ -33,20 +33,15 @@ start() ->
 %% user to enter goals, see resulting bindings and request next
 %% solution.
 server_loop(Core, State, Line) ->
-	case io:fread('| ?- ', "~s") of
-		{ok, [Term]} ->
-			Res = case State of
-				      select -> erlog:select(Core, lists:append(Line, Term));
-				      _ -> erlog:execute(Core, lists:append(Line, Term))
-			      end,
-			{NewState, NewLine} = process_execute(Res, State, Line, Term),
-			case Term of
-				"halt." -> ok;
-				_ -> server_loop(Core, NewState, NewLine)
-			end;
-		{error, {_, Em, E}} ->
-			io:fwrite("Error: ~s\n", [Em:format_error(E)]),
-			server_loop(Core, State, Line)
+	Term = io:get_line('| ?- '),
+	Res = case State of
+		      select -> erlog:select(Core, lists:append(Line, Term));
+		      _ -> erlog:execute(Core, lists:append(Line, Term))
+	      end,
+	{NewState, NewLine} = process_execute(Res, State, Line, Term),
+	case Term of
+		"halt." -> ok;
+		_ -> server_loop(Core, NewState, NewLine)
 	end.
 
 %% Processes return value after execution.

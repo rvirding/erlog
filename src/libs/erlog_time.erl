@@ -52,16 +52,16 @@ time_4({time, H, M, S, Res}, Params = #param{next_goal = Next, bindings = Bs0}) 
 	Bs = ec_support:add_binding(Res, TS, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
-%% Calculates differense between two date tuples. Returns the result in specifyed format
+%% Calculates differense between two timestamps. Returns the result in specifyed format
 datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	Diff = timer:now_diff(ts_to_date(check_var(TS1, Bs0)), ts_to_date(check_var(TS2, Bs0))),
-	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff, Format), Bs0),
+	Diff = timer:now_diff(ts_to_date(check_var(TS1, Bs0)), ts_to_date(check_var(TS2, Bs0))) / 1000000,
+	Bs = ec_support:add_binding(Res, seconds_to_date(Diff, Format), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
-%% Adds number of seconds T2 in Type format to Time1. Returns the result in Type format
+%% Adds number of seconds T2 in Type format to Time1. Returns timestamp
 dateadd_4({date_add, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = check_var(Time1, Bs0) + date_to_seconds(check_var(T2, Bs0), Type),
-	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff * 1000000, Type), Bs0),
+	Bs = ec_support:add_binding(Res, Diff, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Converts timestamp to human readable format
@@ -79,11 +79,11 @@ dateparse_2({date_parse, DataStr, Res}, Params = #param{next_goal = Next, bindin
 
 %% @private
 %% Time in microseconds, atom for output format
--spec microseconds_to_date(Time :: integer(), atom()) -> integer().
-microseconds_to_date(Time, day) -> Time / 86400000000; % day = 24 hours
-microseconds_to_date(Time, hour) -> Time / 3600000000; % hour = 60 min
-microseconds_to_date(Time, minute) -> Time / 60000000; % min = 60 sec
-microseconds_to_date(Time, sec) -> Time / 1000000. % micro = 10^-6
+-spec seconds_to_date(Time :: integer(), atom()) -> integer().
+seconds_to_date(Time, day) -> round(Time / 86400); % day = 24 hours
+seconds_to_date(Time, hour) -> round(Time / 3600); % hour = 60 min
+seconds_to_date(Time, minute) -> round(Time / 60); % min = 60 sec
+seconds_to_date(Time, sec) -> Time.
 
 %% @private
 %% Converts day|hour|minute to seconds
