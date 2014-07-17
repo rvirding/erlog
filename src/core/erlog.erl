@@ -138,8 +138,7 @@ load_built_in(Database) ->
 			erlog_bips,       %Built in predicates
 			erlog_dcg,        %DCG predicates
 			erlog_lists,      %Common lists library
-			erlog_time       %Bindings for working with data and time
-%% 			erlog_db          %Database support %TODO in some cases it is unneeded. Think about loading it dynamically
+			erlog_time        %Bindings for working with data and time
 		]).
 
 %% @private

@@ -40,7 +40,10 @@ server_loop(Core, State, Line) ->
 				      _ -> erlog:execute(Core, lists:append(Line, Term))
 			      end,
 			{NewState, NewLine} = process_execute(Res, State, Line, Term),
-			server_loop(Core, NewState, NewLine);
+			case Term of
+				"halt." -> ok;
+				_ -> server_loop(Core, NewState, NewLine)
+			end;
 		{error, {_, Em, E}} ->
 			io:fwrite("Error: ~s\n", [Em:format_error(E)]),
 			server_loop(Core, State, Line)

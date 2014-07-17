@@ -149,6 +149,13 @@ prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulte
 			erlog_errors:erlog_error(Error, Db)
 	end,
 	ec_body:prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db}) ->
+	try Library:load(Db)
+	catch
+		_:Error ->
+			erlog_errors:erlog_error(Error, Db)
+	end,
+	ec_body:prove_body(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {findall, Goal, Fun, Res}, bindings = Bs0, next_goal = Next, database = Db}) ->
 	Predicates = erlog_memory:finadll(Db, Fun),
 	Element = ec_support:index_of(Goal, tuple_to_list(Fun)) - 1,

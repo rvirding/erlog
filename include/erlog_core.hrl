@@ -79,6 +79,8 @@
 		%% Searching functions
 		{findall, 3},
 		{bagof, 3},
-		{setof, 3}
+		{setof, 3},
+		%% Non standart functions
+		{use, 1} %load erlang library module
 	]
 ).
