@@ -4,9 +4,10 @@ notifications:
   disabled: true
 
 install:
-  - wget http://www.quviq.com/downloads/eqcmini.zip
+  - wget https://www.dropbox.com/s/o1nj06v49mm7fs7/eqcmini.zip
   - unzip eqcmini.zip
   - export ERL_LIBS=eqcmini
+
 
 script:
   - rebar get-deps
