@@ -28,52 +28,52 @@ localtime_1({localtime, Var}, Params = #param{next_goal = Next, bindings = Bs0})
 
 %% Returns timestamp for data, ignoring time
 date_2({date, DateString, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	{{Y, M, D}, _} = date_string_to_data(DateString),
+	{{Y, M, D}, _} = date_string_to_data(check_var(DateString, Bs0)),
 	DataTS = data_to_ts({{Y, M, D}, {0, 0, 0}}),
 	Bs = ec_support:add_binding(Res, DataTS, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Returns timestamp for data, ignoring time
 date_4({date, D, M, Y, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	DataTS = data_to_ts({{Y, M, D}, {0, 0, 0}}),
+	DataTS = data_to_ts({{check_var(Y, Bs0), check_var(M, Bs0), check_var(D, Bs0)}, {0, 0, 0}}),
 	Bs = ec_support:add_binding(Res, DataTS, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Returns timestamp for data, ignoring data.
 time_2({time, TimeString, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	{_, {H, M, S}} = date_string_to_data(TimeString),  %cut YMD
+	{_, {H, M, S}} = date_string_to_data(check_var(TimeString, Bs0)),  %cut YMD
 	TS = S * date_to_seconds(M, minute) * date_to_seconds(H, hour),
 	Bs = ec_support:add_binding(Res, TS, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Returns timestamp for data, ignoring data.
 time_4({time, H, M, S, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	TS = S * date_to_seconds(M, minute) * date_to_seconds(H, hour),
+	TS = check_var(S, Bs0) * date_to_seconds(check_var(M, Bs0), minute) * date_to_seconds(check_var(H, Bs0), hour),
 	Bs = ec_support:add_binding(Res, TS, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Calculates differense between two date tuples. Returns the result in specifyed format
 datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	Diff = timer:now_diff(ts_to_date(TS1), ts_to_date(TS2)),
+	Diff = timer:now_diff(ts_to_date(check_var(TS1, Bs0)), ts_to_date(check_var(TS2, Bs0))),
 	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff, Format), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Adds number of seconds T2 in Type format to Time1. Returns the result in Type format
 dateadd_4({date_add, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	Diff = Time1 + date_to_seconds(T2, Type),
+	Diff = check_var(Time1, Bs0) + date_to_seconds(check_var(T2, Bs0), Type),
 	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff * 1000000, Type), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Converts timestamp to human readable format
 dateprint_2({date_print, TS1, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	{{Year, Month, Day}, {Hour, Minute, Second}} = date_to_data(ts_to_date(TS1)),
+	{{Year, Month, Day}, {Hour, Minute, Second}} = date_to_data(ts_to_date(check_var(TS1, Bs0))),
 	DateStr = lists:flatten(io_lib:format("~2w ~2..0w ~4w ~2w:~2..0w:~2..0w", [Day, Month, Year, Hour, Minute, Second])),
 	Bs = ec_support:add_binding(Res, DateStr, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Parses date string and returns timestamp.
 dateparse_2({date_parse, DataStr, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	Data = date_string_to_data(DataStr),
+	Data = date_string_to_data(check_var(DataStr, Bs0)),
 	Bs = ec_support:add_binding(Res, data_to_ts(Data), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
@@ -127,3 +127,9 @@ ts_to_date(Timestamp) ->
 	TSStr = integer_to_list(Timestamp),
 	{M1, S1} = lists:split(4, TSStr),
 	{list_to_integer(M1), list_to_integer(S1), 0}.
+
+
+%% @private
+%% Checks - if var is normal, or binded. Returns var's value.
+check_var({Var}, Bs) -> ec_support:deref({Var}, Bs);
+check_var(Var, _) -> Var.

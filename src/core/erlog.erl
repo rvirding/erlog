@@ -195,7 +195,7 @@ prove_goal(Goal0, State = #state{db = Db, f_consulter = Fcon, e_man = Event}) ->
 	%% optimisation.
 	case erlog_logic:prove_result(catch erlog_core:prove_goal(Goal1, Db, Fcon, Event), Vs) of
 		{succeed, Res, Args} -> {{succeed, Res}, State#state{state = Args}};
-		OtherRes -> {OtherRes, State}
+		OtherRes -> io:format("other res ~p~n", [OtherRes]),{OtherRes, State}
 	end.
 
 %% @private
