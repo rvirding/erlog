@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([body_instance/5, prove_body/1, unify_prove_body/3, unify_prove_body/5, body_term/3]).
+-export([body_instance/5, prove_body/1, unify_prove_body/3, unify_prove_body/5, body_term/3, well_form_body/4, well_form_body/3]).
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
 %%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
