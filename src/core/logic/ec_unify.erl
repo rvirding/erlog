@@ -9,7 +9,7 @@
 -module(ec_unify).
 -author("tihon").
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 %% API
 -export([unify/3, unify_clauses/4, unify_head/4]).

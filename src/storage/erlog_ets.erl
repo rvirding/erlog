@@ -11,8 +11,6 @@
 
 -behaviour(erlog_storage).
 
--include("erlog_int.hrl").
-
 %% erlog callbacks
 -export([new/0, new/1,
 	add_built_in/2,

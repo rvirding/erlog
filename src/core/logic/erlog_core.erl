@@ -14,7 +14,12 @@
 
 -module(erlog_core).
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
+-include("erlog_bips.hrl").
+-include("erlog_db.hrl").
+-include("erlog_dcg.hrl").
+-include("erlog_lists.hrl").
+-include("erlog_time.hrl").
 
 %% Main execution functions.
 -export([

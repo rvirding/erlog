@@ -18,7 +18,7 @@
 
 -module(erlog_logic).
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 -export([vars_in/1, is_legal_term/1, reconsult_files/3, select_bindings/2, shell_prove_result/1, prove_result/2, unlistify/1]).
 

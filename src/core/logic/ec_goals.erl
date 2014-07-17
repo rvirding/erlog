@@ -9,7 +9,7 @@
 -module(ec_goals).
 -author("tihon").
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 %% API
 -export([prove_goal/1, initial_goal/1]).
@@ -83,17 +83,14 @@ prove_goal(Param = #param{goal = {abolish, Pi0}, next_goal = Next, bindings = Bs
 			ec_body:prove_body(Param#param{goal = Next});
 		Pi -> erlog_errors:type_error(predicate_indicator, Pi, Db)
 	end;
-prove_goal(Param = #param{goal = {assert, C0}, next_goal = Next, bindings = Bs, database = Db}) ->
+prove_goal(Param = #param{goal = {Assert, C0}, next_goal = Next, bindings = Bs, database = Db})
+	when Assert == assert; Assert == assertz ->
 	C = ec_support:dderef(C0, Bs),
 	erlog_memory:assertz_clause(Db, C),
 	ec_body:prove_body(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {asserta, C0}, next_goal = Next, bindings = Bs, database = Db}) ->
 	C = ec_support:dderef(C0, Bs),
 	erlog_memory:asserta_clause(Db, C),
-	ec_body:prove_body(Param#param{goal = Next});
-prove_goal(Param = #param{goal = {assertz, C0}, next_goal = Next, bindings = Bs, database = Db}) ->
-	C = ec_support:dderef(C0, Bs),
-	erlog_memory:assertz_clause(Db, C),
 	ec_body:prove_body(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {retract, C0}, bindings = Bs}) ->
 	C = ec_support:dderef(C0, Bs),

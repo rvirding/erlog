@@ -18,7 +18,8 @@
 
 -module(erlog_dcg).
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
+-include("erlog_dcg.hrl").
 
 -export([expand_term/1, expand_term/2]).
 -export([expand_term_2/1, phrase_3/1]).

@@ -9,10 +9,13 @@
 -module(erlog_time).
 -author("tihon").
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
+-include("erlog_time.hrl").
 
 %% API
--export([load/1, localtime_1/2, datediff_4/2, dateadd_4/2, dateprint_2/2, dateparse_2/2, date_2/2, date_4/2]).
+-export([load/1, localtime_1/2]).
+-export([date_2/2, date_4/2, time_2/2, time_4/2]).
+-export([datediff_4/2, dateadd_4/2, dateprint_2/2, dateparse_2/2]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_TIME).
@@ -36,6 +39,19 @@ date_4({date, D, M, Y, Res}, Params = #param{next_goal = Next, bindings = Bs0}) 
 	Bs = ec_support:add_binding(Res, DataTS, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
+%% Returns timestamp for data, ignoring data.
+time_2({time, TimeString, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	{_, {H, M, S}} = date_string_to_data(TimeString),  %cut YMD
+	TS = S * date_to_seconds(M, minute) * date_to_seconds(H, hour),
+	Bs = ec_support:add_binding(Res, TS, Bs0),
+	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
+
+%% Returns timestamp for data, ignoring data.
+time_4({time, H, M, S, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	TS = S * date_to_seconds(M, minute) * date_to_seconds(H, hour),
+	Bs = ec_support:add_binding(Res, TS, Bs0),
+	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
+
 %% Calculates differense between two date tuples. Returns the result in specifyed format
 datediff_4({datediff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = timer:now_diff(ts_to_date(TS1), ts_to_date(TS2)),
@@ -44,14 +60,13 @@ datediff_4({datediff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, 
 
 %% Adds number of seconds T2 in Type format to Time1. Returns the result in Type format
 dateadd_4({dateadd, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	Ts1 = date_to_ts(Time1),
-	Diff = Ts1 + date_to_seconds(T2, Type),
+	Diff = Time1 + date_to_seconds(T2, Type),
 	Bs = ec_support:add_binding(Res, microseconds_to_date(Diff * 1000000, Type), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Converts timestamp to human readable format
 dateprint_2({dateprint, TS1, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	{{Year, Month, Day}, {Hour, Minute, Second}} = calendar:now_to_universal_time(ts_to_date(TS1)),
+	{{Year, Month, Day}, {Hour, Minute, Second}} = date_to_data(ts_to_date(TS1)),
 	DateStr = lists:flatten(io_lib:format("~2w ~2..0w ~4w ~2w:~2..0w:~2..0w", [Day, Month, Year, Hour, Minute, Second])),
 	Bs = ec_support:add_binding(Res, DateStr, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
@@ -79,7 +94,7 @@ date_to_seconds(Time, minute) -> Time * 60;
 date_to_seconds(Time, sec) -> Time.
 
 %% @private
-%% Converts string date representation to timestamp. Format DD MM YYYY HH:MM:SS
+%% Converts string date representation to timestamp. Format DD MM YYYY hh:mm:ss
 -spec date_string_to_data(string()) -> tuple().
 date_string_to_data(DataStr) ->
 	[DStr, MStr, YStr, HStr, MnStr, SStr] = string:tokens(DataStr, " :"),
@@ -91,6 +106,12 @@ date_string_to_data(DataStr) ->
 -spec data_to_ts(tuple()) -> integer().
 data_to_ts(Data) ->
 	calendar:datetime_to_gregorian_seconds(Data) - 62167219200.
+
+%% @private
+%% Converts data tuple to date tuple {{YYYY,MM,DD},{hh,mm,ss}}
+-spec date_to_data(tuple()) -> tuple().
+date_to_data(Ts) ->
+	calendar:now_to_universal_time(Ts).
 
 %% @private
 %% Converts data tuple (part of timestamp: MegaSecs, Secs) to integer seconds

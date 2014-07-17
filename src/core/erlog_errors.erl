@@ -9,7 +9,7 @@
 -module(erlog_errors).
 -author("tihon").
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 %% API
 -export([type_error/3, instantiation_error/1, permission_error/4,

@@ -9,7 +9,7 @@
 -module(ec_body).
 -author("tihon").
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 %% API
 -export([body_instance/5, prove_body/1, unify_prove_body/3, unify_prove_body/5, body_term/3]).

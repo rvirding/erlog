@@ -23,7 +23,8 @@
 
 -module(erlog_lists).
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
+-include("erlog_lists.hrl").
 
 %% Main interface functions.
 -export([load/1]).

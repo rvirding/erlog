@@ -9,10 +9,13 @@
 -module(ec_support).
 -author("tihon").
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 %% API
--export([new_bindings/0, get_binding/2, add_binding/3, functor/1, cut/3, collect_alternatives/3, update_result/4, update_vars/4, deref/2, dderef_list/2, make_vars/2, pred_ind/1, deref_list/2]).
+-export([new_bindings/0, get_binding/2, add_binding/3,
+	functor/1, cut/3, collect_alternatives/3,
+	update_result/4, update_vars/4, deref/2, dderef_list/2,
+	make_vars/2, pred_ind/1, deref_list/2]).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.

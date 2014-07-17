@@ -21,7 +21,8 @@
 
 -module(erlog_bips).
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
+-include("erlog_bips.hrl").
 
 %% Main interface functions.
 -export([load/1]).

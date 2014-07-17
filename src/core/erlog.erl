@@ -30,7 +30,7 @@
 -behaviour(gen_server).
 -vsn('0.7').
 
--include("erlog_int.hrl").
+-include("erlog_core.hrl").
 
 %% Interface to server.
 -export([start_link/1, start_link/0, execute/2, select/2]).
@@ -138,7 +138,8 @@ load_built_in(Database) ->
 			erlog_bips,       %Built in predicates
 			erlog_dcg,        %DCG predicates
 			erlog_lists,      %Common lists library
-			erlog_time        %Bindings for working with data and time
+			erlog_time       %Bindings for working with data and time
+%% 			erlog_db          %Database support %TODO in some cases it is unneeded. Think about loading it dynamically
 		]).
 
 %% @private

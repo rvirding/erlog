@@ -11,12 +11,13 @@
 
 -behaviour(gen_server).
 
--include("erlog_int.hrl").
-
 %% API
 -export([start_link/1, start_link/2, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
 	retract_clause/3, abolish_clauses/2, get_procedure/2, get_procedure_type/2,
 	get_interp_functors/1, assertz_clause/2, asserta_clause/2, finadll/2]).
+
+-export([db_assertz_clause/3, db_assertz_clause/4, db_asserta_clause/4, db_asserta_clause/3,
+	db_retract_clause/4, db_abolish_clauses/3]).
 
 -export([add_built_in/2]).
 
@@ -47,15 +48,27 @@ assertz_clause(Database, {':-', Head, Body}) -> assertz_clause(Database, Head, B
 assertz_clause(Database, Head) -> assertz_clause(Database, Head, true).
 assertz_clause(Database, Head, Body) -> gen_server:call(Database, {assertz_clause, {Head, Body}}).
 
+db_assertz_clause(Database, Collection, {':-', Head, Body}) -> db_assertz_clause(Database, Collection, Head, Body);
+db_assertz_clause(Database, Collection, Head) -> db_assertz_clause(Database, Collection, Head, true).
+db_assertz_clause(Database, Collection, Head, Body) ->
+	gen_server:call(Database, {assertz_clause, {Collection, Head, Body}}).
+
 asserta_clause(Database, {':-', H, B}) -> asserta_clause(Database, H, B);
 asserta_clause(Database, H) -> asserta_clause(Database, H, true).
 asserta_clause(Database, Head, Body) -> gen_server:call(Database, {asserta_clause, {Head, Body}}).
 
+db_asserta_clause(Database, Collection, {':-', H, B}) -> db_asserta_clause(Database, Collection, H, B);
+db_asserta_clause(Database, Collection, H) -> db_asserta_clause(Database, Collection, H, true).
+db_asserta_clause(Database, Collection, Head, Body) ->
+	gen_server:call(Database, {asserta_clause, {Collection, Head, Body}}).
+
 finadll(Database, Fun) -> gen_server:call(Database, {findall, Fun}).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
+db_retract_clause(Database, Collection, F, Ct) -> gen_server:call(Database, {retract_clause, {Collection, F, Ct}}).
 
 abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, Func}).
+db_abolish_clauses(Database, Collection, Func) -> gen_server:call(Database, {abolish_clauses, Collection, Func}).
 
 get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, Func}).
 
