@@ -12,7 +12,7 @@
 	[
 		{{localtime, 1}, ?MODULE, localtime_1},
 		{{date_diff, 4}, ?MODULE, datediff_4},
-		{{date_add, 4}, ?MODULE, dateadd_4},
+		{{add_time, 4}, ?MODULE, add_time_4},
 		{{date_print, 4}, ?MODULE, dateprint_2},
 		{{date_parse, 4}, ?MODULE, dateparse_2},
 		{{date, 2}, ?MODULE, date_2},

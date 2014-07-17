@@ -15,7 +15,7 @@
 %% API
 -export([load/1, localtime_1/2]).
 -export([date_2/2, date_4/2, time_2/2, time_4/2]).
--export([datediff_4/2, dateadd_4/2, dateprint_2/2, dateparse_2/2]).
+-export([datediff_4/2, add_time_4/2, dateprint_2/2, dateparse_2/2]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_TIME).
@@ -59,7 +59,7 @@ datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next,
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Adds number of seconds T2 in Type format to Time1. Returns timestamp
-dateadd_4({date_add, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+add_time_4({add_time, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = check_var(Time1, Bs0) + date_to_seconds(check_var(T2, Bs0), Type),
 	Bs = ec_support:add_binding(Res, Diff, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
@@ -80,9 +80,9 @@ dateparse_2({date_parse, DataStr, Res}, Params = #param{next_goal = Next, bindin
 %% @private
 %% Time in microseconds, atom for output format
 -spec seconds_to_date(Time :: integer(), atom()) -> integer().
-seconds_to_date(Time, day) -> round(Time / 86400); % day = 24 hours
-seconds_to_date(Time, hour) -> round(Time / 3600); % hour = 60 min
-seconds_to_date(Time, minute) -> round(Time / 60); % min = 60 sec
+seconds_to_date(Time, day) -> Time / 86400; % day = 24 hours
+seconds_to_date(Time, hour) -> Time / 3600; % hour = 60 min
+seconds_to_date(Time, minute) -> Time / 60; % min = 60 sec
 seconds_to_date(Time, sec) -> Time.
 
 %% @private
