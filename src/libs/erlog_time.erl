@@ -60,6 +60,7 @@ datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next,
 
 %% Adds number of seconds T2 in Type format to Time1. Returns timestamp
 add_time_4({add_time, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	io:format("add time ~p ~p ~p~n", [Time1, Type, T2]),
 	Diff = check_var(Time1, Bs0) + date_to_seconds(check_var(T2, Bs0), Type),
 	Bs = ec_support:add_binding(Res, Diff, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
@@ -131,6 +132,10 @@ ts_to_date(Timestamp) ->
 
 %% @private
 %% Checks - if var is normal, or binded, or < 0 (if int). Returns var's value.
+check_var({'-', Var}, Bs) ->
+	case check_var(Var, Bs) of
+		Res when is_integer(Res) -> -1 * Res;
+		Res -> Res
+	end;
 check_var({Var}, Bs) -> check_var(ec_support:deref({Var}, Bs), Bs);
-check_var({'-', Var}, _) when is_integer(Var) -> Var * -1;
 check_var(Var, _) -> Var.
