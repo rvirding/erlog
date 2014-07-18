@@ -2,7 +2,7 @@ add_some_facts(Now):-
     add_some_facts(Now, 32, 10, [5, 15, 25, 30, 35, 40, 45, 50]).
  
 add_some_facts(LastTime, HoursFrom, MinutesDiap, SomeValues):-
-    add_time(LastTime, hour, -HoursFrom, LastTime),
+    add_time(LastTime, hour, -HoursFrom, FirstDate),
     generate_facts(FirstDate, LastTime,  MinutesDiap, SomeValues, SomeValues).
      
 generate_facts(FirstDate, LastTime,  MinutesDiap, [Val|L], SomeValues):-
@@ -16,7 +16,7 @@ generate_facts(_, _,  _, _, _).
  
 get_sum(Sum, Now):-
     Name = "some name",
-    findall(Val, (some_fact( Name, Val, Time), date_diff( Time, Now, hour, Acum), Acum =< 24), Vals),
+    findall(Val, (some_fact( Name, Val, Time), date_diff( Now, Time, hour, Acum), Acum =< 24), Vals),
     sum(Vals, Sum).
  
 sum( Vals, Sum):-
@@ -33,7 +33,7 @@ get_sum1(Sum, Now):-
     acum_fact(Name, Sum).
 get_sum1(Sum, Now, Name):-
     some_fact( Name, Val, Time),
-    date_diff( Time, Now, hour, Acum),
+    date_diff( Now, Time, hour, Acum),
     Acum =< 24,
     acum_val(Name, Acum),
     fail.
