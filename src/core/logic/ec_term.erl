@@ -10,7 +10,7 @@
 -author("tihon").
 
 %% API
--export([term_instance/2]).
+-export([term_instance/2, term_instance/3]).
 
 %% term_instance(Term, VarNum) -> {Term,NewRepls,NewVarNum}.
 %% term_instance(Term, Repls, VarNum) -> {Term,NewRepls,NewVarNum}.

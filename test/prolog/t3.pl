@@ -2,11 +2,11 @@ add_some_facts(Now):-
     add_some_facts(Now, 32, 10, [5, 15, 25, 30, 35, 40, 45, 50]).
  
 add_some_facts(LastTime, HoursFrom, MinutesDiap, SomeValues):-
-    date_add(LastTime, hour, -HoursFrom, LastTime),
+    add_time(LastTime, hour, -HoursFrom, LastTime),
     generate_facts(FirstDate, LastTime,  MinutesDiap, SomeValues, SomeValues).
      
 generate_facts(FirstDate, LastTime,  MinutesDiap, [Val|L], SomeValues):-
-    date_add(FirstDate, minute, MinutesDiap, NextTime),
+    add_time(FirstDate, minute, MinutesDiap, NextTime),
     NextTime =< LastTime,
     assert(some_fact("some name", Val, NextTime)),
     generate_facts(NextTime, LastTime,  MinutesDiap, L, SomeValues).
