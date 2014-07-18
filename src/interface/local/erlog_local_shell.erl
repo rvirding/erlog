@@ -57,8 +57,14 @@ process_execute(Reply, _, _, _) ->
 %% Processes reply from prolog. Form it to normal view.
 -spec process_reply(tuple()) -> tuple().
 process_reply({Res, select}) ->
-	io:format("~p~n: ", [{Res, select}]),
+	print_res(Res),
 	{select, []};
 process_reply(Res) ->
-	io:format("~p~n", [Res]),
+	print_res(Res),
 	{normal, []}.
+
+print_res({Bool, Bindings}) ->
+	io:format("~p~n", [Bool]),
+	lists:foreach(fun({Var, Value}) -> io:format("~p = ~p~n", [Var, Value]) end, Bindings);
+print_res(Res) ->
+	io:format("~p~n", [Res]).
