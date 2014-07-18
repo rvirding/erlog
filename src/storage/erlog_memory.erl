@@ -17,7 +17,7 @@
 	get_interp_functors/1, assertz_clause/2, asserta_clause/2, finadll/2]).
 
 -export([db_assertz_clause/3, db_assertz_clause/4, db_asserta_clause/4, db_asserta_clause/3,
-	db_retract_clause/4, db_abolish_clauses/3]).
+	db_retract_clause/4, db_abolish_clauses/3, get_db_procedure/3]).
 
 -export([add_built_in/2]).
 
@@ -71,6 +71,7 @@ abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, F
 db_abolish_clauses(Database, Collection, Func) -> gen_server:call(Database, {abolish_clauses, Collection, Func}).
 
 get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, Func}).
+get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {get_procedure, Collection, Func}).
 
 get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, Func}).
 

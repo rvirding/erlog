@@ -130,6 +130,7 @@ ts_to_date(Timestamp) ->
 
 
 %% @private
-%% Checks - if var is normal, or binded. Returns var's value.
-check_var({Var}, Bs) -> ec_support:deref({Var}, Bs);
+%% Checks - if var is normal, or binded, or < 0 (if int). Returns var's value.
+check_var({Var}, Bs) -> check_var(ec_support:deref({Var}, Bs), Bs);
+check_var({'-', Var}, _) when is_integer(Var) -> Var * -1;
 check_var(Var, _) -> Var.
