@@ -10,11 +10,11 @@
 
 -define(ERLOG_DB,
 	[
-		{abolish, 1},
-		{assert, 1},
-		{asserta, 1},
-		{assertz, 1},
-		{retract, 1},
-		{retractall, 1}
+		{{db_abolish, 2}, ?MODULE, db_abolish_2},
+		{{db_assert, 2}, ?MODULE, db_assert_2},
+		{{db_asserta, 2}, ?MODULE, db_asserta_2},
+		{{db_assertz, 2}, ?MODULE, db_assert_2},
+		{{db_retract, 2}, ?MODULE, db_retract_2},
+		{{db_retractall, 2}, ?MODULE, db_retractall_2}
 	]
 ).
