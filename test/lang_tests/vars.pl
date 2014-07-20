@@ -2,7 +2,9 @@
 
 
 test(File) :-
-	nonvar(3).
+	nonvar(3),
+	nonvar(x),
+	nonvar([]).
 	
 
 	
