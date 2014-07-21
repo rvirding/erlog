@@ -11,10 +11,10 @@ prop_lang() ->
 			       end, Files),
     PL = erlog:new(),
     lists:all(fun(File) ->
-			  {ok,PL1} = PL({consult,"test/lang_tests/"++ File}),
-			  ?assertMatch({{succeed, _},_}, PL1({prove, {test,File}})),
-			  true
-			  end, PLFiles).
+		      {ok,PL1} = PL({consult,"test/lang_tests/"++ File}),
+		      ?assertMatch({{succeed, _},_}, PL1({prove, {test,File}})),
+		      true
+	      end, PLFiles).
 
 
 
