@@ -233,4 +233,5 @@ format_error(Type, Params) ->
 			(Param, Acc) ->
 				[io_lib:format("~p", [Param]) | Acc]
 		end, ["\n"], [Type | Params]),
-	string:join(B, ": ").
+	S = string:join(B, ": "),
+	lists:flatten(S).
