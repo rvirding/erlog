@@ -8,6 +8,10 @@
 %%%-------------------------------------------------------------------
 -author("tihon").
 
+-define(MONTHS, {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+	"Aug", "Sep", "Oct", "Nov", "Dec"}).
+-define(MONTH(X), element(X, ?MONTHS)).
+
 -define(ERLOG_TIME,
 	[
 		{{localtime, 1}, ?MODULE, localtime_1},

@@ -67,7 +67,7 @@ add_time_4({add_time, Time1, Type, T2, Res}, Params = #param{next_goal = Next, b
 %% Converts timestamp to human readable format
 dateprint_2({date_print, TS1, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	{{Year, Month, Day}, {Hour, Minute, Second}} = date_to_data(ts_to_date(check_var(TS1, Bs0))),
-	DateStr = lists:flatten(io_lib:format("~2w ~2..0w ~4w ~2w:~2..0w:~2..0w", [Day, Month, Year, Hour, Minute, Second])),
+	DateStr = lists:flatten(io_lib:format("~s ~2w ~4w ~2w:~2..0w:~2..0w", [?MONTH(Month), Day, Year, Hour, Minute, Second])),
 	Bs = ec_support:add_binding(Res, DateStr, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
@@ -94,11 +94,12 @@ date_to_seconds(Time, minute) -> Time * 60;
 date_to_seconds(Time, sec) -> Time.
 
 %% @private
-%% Converts string date representation to timestamp. Format DD MM YYYY hh:mm:ss
+%% Converts string date representation to timestamp. Format MM DD YYYY hh:mm:ss
 -spec date_string_to_data(string()) -> tuple().
 date_string_to_data(DataStr) ->
-	[DStr, MStr, YStr, HStr, MnStr, SStr] = string:tokens(DataStr, " :"),
-	{{list_to_integer(YStr), list_to_integer(MStr), list_to_integer(DStr)},
+	[MStr, DStr, YStr, HStr, MnStr, SStr] = string:tokens(DataStr, " :"),
+	Month = ec_support:index_of(MStr, tuple_to_list(?MONTHS)),
+	{{list_to_integer(YStr), Month, list_to_integer(DStr)},
 		{list_to_integer(HStr), list_to_integer(MnStr), list_to_integer(SStr)}}.
 
 %% @private
