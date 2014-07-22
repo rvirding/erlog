@@ -31,10 +31,10 @@ new() -> {ok, dict:new()}.
 
 new(_) -> {ok, dict:new()}.
 
-add_built_in(Db, Functor) ->
+add_built_in(Db, {Functor}) ->
 	{ok, dict:store(Functor, built_in, Db)}.
 
-add_compiled_proc(Db, {Functor, M, F}) ->
+add_compiled_proc(Db, {{Functor, M, F}}) ->
 	{ok, dict:update(Functor,
 		fun(built_in) ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
@@ -64,7 +64,7 @@ retract_clause(Db, {Functor, Ct}) ->
 		     error -> Db        %Do nothing
 	     end}.
 
-abolish_clauses(Db, Functor) ->
+abolish_clauses(Db, {Functor}) ->
 	{ok, case dict:find(Functor, Db) of
 		     {ok, built_in} ->
 			     erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
@@ -73,7 +73,7 @@ abolish_clauses(Db, Functor) ->
 		     error -> Db        %Do nothing
 	     end}.
 
-get_procedure(Db, Functor) ->
+get_procedure(Db, {Functor}) ->
 	{case dict:find(Functor, Db) of
 		 {ok, built_in} -> built_in;    %A built-in
 		 {ok, {code, {_M, _F}} = P} -> P;    %Compiled (perhaps someday)
@@ -81,7 +81,7 @@ get_procedure(Db, Functor) ->
 		 error -> undefined      %Undefined
 	 end, Db}.
 
-get_procedure_type(Db, Functor) ->
+get_procedure_type(Db, {Functor}) ->
 	{case dict:find(Functor, Db) of
 		 {ok, built_in} -> built_in;    %A built-in
 		 {ok, {code, _}} -> compiled;    %Compiled (perhaps someday)
@@ -108,5 +108,5 @@ clause(Head, Body0, Db, ClauseFun) ->
 			({clauses, T, Cs}) -> ClauseFun(T, Body, Cs)
 		end, {clauses, 1, [{0, Head, Body}]}, Db).
 
-findall(State, Functor) ->  %TODO implement me!
+findall(State, {Functor}) ->  %TODO implement me!
 	erlang:error(not_implemented).

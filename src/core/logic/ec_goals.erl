@@ -157,7 +157,7 @@ prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db
 	end,
 	ec_body:prove_body(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {findall, Goal, Fun, Res}, bindings = Bs0, next_goal = Next, database = Db}) ->
-	Predicates = erlog_memory:finadll(Db, Fun),
+	Predicates = erlog_memory:finadll(Db, Fun), %TODO findall(A, (append(L, [B|L2], [1,2,3,4,5]), A is B * 10), R)
 	Element = ec_support:index_of(Goal, tuple_to_list(Fun)) - 1,
 	Result = lists:foldr(
 		fun({_, Pred, _}, Acc) ->

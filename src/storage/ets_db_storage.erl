@@ -2,24 +2,18 @@
 %%% @author tihon
 %%% @copyright (C) 2014, <COMPANY>
 %%% @doc
-%%%
+%%% Default implementation of standalone database. For test purposes of
+%%% operating facts with another db. It goes as an extencion of erlog_ets.
 %%% @end
-%%% Created : 18. июн 2014 21:48
+%%% Created : 22. Июль 2014 0:49
 %%%-------------------------------------------------------------------
--module(erlog_memory).
+-module(ets_db_storage).
 -author("tihon").
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, start_link/2, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
-	retract_clause/3, abolish_clauses/2, get_procedure/2, get_procedure_type/2,
-	get_interp_functors/1, assertz_clause/2, asserta_clause/2, finadll/2]).
-
--export([db_assertz_clause/3, db_assertz_clause/4, db_asserta_clause/4, db_asserta_clause/3,
-	db_retract_clause/4, db_abolish_clauses/3, get_db_procedure/3]).
-
--export([add_built_in/2]).
+-export([start_link/0, get_db/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -33,49 +27,14 @@
 
 -record(state,
 {
-	database :: atom(), % callback module
-	state :: term() % callback state
+	ets = [] :: proplists:proplist()
 }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-add_built_in(Database, Element) -> gen_server:call(Database, {add_built_in, {Element}}).
-
-add_compiled_proc(Database, Proc) -> gen_server:call(Database, {add_compiled_proc, {Proc}}).
-
-assertz_clause(Database, {':-', Head, Body}) -> assertz_clause(Database, Head, Body);
-assertz_clause(Database, Head) -> assertz_clause(Database, Head, true).
-assertz_clause(Database, Head, Body) -> gen_server:call(Database, {assertz_clause, {Head, Body}}).
-
-db_assertz_clause(Database, Collection, {':-', Head, Body}) -> db_assertz_clause(Database, Collection, Head, Body);
-db_assertz_clause(Database, Collection, Head) -> db_assertz_clause(Database, Collection, Head, true).
-db_assertz_clause(Database, Collection, Head, Body) ->
-	gen_server:call(Database, {assertz_clause, {Collection, Head, Body}}).
-
-asserta_clause(Database, {':-', H, B}) -> asserta_clause(Database, H, B);
-asserta_clause(Database, H) -> asserta_clause(Database, H, true).
-asserta_clause(Database, Head, Body) -> gen_server:call(Database, {asserta_clause, {Head, Body}}).
-
-db_asserta_clause(Database, Collection, {':-', H, B}) -> db_asserta_clause(Database, Collection, H, B);
-db_asserta_clause(Database, Collection, H) -> db_asserta_clause(Database, Collection, H, true).
-db_asserta_clause(Database, Collection, Head, Body) ->
-	gen_server:call(Database, {asserta_clause, {Collection, Head, Body}}).
-
-finadll(Database, Fun) -> gen_server:call(Database, {findall, {Fun}}).
-
-retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
-db_retract_clause(Database, Collection, F, Ct) -> gen_server:call(Database, {retract_clause, {Collection, F, Ct}}).
-
-abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, {Func}}).
-db_abolish_clauses(Database, Collection, Func) -> gen_server:call(Database, {abolish_clauses, {Collection, Func}}).
-
-get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, {Func}}).
-get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {get_procedure, {Collection, Func}}).
-
-get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, {Func}}).
-
-get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
+-spec get_db(atom()) -> ets.
+get_db(Collection) -> gen_server:call(?MODULE, {get_db, Collection}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -83,16 +42,10 @@ get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link(Database :: atom()) ->
+-spec(start_link() ->
 	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Database) ->
-	gen_server:start_link(?MODULE, [Database], []).
--spec(start_link(Database :: atom(), Params :: list() | atom()) ->
-	{ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Database, undefined) ->
-	start_link(Database);
-start_link(Database, Params) ->
-	gen_server:start_link(?MODULE, [Database, Params], []).
+start_link() ->
+	gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -112,12 +65,8 @@ start_link(Database, Params) ->
 -spec(init(Args :: term()) ->
 	{ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term()} | ignore).
-init([Database]) when is_atom(Database) ->
-	{ok, State} = Database:new(),
-	{ok, #state{database = Database, state = State}};
-init([Database, Params]) when is_atom(Database) ->
-	{ok, State} = Database:new(Params),
-	{ok, #state{database = Database, state = State}}.
+init([]) ->
+	{ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -134,12 +83,13 @@ init([Database, Params]) when is_atom(Database) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Database}) ->
-	{Res, NewState} = Database:Fun(DbState, Params),
-	{reply, Res, State#state{state = NewState}};
-handle_call(Fun, _From, State = #state{state = State, database = Database}) ->
-	{Res, NewState} = Database:Fun(State),
-	{reply, Res, State#state{state = NewState}};
+handle_call({get_db, Collection}, _From, State = #state{ets = Dbs}) ->
+	case proplists:get_value(Collection, Dbs) of
+		undefined ->
+			Ets = ets:new(Collection, [public]),
+			{reply, Ets, State#state{ets = [{Collection, Ets} | Dbs]}};
+		Ets -> {reply, Ets, State}
+	end;
 handle_call(_Request, _From, State) ->
 	{reply, ok, State}.
 

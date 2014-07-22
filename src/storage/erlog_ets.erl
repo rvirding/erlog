@@ -28,11 +28,11 @@ new() -> {ok, ets:new(eets, [])}.
 
 new(_) -> {ok, ets:new(eets, [])}.
 
-add_built_in(Db, Functor) ->
+add_built_in(Db, {Functor}) ->
 	true = ets:insert(Db, {Functor, built_in}),
 	{ok, Db}.
 
-add_compiled_proc(Db, {Functor, M, F}) ->
+add_compiled_proc(Db, {{Functor, M, F}}) ->
 	case ets:lookup(Db, Functor) of
 		[{_, built_in}] ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
@@ -41,6 +41,10 @@ add_compiled_proc(Db, {Functor, M, F}) ->
 	end,
 	{ok, Db}.
 
+assertz_clause(Db, {Collection, Head, Body0}) ->
+	Ets = ets_db_storage:get_db(Collection),
+	{ok, _} = assertz_clause(Ets, {Head, Body0}),
+	{ok, Db};
 assertz_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
@@ -48,6 +52,10 @@ assertz_clause(Db, {Head, Body0}) ->
 		end),
 	{ok, Db}.
 
+asserta_clause(Db, {Collection, Head, Body0}) ->
+	Ets = ets_db_storage:get_db(Collection),
+	{ok, _} = asserta_clause(Ets, {Head, Body0}),
+	{ok, Db};
 asserta_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
@@ -55,6 +63,10 @@ asserta_clause(Db, {Head, Body0}) ->
 		end),
 	{ok, Db}.
 
+retract_clause(Db, {Collection, Functor, Ct}) ->
+	Ets = ets_db_storage:get_db(Collection),
+	{ok, _} = retract_clause(Ets, {Functor, Ct}),
+	{ok, Db};
 retract_clause(Db, {Functor, Ct}) ->
 	case ets:lookup(Db, Functor) of
 		[{_, built_in}] ->
@@ -67,7 +79,11 @@ retract_clause(Db, {Functor, Ct}) ->
 	end,
 	{ok, Db}.
 
-abolish_clauses(Db, Functor) ->
+abolish_clauses(Db, {Collection, Functor}) ->
+	Ets = ets_db_storage:get_db(Collection),
+	{ok, _} = abolish_clauses(Ets, Functor),
+	{ok, Db};
+abolish_clauses(Db, {Functor}) ->
 	case ets:lookup(Db, Functor) of
 		[{_, built_in}] ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
@@ -77,16 +93,22 @@ abolish_clauses(Db, Functor) ->
 	end,
 	{ok, Db}.
 
-findall(Db, Functor) ->
+findall(Db, {Functor}) ->
 	Params = tuple_to_list(Functor),
 	Fun = hd(Params),
 	Len = length(Params) - 1,
 	case ets:lookup(Db, {Fun, Len}) of
-		[{_, _, _, Body}] -> {Body, Db};
+		[{_, clauses, _, Body}] -> {Body, Db};
+		[{_, code, Body}] -> {Body, Db};
+		[{Body, built_in}] -> {Body, Db};
 		[] -> {[], Db}
 	end.
 
-get_procedure(Db, Functor) ->
+get_procedure(Db, {Collection, Functor}) ->
+	Ets = ets_db_storage:get_db(Collection),
+	{ok, _} = get_procedure(Ets, Functor),
+	{ok, Db};
+get_procedure(Db, {Functor}) ->
 	{case ets:lookup(Db, Functor) of
 		 [{_, built_in}] -> built_in;
 		 [{_, code, C}] -> {code, C};
@@ -94,7 +116,7 @@ get_procedure(Db, Functor) ->
 		 [] -> undefined
 	 end, Db}.
 
-get_procedure_type(Db, Functor) ->
+get_procedure_type(Db, {Functor}) ->
 	{case ets:lookup(Db, Functor) of
 		 [{_, built_in}] -> built_in;    %A built-in
 		 [{_, code, _C}] -> compiled;    %Compiled (perhaps someday)

@@ -27,6 +27,8 @@ start() ->
 		[erlang:system_info(version)]),
 	{ok, Core} = erlog:start_link(),
 	link(Core),
+	{ok, Proc} = ets_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
+	link(Proc),
 	server_loop(Core, normal, []).
 
 %% A simple Erlog shell similar to a "normal" Prolog shell. It allows
