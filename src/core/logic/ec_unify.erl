@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([unify/3, unify_clauses/4, unify_head/4]).
+-export([unify/3, unify_clauses/4, unify_head/4, unify_clause/5]).
 
 %% unify(Term, Term, Bindings) -> {succeed,NewBindings} | fail.
 %% Unify two terms with a set of bindings.

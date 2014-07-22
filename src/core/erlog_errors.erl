@@ -75,7 +75,7 @@ fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
 
 %% @private
 fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	erlog_core:retract_clauses(Ch, Cb, Cs, fun erlog_core:retract/7, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->

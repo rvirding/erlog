@@ -95,6 +95,9 @@ prove_goal(Param = #param{goal = {asserta, C0}, next_goal = Next, bindings = Bs,
 prove_goal(Param = #param{goal = {retract, C0}, bindings = Bs}) ->
 	C = ec_support:dderef(C0, Bs),
 	erlog_core:prove_retract(C, Param);
+prove_goal(Param = #param{goal = {retractall, C0}, bindings = Bs}) ->
+	C = ec_support:dderef(C0, Bs),
+	erlog_core:prove_retractall(C, Param);
 %% Clause retrieval and information
 prove_goal(Param = #param{goal = {clause, H0, B}, bindings = Bs}) ->
 	H1 = ec_support:dderef(H0, Bs),
