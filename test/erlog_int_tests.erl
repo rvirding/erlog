@@ -1,6 +1,7 @@
 -module(erlog_int_tests).
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
+-include("erlog_test.hrl").
 -compile(export_all).
 
 
@@ -31,7 +32,7 @@ prop_not_equal() ->
 		end
 	    end).
 
-prop_fail() ->
+fail_test() ->
     {ok, PID}   = erlog:start_link(),
     ?assertEqual(fail,erlog:prove(PID, fail)),
     true.
@@ -60,7 +61,7 @@ keys() ->
      "54BB4C80",
      "537E16D9"].
 
-prop_bool() ->
+bool_test() ->
     E = erlog:new(),
     {{succeed, []},_} =  E({prove, true}),
     {fail,_}          =  E({prove, false}),

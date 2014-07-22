@@ -1,7 +1,7 @@
 -module(erlog_ets_tests).
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
-
+-include("erlog_test.hrl").
 -compile(export_all).
 
 
@@ -13,10 +13,10 @@
 %     ?assertEqual({succeed,[]},erlog:prove(PID, {ets_all, test_ets_table})),
 %     ok.
 
-prop_erlog_empty_ets() ->
+erlog_empty_ets_test() ->
     {ok, PID}   = erlog:start_link(),
-    ok = erlog:load(PID,erlog_ets),
-    TabId = ets:new(test_ets_table, [bag, {keypos,2}]),
+    ok		= erlog:load(PID,erlog_ets),
+    TabId	= ets:new(test_ets_table, [bag, {keypos,2}]),
     ?assertEqual(fail,erlog:prove(PID, {ets_keys, TabId, {'S'}})),
     ?assertEqual(fail,erlog:prove(PID, {ets_match, TabId,{'S'}})),
     true.
@@ -55,7 +55,6 @@ prop_ets_match_all() ->
 
 		true = lists:all(fun(Edge = {edge,_,_})->
 				  {succeed, []} =:= erlog:prove(PID, {ets_match, TabId, Edge})
-
 			  end, Nodes)
 		end).
 

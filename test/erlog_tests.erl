@@ -2,7 +2,7 @@
 -include_lib("eqc/include/eqc.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
-
+-include("erlog_test.hrl").
 
 atom() ->
     elements(['a','b', 'X', 'Path','c']).

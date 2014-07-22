@@ -19,7 +19,7 @@ script:
         else 
          true
      fi
-  - make qc
+  - make eunit
 
 
 otp_release:
