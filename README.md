@@ -94,3 +94,19 @@ To configure your gen_event module - just pass module and arguments as __event_h
 
     ConfList = [{event_h, {my_event_handler, Args}],
     erlog:start_link(ConfList).
+    
+#### Working with libraries:
+Erlog is implemented in erlang modules, called libraries. They can be standard and external. 
+All predicates from standard functions are loaded to memory when you start erlog core.
+But to use predicates from external functions - you should manually load them to memory with the help of `use/1` command:
+
+    | ?- db_assert(test,foo(a,b)).
+    false
+    | ?- use(erlog_db).
+    true
+    | ?- db_assert(test,foo(a,b)).
+    true
+This example demonstrates the loading of external database library.  
+First call is false, because there is no such function loaded to memory.   
+Second - library is loaded.  
+Third - function run successfully.
