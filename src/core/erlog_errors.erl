@@ -51,6 +51,8 @@ fail(Param = #param{choice = [#cp{type = clause} = Cp | Cps]}) ->
 	fail_clause(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = retract} = Cp | Cps]}) ->
 	fail_retract(Cp, Param#param{choice = Cps});
+fail(Param = #param{choice = [#cp{type = db_retract} = Cp | Cps]}) ->
+	erlog_db:fail_retract(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = current_predicate} = Cp | Cps]}) ->
 	fail_current_predicate(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = ecall} = Cp | Cps]}) ->
@@ -74,8 +76,8 @@ fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
 	ec_unify:unify_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
-fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:retract_clauses(Ch, Cb, Cs, fun erlog_core:retract/7, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+fail_retract(#cp{data = {Ch, Cb, Cs, Fun}, next = Next, bs = Bs, vn = Vn}, Param) ->
+	erlog_core:retract_clauses(Ch, Cb, Cs, Fun, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->

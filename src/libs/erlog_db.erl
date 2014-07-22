@@ -13,7 +13,7 @@
 -include("erlog_db.hrl").
 
 %% API
--export([load/1, db_assert_2/2, db_asserta_2/2, db_abolish_2/2, db_retract_2/2]).
+-export([load/1, db_assert_2/2, db_asserta_2/2, db_abolish_2/2, db_retract_2/2, db_retractall_2/2, fail_retract/2]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DB).
@@ -40,28 +40,56 @@ db_retract_2({db_retract, Table, Fact}, Params = #param{bindings = Bs}) ->
 	C = ec_support:dderef(Fact, Bs),
 	prove_retract(C, Table, Params).
 
-prove_retract({':-', H, B}, Table, Params) ->
-	prove_retract(H, B, Table, Params);
-prove_retract(H, Table, Params) ->
-	prove_retract(H, true, Table, Params).
+db_retractall_2({db_retractall, Table, Fact}, Params = #param{bindings = Bs}) ->
+	C = ec_support:dderef(Fact, Bs),
+	prove_retractall(C, Table, Params).
 
-prove_retract(H, B, Table, Params = #param{database = Db}) ->
+
+prove_retract({':-', H, B}, Table, Params) ->
+	prove_retract(H, B, Table, fun retract/8, Params);
+prove_retract(H, Table, Params) ->
+	prove_retract(H, true, Table, fun retract/8, Params).
+
+prove_retractall({':-', H, B}, Table, Params) ->
+	prove_retract(H, B, Table, fun retractall/8, Params);
+prove_retractall(H, Table, Params) ->
+	prove_retract(H, true, Table, fun retractall/8, Params).
+
+prove_retract(H, B, Table, Fun, Params = #param{database = Db}) ->
 	Functor = ec_support:functor(H),
 	case erlog_memory:get_db_procedure(Db, Table, Functor) of
-		{clauses, Cs} -> retract_clauses(H, B, Cs, Params, Table);
+		{clauses, Cs} -> retract_clauses(H, B, Cs, Fun, Params, Table);
 		undefined -> erlog_errors:fail(Params)
+	end.
+
+%% @private
+retract(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1, Table) ->
+	erlog_memory:db_retract_clause(Db, Table, ec_support:functor(Ch), element(1, C)),
+	Cp = #cp{type = db_retract, data = {Ch, Cb, Cs, fun retract/8, Table}, next = Next, bs = Bs0, vn = Vn0},
+	ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}).
+
+%% @private
+retractall(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1, Table) ->
+	erlog_memory:db_retract_clause(Db, Table, ec_support:functor(Ch), element(1, C)),
+	Cp = #cp{type = db_retract, data = {Ch, Cb, Cs, fun retractall/8, Table}, next = Next, bs = Bs0, vn = Vn0},
+	case Cs of
+		[] ->
+			ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+		_ ->
+			retract_clauses(Ch, Cb, Cs, fun retractall/8, Param#param{choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}, Table)
 	end.
 
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
-retract_clauses(Ch, Cb, [C | Cs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Collection) -> %TODO foreach vs handmade recursion?
+retract_clauses(_Ch, _Cb, [], _, Param, _) -> erlog_errors:fail(Param);
+retract_clauses(Ch, Cb, [C | Cs], Fun, Param = #param{bindings = Bs0, var_num = Vn0}, Table) -> %TODO foreach vs handmade recursion?
 	case ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			%% We have found a right clause so now retract it.
-			erlog_memory:db_retract_clause(Db, Collection, ec_support:functor(Ch), element(1, C)),
-			Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
-			ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
-		fail -> retract_clauses(Ch, Cb, Cs, Param, Collection)
-	end;
-retract_clauses(_Ch, _Cb, [], Param, _) -> erlog_errors:fail(Param).
+			Fun(Ch, Cb, C, Cs, Param, Bs1, Vn1, Table);
+		fail -> retract_clauses(Ch, Cb, Cs, Fun, Param, Table)
+	end.
+
+fail_retract(#cp{data = {Ch, Cb, Cs, Fun, Table}, next = Next, bs = Bs, vn = Vn}, Param) ->
+	retract_clauses(Ch, Cb, Cs, Fun, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}, Table).

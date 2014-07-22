@@ -43,8 +43,8 @@ add_compiled_proc(Db, {{Functor, M, F}}) ->
 
 assertz_clause(Db, {Collection, Head, Body0}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{ok, _} = assertz_clause(Ets, {Head, Body0}),
-	{ok, Db};
+	{Res, _} = assertz_clause(Ets, {Head, Body0}),
+	{Res, Db};
 assertz_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
@@ -54,8 +54,8 @@ assertz_clause(Db, {Head, Body0}) ->
 
 asserta_clause(Db, {Collection, Head, Body0}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{ok, _} = asserta_clause(Ets, {Head, Body0}),
-	{ok, Db};
+	{Res, _} = asserta_clause(Ets, {Head, Body0}),
+	{Res, Db};
 asserta_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
@@ -65,8 +65,8 @@ asserta_clause(Db, {Head, Body0}) ->
 
 retract_clause(Db, {Collection, Functor, Ct}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{ok, _} = retract_clause(Ets, {Functor, Ct}),
-	{ok, Db};
+	{Res, _} = retract_clause(Ets, {Functor, Ct}),
+	{Res, Db};
 retract_clause(Db, {Functor, Ct}) ->
 	case ets:lookup(Db, Functor) of
 		[{_, built_in}] ->
@@ -81,8 +81,8 @@ retract_clause(Db, {Functor, Ct}) ->
 
 abolish_clauses(Db, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{ok, _} = abolish_clauses(Ets, Functor),
-	{ok, Db};
+	{Res, _} = abolish_clauses(Ets, {Functor}),
+	{Res, Db};
 abolish_clauses(Db, {Functor}) ->
 	case ets:lookup(Db, Functor) of
 		[{_, built_in}] ->
@@ -106,8 +106,8 @@ findall(Db, {Functor}) ->
 
 get_procedure(Db, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{ok, _} = get_procedure(Ets, Functor),
-	{ok, Db};
+	{Res, _} = get_procedure(Ets, {Functor}),
+	{Res, Db};
 get_procedure(Db, {Functor}) ->
 	{case ets:lookup(Db, Functor) of
 		 [{_, built_in}] -> built_in;

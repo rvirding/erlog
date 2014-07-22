@@ -159,13 +159,13 @@ prove_retract(H, B, Fun, Params = #param{database = Db}) ->
 %% @private
 retract(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1) ->
 	erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
-	Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
+	Cp = #cp{type = retract, data = {Ch, Cb, Cs, fun retract/7}, next = Next, bs = Bs0, vn = Vn0},
 	ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}).
 
 %% @private
 retractall(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1) ->
 	erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
-	Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
+	Cp = #cp{type = retract, data = {Ch, Cb, Cs, fun retractall/7}, next = Next, bs = Bs0, vn = Vn0},
 	case Cs of
 		[] ->
 			ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
