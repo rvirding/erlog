@@ -4,6 +4,8 @@ notifications:
   disabled: true
 
 install:
+  - sudo apt-add-repository ppa:swi-prolog/stable
+  - sudo apt-get update
   - sudo apt-get install swi-prolog
   - wget https://www.dropbox.com/s/o1nj06v49mm7fs7/eqcmini.zip
   - unzip eqcmini.zip
