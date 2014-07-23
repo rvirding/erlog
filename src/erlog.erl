@@ -54,7 +54,7 @@
 %%  Define an Erlog instance. This is a fun which is called with the
 %%  top-level command and returns the result and the continutation in
 %%  a new fun.
--type erlog_db() :: dict().
+-type erlog_db() :: dict:dict().
 
 -type erlog_prove_return()     :: fail|{succeed, [{atom(), any()}]}.
 -type erlog_operation_return() :: ok|{error,_}|{erlog_error,_}.
