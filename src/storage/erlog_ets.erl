@@ -22,7 +22,11 @@
 	get_procedure/2,
 	get_procedure_type/2,
 	get_interp_functors/1,
-	findall/2]).
+	findall/2, %TODO remove me
+	raw_store/2,
+	raw_fetch/2,
+	raw_append/2,
+	raw_erase/2]).
 
 new() -> {ok, ets:new(eets, [])}.
 
@@ -141,3 +145,23 @@ clause(Head, Body0, Db, ClauseFun) ->
 		[{_, clauses, Tag, Cs}] -> ClauseFun(Functor, Tag, Cs, Body);
 		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
 	end.
+
+raw_store(Db, {Key, Value}) ->
+	ets:insert(Db, {Key, Value}),
+	{ok, Db}.
+
+raw_fetch(Db, {Key}) ->
+	Res = case ets:lookup(Db, Key) of
+		      [] -> [];
+		      [{_, Value}] -> Value
+	      end,
+	{Res, Db}.
+
+raw_append(Db, {Key, AppendValue}) ->
+	{Value, _} = raw_fetch(Db, {Key}),
+	raw_store(Db, {Key, [AppendValue | Value]}),
+	{ok, Db}.
+
+raw_erase(Db, {Key}) ->
+	ets:delete(Db, Key),
+	{ok, Db}.

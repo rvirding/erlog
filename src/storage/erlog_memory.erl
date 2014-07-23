@@ -14,7 +14,7 @@
 %% API
 -export([start_link/1, start_link/2, add_compiled_proc/2, assertz_clause/3, asserta_clause/3,
 	retract_clause/3, abolish_clauses/2, get_procedure/2, get_procedure_type/2,
-	get_interp_functors/1, assertz_clause/2, asserta_clause/2, finadll/2]).
+	get_interp_functors/1, assertz_clause/2, asserta_clause/2, finadll/2, raw_store/3, raw_fetch/2, raw_append/3, raw_erase/2]).
 
 -export([db_assertz_clause/3, db_assertz_clause/4, db_asserta_clause/4, db_asserta_clause/3,
 	db_retract_clause/4, db_abolish_clauses/3, get_db_procedure/3]).
@@ -76,6 +76,14 @@ get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {get_p
 get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, {Func}}).
 
 get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
+
+raw_store(Database, Key, Value) -> gen_server:call(Database, {raw_store, {Key, Value}}).
+
+raw_fetch(Database, Key) -> gen_server:call(Database, {raw_fetch, {Key}}).
+
+raw_append(Database, Key, Value) -> gen_server:call(Database, {raw_append, {Key, Value}}).
+
+raw_erase(Database, Key) -> gen_server:call(Database, {raw_erase, {Key}}).
 
 %%--------------------------------------------------------------------
 %% @doc

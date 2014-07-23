@@ -22,7 +22,11 @@
 	get_procedure/2,
 	get_procedure_type/2,
 	get_interp_functors/1,
-	findall/2]).
+	findall/2, %TODO remove me
+	raw_store/2,
+	raw_fetch/2,
+	raw_append/2,
+	raw_erase/2]).
 
 %% API
 -export([]).
@@ -109,4 +113,16 @@ clause(Head, Body0, Db, ClauseFun) ->
 		end, {clauses, 1, [{0, Head, Body}]}, Db).
 
 findall(State, {Functor}) ->  %TODO implement me!
+	erlang:error(not_implemented).
+
+raw_store(State, {Key, Value}) ->
+	erlang:error(not_implemented).
+
+raw_fetch(State, {Key}) ->
+	erlang:error(not_implemented).
+
+raw_append(State, {Key, Value}) ->
+	erlang:error(not_implemented).
+
+raw_erase(State, {Key}) ->
 	erlang:error(not_implemented).

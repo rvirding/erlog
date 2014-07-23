@@ -32,3 +32,11 @@
 -callback get_procedure_type(State :: term(), Func :: term()) -> {atom(), NewState :: term()}.
 
 -callback get_interp_functors(State :: term()) -> {list(), NewState :: term()}.
+
+-callback raw_store(State :: term(), Param :: tuple()) -> {ok, NewState :: term()}.
+
+-callback raw_fetch(State :: term(), Param :: tuple()) -> {Value :: any(), NewState :: term()}.
+
+-callback raw_append(State :: term(), Param :: tuple()) -> {ok, NewState :: term()}.
+
+-callback raw_erase(State :: term(), Param :: tuple()) -> {ok, NewState :: term()}.

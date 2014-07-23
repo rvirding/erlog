@@ -49,6 +49,8 @@ fail(Param = #param{choice = [#cp{type = Type} = Cp | Cps]}) when Type == disjun
 	fail_disjunction(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = clause} = Cp | Cps]}) ->
 	fail_clause(Cp, Param#param{choice = Cps});
+fail(Param = #param{choice = [#cp{type = findall} = Cp | Cps]}) ->
+	fail_findall(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = retract} = Cp | Cps]}) ->
 	fail_retract(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = db_retract} = Cp | Cps]}) ->
@@ -86,3 +88,12 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
 %% @private
 fail_goal_clauses(#cp{data = {G, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
 	erlog_core:prove_goal_clauses(G, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+
+fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
+	Data = erlog_memory:raw_fetch(Db, Tag),
+	erlog_memory:raw_erase(Db, Tag),  %Clear special entry
+	{Bs1, Vn1} = lists:mapfoldl(fun(B0, V0) ->  %Create proper instances
+		{B1, _, V1} = ec_term:term_instance(ec_support:dderef(B0, Bs), V0),
+		{B1, V1}
+	end, Vn0, lists:reverse(Data)),
+	ec_body:unify_prove_body(Bag, Bs1, Param#param{next_goal = Next, var_num = Vn1}).

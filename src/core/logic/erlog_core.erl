@@ -30,7 +30,7 @@
 	prove_clause/3,
 	prove_current_predicate/2,
 	prove_ecall/3,
-	prove_goal/4, retractall/7, retract/7, retract_clauses/5]).
+	prove_goal/4, retractall/7, retract/7, retract_clauses/5, prove_findall/4]).
 %% Adding to database.
 -export([load/1]).
 
@@ -54,6 +54,29 @@ prove_goal(Goal0, Db, Fcon, Event) ->
 	Params = #param{goal = [{call, Goal1}], choice = [], bindings = Bs, var_num = Vn,
 		event_man = Event, database = Db, f_consulter = Fcon},
 	ec_body:prove_body(Params). %TODO use lists:foldr instead!
+
+%% prove_findall(Term, Goal, Bag, Param)
+%% Do findall on Goal and return list of each Term in Bag. We are
+%% sneaky here and use the database to keep the list using the
+%% current VarNum as tag. This is done in the internal goal
+%% {findall}. Then when findall finally fails which catch it in
+%% fail_findall which cleans up by removing special database entry
+%% and unifying Bag.
+prove_findall(T, G, B0, Param = #param{bindings = Bs, choice = Cps, next_goal = Next, var_num = Vn, database = Db}) ->
+	Label = Vn,
+	Tag = Vn + 1,  %Increment to avoid clashes
+	{Next1, _} = ec_goals:check_goal(G, [{{findall}, Tag, T}], Bs, Db, false, Label),
+	B1 = partial_list(B0, Bs),
+	Cp = #cp{type = findall, data = {Tag, B1}, next = Next, bs = Bs, vn = Vn},
+	erlog_memory:raw_store(Db, Tag, []),  %Initialise collection
+	%% Catch case where an erlog error occurs when cleanup database.
+	try
+		ec_body:prove_body(Param#param{goal = Next1, choice = [Cp | Cps], bindings = Bs, var_num = Vn + 1})
+	catch
+		throw:{erlog_error, E, Dba} ->
+			Dbb = erlog_memory:raw_erase(Dba, Tag),  %Clear special entry
+			erlog_errors:erlog_error(E, Dbb)
+	end.
 
 %% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
@@ -184,3 +207,16 @@ retract_clauses(Ch, Cb, [C | Cs], Fun, Param = #param{bindings = Bs0, var_num = 
 			Fun(Ch, Cb, C, Cs, Param, Bs1, Vn1);
 		fail -> retract_clauses(Ch, Cb, Cs, Fun, Param)
 	end.
+
+%% partial_list(Term, Bindings) -> Term.
+%% Dereference all variables and check if partial list.
+partial_list([], _) -> [];
+partial_list([H | T0], Bs) ->
+	T1 = partial_list(T0, Bs),
+	[H | T1];
+partial_list({V} = Var, Bs) ->
+	case ?BIND:find(V, Bs) of
+		{ok, T} -> partial_list(T, Bs);
+		error -> Var
+	end;
+partial_list(Other, _) -> erlog_errors:type_error(list, Other).

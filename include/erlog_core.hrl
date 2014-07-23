@@ -17,7 +17,6 @@
 %% Purpose : Basic interpreter of a Prolog definitions.
 
 %% Some standard type macros.
-
 -define(IS_ATOMIC(T), (not (is_tuple(T) orelse (is_list(T) andalso T /= [])))).
 -define(IS_FUNCTOR(T), (is_tuple(T) andalso (tuple_size(T) >= 2) andalso is_atom(element(1, T)))).
 

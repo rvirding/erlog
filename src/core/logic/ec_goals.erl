@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([prove_goal/1, initial_goal/1]).
+-export([prove_goal/1, initial_goal/1, check_goal/6]).
 
 %% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
@@ -159,16 +159,12 @@ prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db
 			erlog_errors:erlog_error(Error, Db)
 	end,
 	ec_body:prove_body(Param#param{goal = Next});
-prove_goal(Param = #param{goal = {findall, Goal, Fun, Res}, bindings = Bs0, next_goal = Next, database = Db}) ->
-	Predicates = erlog_memory:finadll(Db, Fun), %TODO findall(A, (append(L, [B|L2], [1,2,3,4,5]), A is B * 10), R)
-	Element = ec_support:index_of(Goal, tuple_to_list(Fun)) - 1,
-	Result = lists:foldr(
-		fun({_, Pred, _}, Acc) ->
-			[_ | ParamList] = tuple_to_list(Pred),
-			[lists:nth(Element, ParamList) | Acc]
-		end, [], Predicates),
-	Bs1 = ec_support:add_binding(Res, Result, Bs0),
-	ec_body:prove_body(Param#param{goal = Next, bindings = Bs1});
+prove_goal(Param = #param{goal = {findall, T, G, B}}) ->
+	erlog_core:prove_findall(T, G, B, Param);
+prove_goal(Param = #param{goal = {{findall}, Tag, T0}, bindings = Bs, database = Db}) ->
+	T1 = ec_support:dderef(T0, Bs),
+	erlog_memory:raw_append(Db, Tag, T1),  %Append to saved list
+	erlog_errors:fail(Param);
 prove_goal(Param = #param{goal = {bagof, Goal, Fun, Res}, choice = Cs0, bindings = Bs0, next_goal = Next, var_num = Vn, database = Db}) ->
 	Predicates = erlog_memory:finadll(Db, Fun),
 	FunList = tuple_to_list(Fun),
