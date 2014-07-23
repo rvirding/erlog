@@ -4,6 +4,7 @@ notifications:
   disabled: true
 
 install:
+  - sudo apt-get install swi-prolog
   - wget https://www.dropbox.com/s/o1nj06v49mm7fs7/eqcmini.zip
   - unzip eqcmini.zip
   - export ERL_LIBS=eqcmini
