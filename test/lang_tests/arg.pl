@@ -1,7 +1,5 @@
 % -*-prolog-*-
 
-
-
 test(_) :-
 	Var = book(one,two,three),
 	Two = two,
