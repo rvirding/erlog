@@ -97,6 +97,13 @@ abolish_clauses(Db, {Functor}) ->
 	end,
 	{ok, Db}.
 
+findall(Db, {Collection, Functor}) ->
+	Ets = ets_db_storage:get_db(Collection),
+	Res = case findall(Ets, {Functor}) of
+		      {[], _} -> [];
+		      {[{_, Result, _}], _} -> Result
+	      end,
+	{Res, Db};
 findall(Db, {Functor}) ->
 	Params = tuple_to_list(Functor),
 	Fun = hd(Params),

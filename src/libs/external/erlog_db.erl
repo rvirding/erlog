@@ -13,10 +13,27 @@
 -include("erlog_db.hrl").
 
 %% API
--export([load/1, db_assert_2/2, db_asserta_2/2, db_abolish_2/2, db_retract_2/2, db_retractall_2/2, fail_retract/2]).
+-export([load/1, db_assert_2/2, db_asserta_2/2, db_abolish_2/2, db_retract_2/2, db_retractall_2/2, fail_retract/2, db_call_2/2]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DB).
+
+db_call_2({db_call, Table, Goal}, Param = #param{next_goal = Next0, bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
+%% Only add cut CP to Cps if goal contains a cut.
+	Label = Vn,
+	case erlog_memory:db_findall(Db, Table, Goal) of
+		[] -> ec_body:prove_body(Param#param{goal = Next0, var_num = Vn + 1});
+		Goal1 ->
+			ec_goals:prove_goal(Param#param{goal = {assert, Goal1}}), %load fact to memory
+			Res = case ec_goals:check_goal(Goal, Next0, Bs, Db, false, Label) of
+				      {Next1, true} ->
+					      Cut = #cut{label = Label},
+					      ec_body:prove_body(Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
+				      {Next1, false} ->ec_body:prove_body(Param#param{goal = Next1, var_num = Vn + 1})
+			      end,
+			ec_goals:prove_goal(Param#param{goal = {retract, Goal1}}),  %unload fact from memory
+			Res
+	end.
 
 db_assert_2({db_assert, Table, Fact}, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
 	C = ec_support:dderef(Fact, Bs),

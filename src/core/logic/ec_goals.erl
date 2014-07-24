@@ -25,14 +25,14 @@
 %% Logic and control. Conjunctions are handled in prove_body and true
 %% has been compiled away.
 prove_goal(Param = #param{goal = {call, G}, next_goal = Next0, choice = Cps,
-	bindings = Bs, var_num = Vn, database = Db}) -> %TODO move me to other modules
+	bindings = Bs, var_num = Vn, database = Db}) ->
 	%% Only add cut CP to Cps if goal contains a cut.
 	Label = Vn,
 	case check_goal(G, Next0, Bs, Db, false, Label) of
 		{Next1, true} ->
 			%% Must increment Vn to avoid clashes!!!
 			Cut = #cut{label = Label},
-			ec_body:prove_body(Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});  %TODO recursive call! Use foldr instead
+			ec_body:prove_body(Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
 		{Next1, false} -> ec_body:prove_body(Param#param{goal = Next1, var_num = Vn + 1})
 	end;
 prove_goal(Param = #param{goal = {{cut}, Label, Last}}) ->

@@ -15,6 +15,7 @@
 		{{db_asserta, 2}, ?MODULE, db_asserta_2},
 		{{db_assertz, 2}, ?MODULE, db_assert_2},
 		{{db_retract, 2}, ?MODULE, db_retract_2},
-		{{db_retractall, 2}, ?MODULE, db_retractall_2}
+		{{db_retractall, 2}, ?MODULE, db_retractall_2},
+		{{db_call, 2}, ?MODULE, db_call_2}
 	]
 ).
