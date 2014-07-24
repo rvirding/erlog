@@ -95,5 +95,5 @@ fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #pa
 	{Bs1, Vn1} = lists:mapfoldl(fun(B0, V0) ->  %Create proper instances
 		{B1, _, V1} = ec_term:term_instance(ec_support:dderef(B0, Bs), V0),
 		{B1, V1}
-	end, Vn0, lists:reverse(Data)),
+	end, Vn0, Data),
 	ec_body:unify_prove_body(Bag, Bs1, Param#param{next_goal = Next, var_num = Vn1}).

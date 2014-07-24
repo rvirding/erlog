@@ -163,7 +163,7 @@ raw_fetch(Db, {Key}) ->
 
 raw_append(Db, {Key, AppendValue}) ->
 	{Value, _} = raw_fetch(Db, {Key}),
-	raw_store(Db, {Key, [AppendValue | Value]}),
+	raw_store(Db, {Key, lists:concat([Value, AppendValue])}),
 	{ok, Db}.
 
 raw_erase(Db, {Key}) ->
