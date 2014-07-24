@@ -20,19 +20,9 @@ load(Db) ->
 
 db_call_2({db_call, Table, Goal}, Param = #param{next_goal = Next0, bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
 %% Only add cut CP to Cps if goal contains a cut.
-	Label = Vn,
 	case erlog_memory:db_findall(Db, Table, Goal) of
 		[] -> ec_body:prove_body(Param#param{goal = Next0, var_num = Vn + 1});
-		Goal1 ->
-			ec_goals:prove_goal(Param#param{goal = {assert, Goal1}}), %load fact to memory
-			Res = case ec_goals:check_goal(Goal, Next0, Bs, Db, false, Label) of
-				      {Next1, true} ->
-					      Cut = #cut{label = Label},
-					      ec_body:prove_body(Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
-				      {Next1, false} ->ec_body:prove_body(Param#param{goal = Next1, var_num = Vn + 1})
-			      end,
-			ec_goals:prove_goal(Param#param{goal = {retract, Goal1}}),  %unload fact from memory
-			Res
+		Cs -> erlog_core:prove_goal_clauses(Goal, Cs, Param)
 	end.
 
 db_assert_2({db_assert, Table, Fact}, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->

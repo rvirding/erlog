@@ -70,7 +70,6 @@ unify_clause(Ch, Cb, {_Tag, H0, {B0, _}}, Bs0, Vn0) ->
 %%  Unify a goal with a head without creating an instance of the
 %%  head. This saves us creating many variables which are local to the
 %%  clause and saves many variable bindings.
-
 unify_head(Goal, Head, Bs, Vn) ->
 	unify_head(ec_support:deref(Goal, Bs), Head, orddict:new(), Bs, Vn).
 
