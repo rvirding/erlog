@@ -50,23 +50,23 @@ prop_atom() ->
     ?FORALL(MaybeAtom,
 	    oneof([int(),atom()]),
 	    begin
-		{ok, PID}    = erlog:start_link(),
-                case {erlog:prove(PID, {atom,  MaybeAtom}), is_atom(MaybeAtom)} of
-		    {{succeed,_}, true} -> true;
-		    {fail, false} -> true;
+		Erlog    = erlog:new(),
+                case {Erlog({prove, {atom,  MaybeAtom}}), is_atom(MaybeAtom)} of
+		    {{{succeed,_},_}, true} -> true;
+		    {{fail,_}, false} -> true;
 		    _  -> false
 		end
 	    end).
 
 
 prop_is_integer() ->
-    ?FORALL(MaybeAtom,
+    ?FORALL(MaybeInt,
 	    oneof([int(),atom(), real()]),
 	    begin
-		{ok, PID}    = erlog:start_link(),
-                case {erlog:prove(PID, {integer,  MaybeAtom}), is_integer(MaybeAtom)} of
-		    {{succeed,_}, true} -> true;
-		    {fail, false} -> true;
+		Erlog    = erlog:new(),
+                case {Erlog({prove, {integer,  MaybeInt}}), is_integer(MaybeInt)} of
+		    {{{succeed,_},_}, true} -> true;
+		    {{fail,_}, false} -> true;
 		    _  -> false
 		end
 	    end).
@@ -76,13 +76,13 @@ prop_atomic_and_compound() ->
     ?FORALL(Atom,
 	    oneof([int(),atom(),real(),binary(),non_empty(list(int())),{atom(), int()}]),
 	    begin
-		{ok, PID}    = erlog:start_link(),
-                case {erlog:prove(PID, {atomic,  Atom}),
-		      erlog:prove(PID, {compound,Atom})}
+		Erlog    = erlog:new(),
+                case {Erlog({prove, {atomic,  Atom}}),
+		      Erlog({prove, {compound,Atom}})}
 		      of
-		    {{succeed,_},fail} ->
+		    {{{succeed,_},_},{fail,_}} ->
 			is_atomic(Atom);
-		    {fail,{succeed,_}} ->
+		    {{fail,_},{{succeed,_},_}} ->
 			not(is_atomic(Atom))
 		end
 	    end).
@@ -101,19 +101,26 @@ prop_comp() ->
 		    end
 		end).
 
+any() ->
+    oneof([int(),atom(), binary(),list(char())]).
 
 prop_equals() ->
-    ?FORALL(I, int(),
+    ?FORALL(I, any(),
             begin
-                {ok, PID}    = erlog:start_link(),
-                {succeed, [{'X',I}]} =:= erlog:prove(PID, {'=', I, {'X'}})
+                Erlog    = erlog:new(),
+		?assertMatch({{succeed, [{'X',I}]},_}, Erlog({prove, {'=', I,     {'X'}}})),
+		?assertMatch({{succeed, [{'X',I}]},_}, Erlog({prove, {'=', {'X'}, I}})),
+                ?assertMatch({{succeed, []},_},        Erlog({prove, {'=', I,     I}})),
+		true
             end).
 prop_not_equals() ->
-    ?FORALL(I, int(),
+    ?FORALL({I,J}, {any(),any()},
+	    ?IMPLIES(I /= J,
             begin
-                {ok, PID}    = erlog:start_link(),
-                fail =:= erlog:prove(PID, {'=', I, I + 1})
-            end).
+                Erlog    = erlog:new(),
+                ?assertMatch({fail,_}, Erlog({prove, {'=', I, J}})),
+		true
+            end)).
 
 prop_float()->
     ?FORALL(I,real(),
