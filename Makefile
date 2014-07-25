@@ -104,7 +104,7 @@ ct: compile
 	$(REBAR)  skip_deps=true ct
 
 
-test: compile  qc
+test: compile eunit
 
 
 start: compile 
