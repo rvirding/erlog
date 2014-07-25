@@ -18,10 +18,10 @@
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DB).
 
-db_call_2({db_call, Table, Goal}, Param = #param{next_goal = Next0, bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
+db_call_2({db_call, Table, Goal}, Param = #param{database = Db}) ->
 %% Only add cut CP to Cps if goal contains a cut.
 	case erlog_memory:db_findall(Db, Table, Goal) of
-		[] -> ec_body:prove_body(Param#param{goal = Next0, var_num = Vn + 1});
+		[] -> erlog_errors:fail(Param);
 		Cs -> erlog_core:prove_goal_clauses(Goal, Cs, Param)
 	end.
 
