@@ -5,7 +5,7 @@
 
 Erlog is a Prolog interpreter implemented in Erlang and integrated
 with the Erlang runtime system. It is a subset of the Prolog standard.
-An erlog shell (REPL) is also included.
+An Erlog shell (REPL) is also included.
 
 with the Erlang runtime system, that runs in an Erlang process. It is
 a subset of the ISO Prolog standard.
@@ -24,21 +24,21 @@ gen_server. Which version you should use depends on your application.
 
 This is a low level interface, which is ment to built upon as much as used directly.
 
-To create an erlog instance in a closure use `erlog:new()` this will
-return a function that can be invoked to run an erlog program. To
+To create an Erlog instance in a closure use `erlog:new()` this will
+return a function that can be invoked to run an Erlog program. To
 prove a clause you can then run `E({prove, ...})` This will return a
 new closure and a return of type `erlog_return()`. To consult you can
 run `E({consult,FILE})` which will return a new closure and 'ok' or an
 error.
 
 For example take this code:
-We start by creating a new instance of the erlog engine, then we 
-it starts with an append statement which ask it to append lists *A*
-and *B*. The return value is designated with a 1 tuple with an atom
-value for the return variable, in this case *{'Z'}*. 
+We start by creating a new instance of the Erlog engine, then we 
+it starts with an append statement which ask it to append lists `A`
+and `B`. The return value is designated with a 1 tuple with an atom
+value for the return variable, in this case `{'Z'}`. 
 
-If the prolog code works correctly it will return the tuple {{succeed,
-[{'Z', Value}]}, E1}. Here E1 is the new state of the erlog interpreter.
+If the prolog code works correctly it will return the tuple `{{succeed,
+[{'Z', Value}]}, E1}`. Here E1 is the new state of the Erlog interpreter.
 
 
 
@@ -61,18 +61,18 @@ Erlog prove has a type signature like this:
 
 *NOTE THIS INTERFACE MAY GO AWAY*
 
-If you want to setup erlog in its own server then you can use the
-command _erlog:start()_ or _erlog:start_link()_ from there you can
-load files with _erlog:consult(PID, FILE)_ and run code with
-_erlog:prove(PID,{...})_. You can also provide the prolog code in a
+If you want to setup Erlog in its own server then you can use the
+command `erlog:start()` or `erlog:start_link()` from there you can
+load files with `erlog:consult(PID, FILE)` and run code with
+`erlog:prove(PID,{...})`. You can also provide the prolog code in a
 string or as a pre-compiled tuple.
 
 
 
-The thing to note with this interface is that the erlog process can be
+The thing to note with this interface is that the Erlog process can be
 accessed from any process that knows about the server, so it is
 possible to have strange concurrency errors, for example with the
-_erlog:next_solution/1_ function.   
+`erlog:next_solution/1` function.
 
 ## Passing Data between Erlang and Prolog
 
@@ -91,7 +91,7 @@ forth.
 ### Opaque data
 
 Erlog does not understand references, ports and pids. They can be
-passed threw Erlog but erlog won't be able to do more than basic
+passed threw Erlog but Erlog won't be able to do more than basic
 comparisons on them.
 
 
@@ -104,12 +104,12 @@ the future.
 
 Erlog understands Erlang tuples to be facts. So the erlang tuple
 `{foo, 1, 2, 3}` would show up in Erlog as the fact `foo(1,2,3)`. The
-upshot of this is that all tuples that are passed to erlog must have
+upshot of this is that all tuples that are passed to Erlog must have
 an atom as the first element and must have more than 1 element. The
 tuple `{atom()}` will be understood to be a prolog variable. 
 
 Records in Erlang are just tuples with an initial atom. So it is
-possible to pass records between erlog and erlang. The record
+possible to pass records between Erlog and erlang. The record
 definition here and the prolog fact are equivalent. 
 
 ````erlang
@@ -127,23 +127,23 @@ table. Erlog includes commands to unify a goal with the contents of an
 ets table. It should also be possible to work with mnesia tables, but
 this has not yet been done.
 
-If you want to use erlog with ets you need to load the erlog_ets
-module into erlog. To do that you call _erlog:load(PID,erlog_ets)_ or
-_E({load,erlog_ets})_. You can match on an ets table with
-_ets_match(TableId, Value)_.
+If you want to use Erlog with ets you need to load the erlog_ets
+module into Erlog. To do that you call `erlog:load(PID,erlog_ets)` or
+`E({load,erlog_ets})`. You can match on an ets table with
+`ets_match(TableId, Value)`.
 
 
 ## Including with rebar
 
-You can include erlog in your application with rebar, by adding it to
+You can include Erlog in your application with rebar, by adding it to
 the deps section of your rebar config file.
 
 ## Testing
 
 Erlog is tested to work with Erlang versions R14B02 - 17, the tests
-are quick-check properties, if you do not have quickcheck don't worry
-you can still use erlog, you just won't be able to run the
-properties. 
+are both eunit tests and quick-check properties, if you do not have
+quickcheck don't worry you can still use Erlog, you just won't be able
+to run the properties.
 
 If you want to run the tests you will need to install quickcheck mini
 (Or the full quickcheck) you can do this with these commands:
@@ -154,7 +154,7 @@ If you want to run the tests you will need to install quickcheck mini
    export ERL_LIBS=eqcmini:$ERL_LIBS
 ````
 
-to run the tests then run _rebar qc_
+to run the tests then run `rebar eunit`
 
 ## Licence 
 
