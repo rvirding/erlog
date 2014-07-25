@@ -146,3 +146,15 @@ prop_number()->
             end).
 
 
+prop_arg() ->
+    ?FORALL(T,
+	    non_empty(list(int())),
+	    ?FORALL(Place, choose(1,length(T)),
+		    begin
+			Erlog = erlog:new(),
+			P  = list_to_tuple([tuple|T]),
+			{{succeed, [{'El',El}]},_} = Erlog({prove, {arg, Place, P, {'El'}}}),
+			?assertEqual(element(Place + 1, P), El),
+			true
+
+		    end)).
