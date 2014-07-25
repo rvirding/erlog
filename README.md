@@ -20,13 +20,15 @@ Erlog REPL for ad hoc testing, you can create an Erlog implementation
 in a closure or you can create an Erlog instance in a
 gen_server. Which version you should use depends on your application.
 
-## The Fuction interface
+## The Function interface
 
-To create an erlog instance in a closure use +erlog:new()+ this will
+This is a low level interface, which is ment to built upon as much as used directly.
+
+To create an erlog instance in a closure use `erlog:new()` this will
 return a function that can be invoked to run an erlog program. To
-prove a clause you can then run _E({prove, ...})_ This will return a
-new closure and a return of type _erlog_return()_. To consult you can
-run _E({consult,FILE})_ which will return a new closure and 'ok' or an
+prove a clause you can then run `E({prove, ...})` This will return a
+new closure and a return of type `erlog_return()`. To consult you can
+run `E({consult,FILE})` which will return a new closure and 'ok' or an
 error.
 
 For example take this code:
@@ -71,6 +73,52 @@ The thing to note with this interface is that the erlog process can be
 accessed from any process that knows about the server, so it is
 possible to have strange concurrency errors, for example with the
 _erlog:next_solution/1_ function.   
+
+## Passing Data between Erlang and Prolog
+
+If you want to pass data between Erlang and Prolog it is pretty easy
+to do so. Data types map pretty cleanly between the two languages due
+to the fact that Erlang evolved from Prolog. 
+
+### Atoms
+Atoms are the same in Erlang and Prolog, and can be passed back and
+forth without problem.
+
+### Numeric Data 
+Integer and floating point numbers similarly can be passed back and
+forth. 
+
+### Opaque data
+
+Erlog does not understand references, ports and pids. They can be
+passed threw Erlog but erlog won't be able to do more than basic
+comparisons on them.
+
+
+### Structured Data
+
+It is possible to send structured erlang data to prolog, and this is
+often very useful. Lists can be sent directly back and forth. Maps are
+not (Yet) supported, we will be looking into how to support them in
+the future. 
+
+Erlog understands Erlang tuples to be facts. So the erlang tuple
+`{foo, 1, 2, 3}` would show up in Erlog as the fact `foo(1,2,3)`. The
+upshot of this is that all tuples that are passed to erlog must have
+an atom as the first element and must have more than 1 element. The
+tuple `{atom()}` will be understood to be a prolog variable. 
+
+Records in Erlang are just tuples with an initial atom. So it is
+possible to pass records between erlog and erlang. The record
+definition here and the prolog fact are equivalent. 
+
+````erlang
+-record(person, {name, phone, address}).
+````
+
+````prolog
+person(Name, Phone, Address).
+````
 
 ## Using ETS
 
