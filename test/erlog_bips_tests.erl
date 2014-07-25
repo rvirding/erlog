@@ -159,3 +159,15 @@ prop_arg() ->
 			true
 
 		    end)).
+
+clause_test() ->
+    E			= erlog:new(),
+    {ok, E1}            = E({consult,"../priv/records.pl"}),
+    {{succeed, A1},E2}	= E1({prove, {clause, {record, {'X'},{'Y'}}, {'Z'}}}),
+    {{succeed, A2},_E3} = E2(next_solution),
+    ?assertEqual(3,length(A1)),
+    ?assertEqual(3,length(A2)),
+    ?assertEqual('!', proplists:get_value('Z', A1)),
+    ?assertMatch({record,{_},{_},1}, proplists:get_value('Z',A2)),
+    true.
+
