@@ -5,12 +5,12 @@
 		{registered, []},
 		{applications, [
 			kernel,
-			stdlib
+			stdlib,
+			inets
 		]},
 		{mod, {erlog_app, []}},
 		{env,
 			[
-				{database, ets},  % ets | dict
 				{console_port, 8080}
 			]}
 	]}.

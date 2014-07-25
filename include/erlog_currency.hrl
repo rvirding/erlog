@@ -8,8 +8,20 @@
 %%%-------------------------------------------------------------------
 -author("tihon").
 
+-define(COURSE_URL, "https://api.privatbank.ua/p24api/pubinfo?jsonp&exchange&coursid=5").
+-define(CHECK_PERIOD, 60000).
+
+
 -define(ERLOG_CURRENCY,
 	[
-		{{db_abolish, 2}, ?MODULE, db_abolish_2}
+		{{exchange, 4}, ?MODULE, exchange_4}
 	]
 ).
+
+-record(currency,
+{
+	name,
+	base_name,
+	buy_course,
+	sell_course
+}).

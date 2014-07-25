@@ -9,6 +9,8 @@
 -module(erlog_curr_sync).
 -author("tihon").
 
+-include("erlog_currency.hrl").
+
 -behaviour(gen_server).
 
 %% API
@@ -24,7 +26,10 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state,
+{
+	course :: dict:dict()
+}).
 
 %%%===================================================================
 %%% API
@@ -60,7 +65,9 @@ start_link() ->
 	{ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term()} | ignore).
 init([]) ->
-	{ok, #state{}}.
+	gen_server:cast(self(), check),
+	timer:send_interval(?CHECK_PERIOD, self(), check),
+	{ok, #state{course = dict:new()}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -91,6 +98,9 @@ handle_call(_Request, _From, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
+handle_cast(check, State = #state{course = CourseList}) ->
+	UpdCourse = check_course(CourseList),
+	{noreply, State#state{course = UpdCourse}};
 handle_cast(_Request, State) ->
 	{noreply, State}.
 
@@ -108,6 +118,9 @@ handle_cast(_Request, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
+handle_info(check, State = #state{course = CourseList}) ->
+	UpdCourse = check_course(CourseList),
+	{noreply, State#state{course = UpdCourse}};
 handle_info(_Info, State) ->
 	{noreply, State}.
 
@@ -144,3 +157,37 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+check_course(Current) ->
+	CourseJson = get_course(),
+	Parsed = jsx:decode(CourseJson),
+	parse_course(Parsed, Current).
+
+get_course() ->
+	{ok, {{_, 200, _}}, _, Body} = httpc:request(get, {?COURSE_URL, []}, [], []),
+	Body.
+
+-spec update_currency(#currency{}, dict:dict()) -> dict:dict().
+update_currency(Currency = #currency{base_name = Name}, Dict) ->
+	dict:store(Name, Currency, Dict).
+
+-spec parse_course(list(), dict:dict()) -> dict:dict().
+parse_course(New, Current) ->
+	lists:foldl(
+		fun(Proplist, Acc) ->
+			try update_currency(parse_currency(Proplist), Acc)
+			catch
+				_:_ -> Acc
+			end
+		end, Current, New).
+
+-spec parse_currency(proplists:proplist()) -> #currency{}.
+parse_currency(Currency) ->
+	Name = parse_value(<<"ccy">>, Currency),
+	BaseName = parse_value(<<"base_ccy">>, Currency),
+	Buy = parse_value(<<"buy">>, Currency),
+	Sell = parse_value(<<"sale">>, Currency),
+	#currency{name = Name, base_name = BaseName, buy_course = Buy, sell_course = Sell}.
+
+-spec parse_value(binary(), proplists:proplist()) -> list().
+parse_value(Key, List) ->
+	binary_to_list(proplists:get_value(Key, List)).

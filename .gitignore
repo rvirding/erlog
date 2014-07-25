@@ -9,3 +9,4 @@ erlog_scan.erl
 rel/erlog
 .rebar
 .eunit
+deps

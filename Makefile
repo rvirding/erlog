@@ -33,6 +33,7 @@ compile:
 	then rebar compile; \
 	else $(MAKE) $(MFLAGS) erlc_compile; \
 	fi
+	cp deps/jsx/ebin/*.* ebin
 
 ## Compile using erlc
 erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))

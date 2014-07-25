@@ -12,7 +12,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, start_sync_worker/0]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -22,6 +22,7 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+start_sync_worker() -> supervisor:start_child(?MODULE, []).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -56,20 +57,10 @@ start_link() ->
 	ignore |
 	{error, Reason :: term()}).
 init([]) ->
-	RestartStrategy = one_for_one,
-	MaxRestarts = 1000,
-	MaxSecondsBetweenRestarts = 3600,
-
-	SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-
-	Restart = permanent,
-	Shutdown = 2000,
-	Type = worker,
-
-	AChild = {'AName', {'AModule', start_link, []},
-		Restart, Shutdown, Type, ['AModule']},
-
-	{ok, {SupFlags, [AChild]}}.
+	RestartStrategy = {simple_one_for_one, 10, 60},
+	Worker = {erlog_curr_sync, {erlog_curr_sync, start_link, []},
+		permanent, 2000, worker, [erlog_curr_sync]},
+	{ok, {RestartStrategy, [Worker]}}.
 
 %%%===================================================================
 %%% Internal functions
