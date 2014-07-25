@@ -21,9 +21,11 @@ load(Db) ->
 
 exchange({exchange, ValueFrom, CurrencyTypeFrom, ValueTo, CurrencyTypeTo}, Param = #param{next_goal = Next0,
 	bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
-	%TODO todo...
-	ok.
 
+	From = ec_support:dderef(ValueFrom, Bs),
+	To = ec_support:dderef(ValueTo, Bs),
+	io:format("From ~p, To ~p~n", [From, To]),
+	ok.
 
 
 %% @private
@@ -43,5 +45,9 @@ check_server(Pid) -> process_info(Pid).
 %% @private
 %% Starts supervisor and currency sync server
 start_server() ->
+	ok = inets:start(),  %start inets if needed
+	ok = application:start(crypto),
+	ok = application:start(public_key),
+	ok = application:start(ssl),
 	catch erlog_curr_sup:start_link(),
 	erlog_curr_sup:start_sync_worker().

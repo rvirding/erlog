@@ -28,7 +28,7 @@
 
 -record(state,
 {
-	course :: dict:dict()
+	course :: dict
 }).
 
 %%%===================================================================
@@ -166,11 +166,11 @@ get_course() ->
 	{ok, {{_, 200, _}}, _, Body} = httpc:request(get, {?COURSE_URL, []}, [], []),
 	Body.
 
--spec update_currency(#currency{}, dict:dict()) -> dict:dict().
+-spec update_currency(#currency{}, dict) -> dict.
 update_currency(Currency = #currency{base_name = Name}, Dict) ->
 	dict:store(Name, Currency, Dict).
 
--spec parse_course(list(), dict:dict()) -> dict:dict().
+-spec parse_course(list(), dict) -> dict.
 parse_course(New, Current) ->
 	lists:foldl(
 		fun(Proplist, Acc) ->
