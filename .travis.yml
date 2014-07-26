@@ -13,7 +13,8 @@ install:
 
 script:
   - rebar get-deps
-  - make compile 
+  - rebar compile 
+  - rebar eunit
   - |
      if [ $TRAVIS_OTP_RELEASE == 17.0 ] 
         then
@@ -21,7 +22,7 @@ script:
         else 
          true
      fi
-  - make eunit
+
 
 
 otp_release:
