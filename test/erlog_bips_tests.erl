@@ -4,6 +4,7 @@
 -include("erlog_test.hrl").
 -compile(export_all).
 
+
 cops() ->
     oneof([{'=:=', fun (I,J) ->
 			   I == J
@@ -146,6 +147,7 @@ prop_number()->
             end).
 
 
+
 prop_arg() ->
     ?FORALL(T,
 	    non_empty(list(oneof([binary(),int(), bool(), char(), real()]))),
@@ -160,6 +162,7 @@ prop_arg() ->
 
 		    end)).
 
+
 clause_test() ->
     E			= erlog:new(),
     {ok, E1}            = E({consult,"../priv/records.pl"}),
@@ -170,4 +173,5 @@ clause_test() ->
     ?assertEqual('!', proplists:get_value('Z', A1)),
     ?assertMatch({record,{_},{_},1}, proplists:get_value('Z',A2)),
     true.
+
 
