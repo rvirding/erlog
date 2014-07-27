@@ -7,21 +7,24 @@ record(RecordName,Fields) :-
 	set_record(RecordName, Fields, 1).
 	
 
+swap_place(New,[_Head|Tail],0,Acc) :-
+	Acc = [New|Tail].
+swap_place(New,[Head|Tail],N,Acc) :-
+	Next is N - 1,
+	Acc = [Head|R],
+	swap_place(New, Tail, Next, R).
+
 set_record(_, [], _) :- !.
 set_record(RecordName, [Field|Rest], Place) :-
-	SetRule =.. [RecordName, Field, Record, NewValue, NewRecord],	
+	SetRule =.. [RecordName, Field, Record, NewValue, NData],	
 	N is Place + 1,
 	set_record(RecordName, Rest, N),
 	asserta((SetRule :-
 		Record    =.. Data,
-		 display(Data),
-		 append(Prefix, [_|Suffix], Data),
-		 display(NewValue),
 		 Pivot is N - 1,
-		 length(Prefix,Pivot),
-		 append(Prefix, [NewValue|Suffix], NData),
-		 display(NData),
-		 NewRecord =.. NData
+		 swap_place(NewValue,Data, Pivot,NewRecord),
+		 NData =.. NewRecord
+
 		)).
 
 	
