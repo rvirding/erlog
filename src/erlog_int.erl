@@ -192,6 +192,8 @@ built_in_db() ->
 		 {clause,2},
 		 {current_predicate,1},
 		 {predicate_property,2},
+		 %% process controll,
+		 {halt, 1},
 		 %% All solutions
 		 %% External interface
 		 {ecall,2},
@@ -304,6 +306,10 @@ prove_goal({assertz,C0}, Next, Cps, Bs, Vn, Db) ->
 prove_goal({retract,C0}, Next, Cps, Bs, Vn, Db) ->
     C = dderef(C0, Bs),
     prove_retract(C, Next, Cps, Bs, Vn, Db);
+%% Process controll
+prove_goal({halt,C0}, _Next, _Cps, _Bs, _Vn,_Db) ->
+    erlang:exit(self(), C0);
+    
 %% Clause retrieval and information
 prove_goal({clause,H0,B}, Next, Cps, Bs, Vn, Db) ->
     H1 = dderef(H0, Bs),
