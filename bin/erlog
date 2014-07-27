@@ -14,4 +14,4 @@
 # limitations under the License.
 
 # Run Erlog shell by default. Can add -pa if necessary.
-erl "$@" -noshell -noinput -s erlog_boot start
+erl "$@" -noshell -noinput -s erlog_boot start -pa ebin
