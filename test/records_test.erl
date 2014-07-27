@@ -21,8 +21,9 @@ prop_prolog_records_get() ->
 	    person(),
 	    begin
                 E = erlog:new(),
-                {ok, E1}                                = E({consult,"../priv/records.pl"}),
                 Fields                                  = record_info(fields, person),
+                {ok, E1}                                = E({consult,"../priv/records.pl"}),
+
                 {{succeed,_}, E2}                       = E1({prove, {record, person, Fields}}),
 
                 {{succeed,[{'Name', Name}]}, _ }        = E2({prove, {person, name, Person, {'Name'}}}),
@@ -44,12 +45,14 @@ prop_prolog_records_set() ->
                 {ok, E1}                                = E({consult,"../priv/records.pl"}),
                 Fields                                  = record_info(fields, person),
                 {{succeed,_}, E2}                       = E1({prove, {record, person, Fields}}),
-		{{succeed,[{'Person', NewPerson }]},_E3} =
-		   
-		    E2({prove, name, Person, NewName, {'Person'}}),
-		?debugVal(NewPerson),
+
+		{{succeed,[{'Person', NewPerson }]},_} =
+		    E2({prove,{person, name, Person, NewName, {'Person'}}}),
 		?assert(is_record(NewPerson, person)),
 		?assertEqual(NewPerson#person.name , NewName),
-	
+
+		{{succeed,[{'Person', NewPerson1 }]},_} =
+		    E2({prove,{person, address, Person, NewName, {'Person'}}}),
+		?assertEqual(NewPerson1#person.address , NewName),
 		true
 	    end).
