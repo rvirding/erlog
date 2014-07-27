@@ -1,0 +1,5 @@
+%-*-Prolog-*-
+
+test(_) :-
+	true.
+
