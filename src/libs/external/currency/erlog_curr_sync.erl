@@ -14,7 +14,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, get_course_by_curr/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -34,6 +34,7 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+get_course_by_curr(Currency) -> gen_server:call(?MODULE, {get, Currency}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -84,6 +85,9 @@ init([]) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
 	{stop, Reason :: term(), NewState :: #state{}}).
+handle_call({get, Currency}, _From, State = #state{course = Dict}) ->
+	Course = dict:find(Currency, Dict),
+	{reply, Course, State};
 handle_call(_Request, _From, State) ->
 	{reply, ok, State}.
 
@@ -98,8 +102,8 @@ handle_call(_Request, _From, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_cast(check, State = #state{course = CourseList}) ->
-	UpdCourse = check_course(CourseList),
+handle_cast(check, State = #state{course = Dict}) ->
+	UpdCourse = check_course(Dict),
 	{noreply, State#state{course = UpdCourse}};
 handle_cast(_Request, State) ->
 	{noreply, State}.
@@ -163,12 +167,16 @@ check_course(Current) ->
 	parse_course(Parsed, Current).
 
 get_course() ->
-	{ok, {{_, 200, _}}, _, Body} = httpc:request(get, {?COURSE_URL, []}, [], []),
+%% 	{ok, {{_, 200, _}, _, Body}} = httpc:request(get, {?COURSE_URL, []}, [], []), %TODO!
+	Body = <<"[{\"ccy\":\"RUR\",\"base_ccy\":\"UAH\",\"buy\":\"0.32500\",\"sale\":\"0.36000\"},
+	{\"ccy\":\"EUR\",\"base_ccy\":\"UAH\",\"buy\":\"15.60000\",\"sale\":\"16.60000\"},
+	{\"ccy\":\"USD\",\"base_ccy\":\"UAH\",\"buy\":\"11.65000\",\"sale\":\"11.95000\"}]">>,
 	Body.
 
 -spec update_currency(#currency{}, dict) -> dict.
-update_currency(Currency = #currency{base_name = Name}, Dict) ->
-	dict:store(Name, Currency, Dict).
+update_currency(Currency = #currency{base_name = BName, name = Name}, Dict) ->
+	Key = lists:concat(lists:sort([Name, BName])),
+	dict:store(Key, Currency, Dict).
 
 -spec parse_course(list(), dict) -> dict.
 parse_course(New, Current) ->
@@ -186,7 +194,7 @@ parse_currency(Currency) ->
 	BaseName = parse_value(<<"base_ccy">>, Currency),
 	Buy = parse_value(<<"buy">>, Currency),
 	Sell = parse_value(<<"sale">>, Currency),
-	#currency{name = Name, base_name = BaseName, buy_course = Buy, sell_course = Sell}.
+	#currency{name = Name, base_name = BaseName, buy_course = list_to_float(Buy), sell_course = list_to_float(Sell)}.
 
 -spec parse_value(binary(), proplists:proplist()) -> list().
 parse_value(Key, List) ->

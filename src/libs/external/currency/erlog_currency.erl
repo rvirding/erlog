@@ -13,19 +13,26 @@
 -include("erlog_core.hrl").
 
 %% API
--export([load/1, exchange/2]).
+-export([load/1, exchange_4/2]).
 
 load(Db) ->
 	start_sync_if_needed(),
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_CURRENCY).
 
-exchange({exchange, ValueFrom, CurrencyTypeFrom, ValueTo, CurrencyTypeTo}, Param = #param{next_goal = Next0,
-	bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
-
-	From = ec_support:dderef(ValueFrom, Bs),
-	To = ec_support:dderef(ValueTo, Bs),
-	io:format("From ~p, To ~p~n", [From, To]),
-	ok.
+exchange_4({exchange, ValueFrom, CurrencyTypeFrom, ValueTo, CurrencyTypeTo}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	From = ec_support:dderef(ValueFrom, Bs0),
+	Course = lists:concat(lists:sort([CurrencyTypeFrom, CurrencyTypeTo])),
+	ResultCurrency = case erlog_curr_sync:get_course_by_curr(Course) of
+		                 error -> erlog_errors:erlog_error("Unknown currency type!");
+		                 {ok, Currency} ->
+			                 case Currency#currency.name of
+				                 CurrencyTypeFrom -> From * Currency#currency.buy_course;
+				                 CurrencyTypeTo -> From / Currency#currency.sell_course;
+				                 _ -> erlog_errors:erlog_error("Unknown currency type!")
+			                 end
+	                 end,
+	Bs = ec_support:add_binding(ValueTo, ResultCurrency, Bs0),
+	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 
 %% @private
@@ -45,9 +52,12 @@ check_server(Pid) -> process_info(Pid).
 %% @private
 %% Starts supervisor and currency sync server
 start_server() ->
-	ok = inets:start(),  %start inets if needed
-	ok = application:start(crypto),
-	ok = application:start(public_key),
-	ok = application:start(ssl),
+	%start deps if not started
+	catch inets:start(),
+	catch application:start(crypto),
+	catch application:start(asn1),
+	catch application:start(public_key),
+	catch application:start(ssl),
+
 	catch erlog_curr_sup:start_link(),
 	erlog_curr_sup:start_sync_worker().
