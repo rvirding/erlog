@@ -69,8 +69,8 @@ index(X, [_|L], I, R) :- I1 is I+1, index(X, L, I1, R).
 %% perm(+List, ?Perm).
 %%  Generate permutations of List, backtracking generates all.
 
-perm([], []).
-perm([X|Xs], Ys1) :- perm(Xs, Ys), insert(Ys, X, Ys1).
+%% perm([], []).
+%% perm([X|Xs], Ys1) :- perm(Xs, Ys), insert(Ys, X, Ys1).
 
-insert(X, Y, [Y|X]).
-insert([A|B], C, [A|D]) :- insert(B, C, D).
+%% insert(X, Y, [Y|X]).
+%% insert([A|B], C, [A|D]) :- insert(B, C, D).
