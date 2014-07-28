@@ -60,7 +60,7 @@ datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next,
 
 %% Adds number of seconds T2 in Type format to Time1. Returns timestamp
 add_time_4({add_time, Time1, Type, T2, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	Diff = check_var(Time1, Bs0) + date_to_seconds(check_var(T2, Bs0), Type),
+	Diff = check_var(Time1, Bs0) + date_to_seconds(check_var(T2, Bs0), check_var(Type, Bs0)),
 	Bs = ec_support:add_binding(Res, Diff, Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
