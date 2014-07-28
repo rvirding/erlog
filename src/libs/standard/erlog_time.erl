@@ -55,7 +55,7 @@ time_4({time, H, M, S, Res}, Params = #param{next_goal = Next, bindings = Bs0}) 
 %% Calculates differense between two timestamps. Returns the result in specifyed format
 datediff_4({date_diff, TS1, TS2, Format, Res}, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	Diff = timer:now_diff(ts_to_date(check_var(TS1, Bs0)), ts_to_date(check_var(TS2, Bs0))) / 1000000,
-	Bs = ec_support:add_binding(Res, seconds_to_date(Diff, Format), Bs0),
+	Bs = ec_support:add_binding(Res, seconds_to_date(Diff, check_var(Format, Bs0)), Bs0),
 	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 %% Adds number of seconds T2 in Type format to Time1. Returns timestamp
