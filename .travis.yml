@@ -12,7 +12,6 @@ install:
 
 
 script:
-  - rebar get-deps
   - rebar compile 
   - rebar eunit
   - |
