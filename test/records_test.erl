@@ -6,15 +6,17 @@
 
 
 -record(person, {name, phone, address, comments}).
+name() ->
+    elements(["Adam", "Bob","Charlie"]).
 
 person() ->
-    #person{name	= elements(["Adam", "Bob","Charlie"]),
-	    phone	= vector(8, choose(0,9)),
+    #person{name	= name(),
+	    phone	= vector(1, choose(48,57)),
 	    address	= list(char()),
 	    comments	= binary()}.
 
 
-prop_prolog_records() ->
+prop_prolog_records_get() ->
     ?FORALL(Person,
 	    person(),
 	    begin
@@ -23,9 +25,9 @@ prop_prolog_records() ->
                 Fields                                  = record_info(fields, person),
                 {{succeed,_}, E2}                       = erlog:prove(E1, {record, person, Fields}),
 
+
                 {{succeed,[{'Name', Name}]}, _ }        = erlog:prove(E2, {person, name, Person, {'Name'}}),
                 ?assertEqual(Person#person.name, Name),
-
                 {{succeed,[{'Phone', Phone}]}, _}       = erlog:prove(E2, {person, phone, Person, {'Phone'}}),
                 ?assertEqual(Person#person.phone, Phone),
                 {{succeed,[{'Address', Address}]}, _}   = erlog:prove(E2, {person, address, Person, {'Address'}}),
@@ -35,3 +37,22 @@ prop_prolog_records() ->
                 true
 	    end).
  
+prop_prolog_records_set() ->
+    ?FORALL({Person,NewName},
+	    {person(),name()},
+	    begin
+                E = erlog:new(),
+                {ok, E1}                                = E({consult,"../priv/records.pl"}),
+                Fields                                  = record_info(fields, person),
+                {{succeed,_}, E2}                       = E1({prove, {record, person, Fields}}),
+
+		{{succeed,[{'Person', NewPerson }]},_} =
+		    E2({prove,{person, name, Person, NewName, {'Person'}}}),
+		?assert(is_record(NewPerson, person)),
+		?assertEqual(NewPerson#person.name , NewName),
+
+		{{succeed,[{'Person', NewPerson1 }]},_} =
+		    E2({prove,{person, address, Person, NewName, {'Person'}}}),
+		?assertEqual(NewPerson1#person.address , NewName),
+		true
+	    end).
