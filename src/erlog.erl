@@ -31,6 +31,11 @@
 -include("erlog_int.hrl").
 
 %% Basic evaluator interface.
+
+
+%% Interface to server.
+
+
 -export([new/0,new/2,
 	 prove/2,next_solution/1,
 	 consult/2,reconsult/2,load/2,
@@ -40,6 +45,23 @@
 
 -import(lists, [foldl/3,foreach/2]).
 
+
+
+%% -compile(export_all).
+
+%% new() -> erlog().
+%%  Define an Erlog instance. This is a fun which is called with the
+%%  top-level command and returns the result and the continutation in
+%%  a new fun.
+-type erlog_db() :: any().
+
+-type erlog_prove_return()     :: fail|{succeed, [{atom(), any()}]}.
+-type erlog_operation_return() :: ok|{error,_}|{erlog_error,_}.
+-type erlog_fn()               :: fun((tuple()) -> {erlog_prove_return()|erlog_operation_return(), erlog_fn()}).
+-export_type([erlog_db/0, erlog_fn/0, erlog_prove_return/0, erlog_operation_return/0]).
+
+
+    
 %% -compile(export_all).
 
 %% new() -> {ok,ErlogState}.
@@ -47,6 +69,8 @@
 %%  Initialise a new erlog state.
 
 new() -> new(erlog_db_dict, null).		%The default
+
+
 
 new(DbMod, DbArg) ->
     {ok,Db0} = erlog_int:new(DbMod, DbArg),
@@ -65,6 +89,7 @@ next_solution(#est{vs=Vs,cps=Cps,db=Db}) ->
     prove_result(catch erlog_int:fail(Cps, Db), Vs, Db).
 
 consult(#est{db=Db0}=St, File) ->
+
     case erlog_file:consult(File, Db0) of
 	{ok,Db1} -> {ok,St#est{db=Db1}};
 	{erlog_error,Error} -> {error,Error};
@@ -118,6 +143,7 @@ prove_result({erlog_error,Error}, _Vs, Db) ->	%No new database
     {{error,Error},#est{vs=[],cps=[],bs=[],vn=0,db=Db}};
 prove_result({'EXIT',Error}, _Vs, Db) ->
     {{'EXIT',Error},#est{vs=[],cps=[],bs=[],vn=0,db=Db}}.
+
 
 %% vars_in(Term) -> [{Name,Var}].
 %% Returns an ordered list of {VarName,Variable} pairs.

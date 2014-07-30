@@ -1,0 +1,3 @@
+%-*-Erlang-*-
+{build, "make qc"}.
+{test_path, ".eunit"}.

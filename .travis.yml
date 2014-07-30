@@ -1,0 +1,36 @@
+language: erlang
+
+notifications:
+  disabled: true
+
+install:
+  - sudo apt-get update
+  - sudo apt-get install swi-prolog
+  - wget https://www.dropbox.com/s/o1nj06v49mm7fs7/eqcmini.zip
+  - unzip eqcmini.zip
+  - export ERL_LIBS=eqcmini
+
+
+script:
+  - rebar compile 
+  - rebar eunit
+  - |
+     if [ $TRAVIS_OTP_RELEASE == 17.0 ] 
+        then
+          make dialyzer 
+        else 
+         true
+     fi
+
+
+otp_release:
+   - 17.0
+   - R16B03-1
+   - R16B02
+   - R16B01
+   - R15B03
+   - R15B02
+   - R15B01
+   - R14B04
+   - R14B03
+   - R14B02
