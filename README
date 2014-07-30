@@ -1,3 +1,0 @@
-Erlog is a Prolog interpreter implemented in Erlang and integrated
-with the Erlang runtime system. It is a subset of the Prolog standard.
-An erlog shell is also included.

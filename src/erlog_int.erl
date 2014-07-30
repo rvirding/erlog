@@ -144,7 +144,7 @@
 
 %%-compile(export_all).
 
--import(lists, [map/2,foldl/3]).
+-import(lists, [map/2,foldl/3,foldr/3,mapfoldl/3]).
 
 %% Some standard type macros.
 
@@ -192,7 +192,10 @@ built_in_db() ->
 		 {clause,2},
 		 {current_predicate,1},
 		 {predicate_property,2},
+		 %% process controll,
+		 {halt, 1},
 		 %% All solutions
+		 {findall,3},
 		 %% External interface
 		 {ecall,2},
 		 %% Non-standard but useful
@@ -304,6 +307,10 @@ prove_goal({assertz,C0}, Next, Cps, Bs, Vn, Db) ->
 prove_goal({retract,C0}, Next, Cps, Bs, Vn, Db) ->
     C = dderef(C0, Bs),
     prove_retract(C, Next, Cps, Bs, Vn, Db);
+%% Process controll
+prove_goal({halt,C0}, _Next, _Cps, _Bs, _Vn,_Db) ->
+    erlang:exit(self(), C0);
+    
 %% Clause retrieval and information
 prove_goal({clause,H0,B}, Next, Cps, Bs, Vn, Db) ->
     H1 = dderef(H0, Bs),
@@ -320,7 +327,14 @@ prove_goal({predicate_property,H0,P}, Next, Cps, Bs, Vn, Db) ->
 	undefined -> ?FAIL(Bs, Cps, Db);
 	{erlog_error,E} -> erlog_error(E, Db)
     end;	
-%% External interface
+%% All solutions.
+prove_goal({findall,T,G,B}, Next, Cps, Bs, Vn, Db) ->
+    prove_findall(T, G, B, Next, Cps, Bs, Vn, Db);
+prove_goal({{findall},Tag,T0}, _Next, Cps, _Bs, _Vn, Db0) ->
+    T1 = dderef(T0, _Bs),
+    Db1 = raw_append(Tag, T1, Db0),		%Append to saved list
+    ?FAIL(_Bs, Cps, Db1);
+%% External interface.
 prove_goal({ecall,C0,Val}, Next, Cps, Bs, Vn, Db) ->
     %% Build the initial call.
     %%io:fwrite("PG(ecall): ~p\n   ~p\n   ~p\n", [dderef(C0, Bs),Next,Cps]),
@@ -330,7 +344,7 @@ prove_goal({ecall,C0,Val}, Next, Cps, Bs, Vn, Db) ->
 	       {':',M,{F,A}} when is_atom(M), is_atom(F) ->
 		   fun () -> M:F(A) end;
 	       {':',M,{F,A1,A2}} when is_atom(M), is_atom(F) ->
-		   fun () -> M:F(A1,A2) end;
+		   fun () -> M:F(A1, A2) end;
 	       {':',M,T} when is_atom(M), ?IS_FUNCTOR(T) ->
 		   L = tuple_to_list(T),
 		   fun () -> apply(M, hd(L), tl(L)) end;
@@ -380,6 +394,8 @@ fail([#cp{type=retract}=Cp|Cps], Db) ->
     fail_retract(Cp, Cps, Db);
 fail([#cp{type=current_predicate}=Cp|Cps], Db) ->
     fail_current_predicate(Cp, Cps, Db);
+fail([#cp{type=findall}=Cp|Cps], Db) ->
+    fail_findall(Cp, Cps, Db);
 fail([#cp{type=ecall}=Cp|Cps], Db) ->
     fail_ecall(Cp, Cps, Db);
 fail([#cp{type=compiled,data=F}=Cp|Cps], Db) ->
@@ -453,24 +469,6 @@ unify_prove_body(A1, B1, A2, B2, Next, Cps, Bs0, Vn, Db) ->
 	{succeed,Bs1} -> unify_prove_body(A2, B2, Next, Cps, Bs1, Vn, Db);
 	fail -> ?FAIL(Bs0, Cps, Db)
     end.
-
-%% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%	void.
-%% Call an external (Erlang) generator and handle return value, either
-%% succeed or fail.
-
-prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db) ->
-    case Efun() of
-	{succeed,Ret,Cont} ->			%Succeed and more choices
-	    Cp = #cp{type=ecall,data={Cont,Val},next=Next,bs=Bs,vn=Vn},
-	    unify_prove_body(Val, Ret, Next, [Cp|Cps], Bs, Vn, Db);
-	{succeed_last,Ret} ->			%Succeed but last choice
-	    unify_prove_body(Val, Ret, Next, Cps, Bs, Vn, Db);
-	fail -> ?FAIL(Bs, Cps, Db)			%No more
-    end.
-
-fail_ecall(#cp{data={Efun,Val},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
-    prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db).    
 
 %% prove_clause(Head, Body, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
 %%      void.
@@ -609,7 +607,7 @@ prove_retract(H, B, Next, Cps, Bs, Vn, Db) ->
 
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
-%% Try to retract Head and Body using Clauses which all have the same functor.
+%%  Try to retract Head and Body using Clauses which all have the same functor.
 
 retract_clauses(Ch, Cb, [C|Cs], Next, Cps, Bs0, Vn0, Db0) ->
     case unify_clause(Ch, Cb, C, Bs0, Vn0) of
@@ -624,6 +622,57 @@ retract_clauses(_Ch, _Cb, [], _Next, Cps, _Bs, _Vn, Db) -> ?FAIL(_Bs, Cps, Db).
 
 fail_retract(#cp{data={Ch,Cb,Cs},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
     retract_clauses(Ch, Cb, Cs, Next, Cps, Bs, Vn, Db).
+
+%% prove_findall(Term, Goal, Bag, Next, ChoicePoints, Bindings, VarNum, Database)
+%%  Do findall on Goal and return list of each Term in Bag. We are
+%%  sneaky here and use the database to keep the list using the
+%%  current VarNum as tag. This is done in the internal goal
+%%  {findall}. Then when findall finally fails which catch it in
+%%  fail_findall which cleans up by removing special database entry
+%%  and unifying Bag.
+
+prove_findall(T, G, B0, Next, Cps, Bs, Vn, Db0) ->
+    Label = Vn,
+    Tag = Vn+1,					%Increment to avoid clashes
+    {Next1,_} = check_goal(G, [{{findall},Tag,T}], Bs, Db0, false, Label),
+    B1 = partial_list(B0, Bs),
+    Cp = #cp{type=findall,data={Tag,B1},next=Next,bs=Bs,vn=Vn},
+    Db1 = raw_store(Tag, [], Db0),		%Initialise collection
+    %% Catch case where an erlog error occurs when cleanup database.
+    try
+	prove_body(Next1, [Cp|Cps], Bs, Vn+1, Db1)
+    catch
+	throw:{erlog_error,E,Dba} ->
+	    Dbb = raw_erase(Tag, Dba),		%Clear special entry
+	    erlog_error(E, Dbb)
+    end.
+
+fail_findall(#cp{next=Next,data={Tag,Bag},bs=Bs,vn=Vn0}, Cps, Db0) ->
+    Bs0 = raw_fetch(Tag, Db0),
+    Db1 = raw_erase(Tag, Db0),			%Clear special entry
+    {Bs1,Vn1} = mapfoldl(fun (B0, V0) ->	%Create proper instances
+				 {B1,_,V1} = term_instance(dderef(B0, Bs), V0),
+				 {B1,V1}
+			 end, Vn0, Bs0),
+    unify_prove_body(Bag, Bs1, Next, Cps, Bs, Vn1, Db1).
+
+%% prove_ecall(Generator, Value, Next, ChoicePoints, Bindings, VarNum, Database) ->
+%%	void.
+%% Call an external (Erlang) generator and handle return value, either
+%% succeed or fail.
+
+prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db) ->
+    case Efun() of
+	{succeed,Ret,Cont} ->			%Succeed and more choices
+	    Cp = #cp{type=ecall,data={Cont,Val},next=Next,bs=Bs,vn=Vn},
+	    unify_prove_body(Val, Ret, Next, [Cp|Cps], Bs, Vn, Db);
+	{succeed_last,Ret} ->			%Succeed but last choice
+	    unify_prove_body(Val, Ret, Next, Cps, Bs, Vn, Db);
+	fail -> ?FAIL(Bs, Cps, Db)			%No more
+    end.
+
+fail_ecall(#cp{data={Efun,Val},next=Next,bs=Bs,vn=Vn}, Cps, Db) ->
+    prove_ecall(Efun, Val, Next, Cps, Bs, Vn, Db).
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
 %%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
@@ -830,6 +879,19 @@ get_interp_functors(Db) ->
 		 (Func, {code,_}, Fs) -> [Func|Fs];
 		 (Func, {clauses,_,_}, Fs) -> [Func|Fs]
 	     end, [], Db).
+
+raw_store(Key, Val, Db) ->
+    ?DB:store(Key, Val, Db).
+
+raw_fetch(Key, Db) ->
+    ?DB:fetch(Key, Db).
+
+raw_append(Key, Val, Db) ->
+    ?DB:append(Key, Val, Db).
+
+raw_erase(Key, Db) ->
+    ?DB:erase(Key, Db).
+
 -endif.
 
 -ifdef(ETS).
@@ -1285,6 +1347,20 @@ dderef_list({V}, Bs) ->
 	error -> instantiation_error()
     end;
 dderef_list(Other, _Bs) -> type_error(list, Other).
+
+%% partial_list(Term, Bindings) -> Term.
+%%  Dereference all variables and check if partial list.
+
+partial_list([], _) -> [];
+partial_list([H|T0], Bs) ->
+    T1 = partial_list(T0, Bs),
+    [H|T1];
+partial_list({V}=Var, Bs) ->
+    case ?BIND:find(V, Bs) of
+	{ok,T} -> partial_list(T, Bs);
+	error -> Var
+    end;
+partial_list(Other, _) -> type_error(list, Other).
 
 %% initial_goal(Goal) -> {Goal,Bindings,NewVarNum}.
 %% initial_goal(Goal, Bindings, VarNum) -> {Goal,NewBindings,NewVarNum}.

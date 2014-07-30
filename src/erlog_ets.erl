@@ -1,4 +1,4 @@
-%% Copyright (c) 2008-2013 Robert Virding
+%% Copyright (c) 2008-2014 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -22,26 +22,26 @@
 
 -compile(export_all).
 
--export([assert/1,all_1/6,keys_2/6,match_2/6]).
+-export([load/1, all_1/6, keys_2/6, match_2/6]).
 
 -import(lists, [foldl/3]).
 -import(erlog_int, [add_compiled_proc/4,dderef/2,unify/3,
 		    prove_body/5,unify_prove_body/7,fail/2]).
 
-%% assert(Database) -> Database.
+%% load(Database) -> Database.
 %%  Assert predicates into the database.
 
-assert(Db) ->
-    foldl(fun ({Head,M,F}, LDb) -> 
-		  add_compiled_proc(Head, M, F, LDb) end, Db,
-	  [
-	   {{ets_all,1},?MODULE,all_1},
-	   {{ets_keys,2},?MODULE,keys_2},
-	   {{ets_match,2},?MODULE,match_2}
-	  ]).
+load(Db0) ->
+    Db1 = foldl(fun ({Head,M,F}, LDb) -> 
+			add_compiled_proc(Head, M, F, LDb) end, Db0,
+		[
+		 {{ets_all,1},   ?MODULE,all_1},
+		 {{ets_keys,2},  ?MODULE,keys_2},
+		 {{ets_match,2}, ?MODULE,match_2}
+		]),
+    Db1.
 
-
-%% all_1(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
+%% all_1(Head, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void().
 %%      Goal = {ets_all,Tables}.
 %% Return all the ETS databases.
 
@@ -49,7 +49,7 @@ all_1({ets_all,Var}, Next, Cps, Bs, Vn, Db) ->
     Tabs = ets:all(),
     unify_prove_body(Var, Tabs, Next, Cps, Bs, Vn, Db).
 
-%% keys_2(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
+%% keys_2(Head, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void().
 %%      Goal = {ets_keys,Table,Key}.
 %% Return the keys in an ETS database one at a time over backtracking.
 
@@ -64,8 +64,8 @@ keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db) ->
     FailFun = fun(LCp, LCps, LDb) ->
 		      keys_fail(LCp, LCps, LDb, Tab, Key, KeyVar)
 	      end,
-    C = #cp{type=compiled,data=FailFun,next=Next,bs=Bs,vn=Vn},
-    unify_prove_body(KeyVar, Key, Next, [C|Cps], Bs, Vn, Db).
+    Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs,vn=Vn},
+    unify_prove_body(KeyVar, Key, Next, [Cp|Cps], Bs, Vn, Db).
 
 keys_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, Tab, PrevKey, KeyVar) ->
     case ets:next(Tab, PrevKey) of
@@ -73,8 +73,8 @@ keys_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, Tab, PrevKey, KeyVar) ->
 	Key -> keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db)
     end.
 
-%% match_2(Goal, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
-%%      Goal = {ets_match,Table,Pattern}.
+%% match_2(Head, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
+%%      Head = {ets_match,Table,Pattern}.
 %% Match objects in an ETS database one at a time over backtracking
 %% using Pattern in goal. Variables in Pattern are bound for each
 %% object matched.
@@ -136,6 +136,7 @@ find(V, [{V,Ev}|_Vs]) -> {yes,Ev};
 find(V, [_P|Vs]) -> find(V, Vs);
 find(_V, []) -> no.
 
+-spec(ets_var(1..16) -> atom()).
 ets_var(1) -> '$1';
 ets_var(2) -> '$2';
 ets_var(3) -> '$3';
@@ -146,4 +147,9 @@ ets_var(7) -> '$7';
 ets_var(8) -> '$8';
 ets_var(9) -> '$9';
 ets_var(10) -> '$10';
-ets_var(11) -> '$11'.
+ets_var(11) -> '$11';
+ets_var(12) -> '$12';
+ets_var(13) -> '$13';
+ets_var(14) -> '$14';
+ets_var(15) -> '$15';
+ets_var(16) -> '$16'. 

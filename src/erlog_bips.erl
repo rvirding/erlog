@@ -213,7 +213,7 @@ prove_arg(I, [H|T], A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
     end;
 prove_arg(I, Ct, A, Next, Cps, Bs, Vn, Db)
   when is_integer(I), tuple_size(Ct) >= 2 ->
-    if  I > 1, I + 1 =< tuple_size(Ct) ->
+    if  I >= 1, I + 1 =< tuple_size(Ct) ->
 	    unify_prove_body(element(I+1, Ct), A, Next, Cps, Bs, Vn, Db);
 	true -> {fail,Db}
     end;

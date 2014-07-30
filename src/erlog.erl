@@ -1,4 +1,4 @@
-%% Copyright (c) 2008-2013 Robert Virding
+%% Copyright (c) 2008-2014 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -31,11 +31,12 @@
 -include("erlog_int.hrl").
 
 %% Basic evaluator interface.
--export([new/0]).
+-export([new/0,new/1]).
 %% Interface to server.
 -export([start/0,start_link/0]).
 -export([prove/2,next_solution/1,
-	 consult/2,reconsult/2,get_db/1,set_db/2,halt/1]).
+	 consult/2,reconsult/2,load/2,
+	 get_db/1,set_db/2,halt/1]).
 -export([init/1,handle_call/3,handle_cast/2,handle_info/2,terminate/2,
 	 code_change/3]).
 %% User utilities.
@@ -46,22 +47,35 @@
 -behaviour(gen_server).
 -vsn('0.6').
 
+
 %% -compile(export_all).
 
 %% new() -> erlog().
 %%  Define an Erlog instance. This is a fun which is called with the
 %%  top-level command and returns the result and the continutation in
 %%  a new fun.
+-type erlog_db() :: any().
 
+-type erlog_prove_return()     :: fail|{succeed, [{atom(), any()}]}.
+-type erlog_operation_return() :: ok|{error,_}|{erlog_error,_}.
+-type erlog_fn()               :: fun((tuple()) -> {erlog_prove_return()|erlog_operation_return(), erlog_fn()}).
+-export_type([erlog_db/0, erlog_fn/0, erlog_prove_return/0, erlog_operation_return/0]).
+
+-spec(new() ->erlog_fn()).
 new() ->
     Db0 = erlog_int:built_in_db(),		%Basic interpreter predicates
-    Db1 = foldl(fun (Mod, Db) -> Mod:load(Db) end, Db0,
+    new(Db0).
+
+
+-spec(new(erlog_db()) ->erlog_fn()).
+new(DB0) ->
+    Db1 = foldl(fun (Mod, Db) -> Mod:load(Db) end, DB0,
 		[erlog_bips,			%Built in predicates
 		 erlog_dcg,			%DCG predicates
 		 erlog_lists			%Common lists library
 		]),
     fun (Cmd) -> top_cmd(Cmd, Db1) end.
-
+    
 top_cmd({prove,Goal}, Db) ->
     prove_goal(Goal, Db);
 top_cmd(next_solution, Db) ->
@@ -80,6 +94,14 @@ top_cmd({reconsult,File}, Db0) ->
 	{erlog_error,Error} ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end};
 	{error,Error} ->
+	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end}
+    end;
+top_cmd({load,Mod}, Db0) ->
+    try
+	Db1 = Mod:load(Db0),			%Load the module
+	{ok,fun (Cmd) -> top_cmd(Cmd, Db1) end}
+    catch
+	_:Error ->
 	    {{error,Error},fun (Cmd) -> top_cmd(Cmd, Db0) end}
     end;
 top_cmd(get_db, Db) ->
@@ -127,23 +149,28 @@ prove_cmd(Cmd, _Vs, _Cps, _Bs, _Vn, Db) ->
 %% halt(Erlog) -> ok.
 %%  Interface functions to server.
 
-prove(Erl, Goal) when is_list(Goal) ->
-    {ok, TS, _ } = erlog_scan:string(Goal ++ " "),
-    {ok, G}      = erlog_parse:term(TS),
-    prove(Erl, G);
-prove(Erl, Goal) -> gen_server:call(Erl, {prove,Goal}, infinity).
+prove(Erl, Goal0) ->
+    case io_lib:char_list(Goal0) of		%Export Goal1
+	true ->
+	    {ok,Ts,_}  = erlog_scan:string(Goal0 ++ " "),
+	    {ok,Goal1} = erlog_parse:term(Ts);
+	false -> Goal1 = Goal0
+    end,
+    gen_server:call(Erl, {prove,Goal1}, infinity).
 
-next_solution(Erl) -> gen_server:call(Erl, next_solution, infinity).
+next_solution(Erl)	-> gen_server:call(Erl, next_solution, infinity).
 
-consult(Erl, File) -> gen_server:call(Erl, {consult,File}, infinity).
+consult(Erl, File)	-> gen_server:call(Erl, {consult,File}, infinity).
 
-reconsult(Erl, File) -> gen_server:call(Erl, {reconsult,File}, infinity).
+reconsult(Erl, File)	-> gen_server:call(Erl, {reconsult,File}, infinity).
 
-get_db(Erl) -> gen_server:call(Erl, get_db, infinity).
+load(Erl, Mod)		-> gen_server:call(Erl, {load,Mod}, infinity).
 
-set_db(Erl, Db) -> gen_server:call(Erl, {set_db,Db}, infinity).
+get_db(Erl)		-> gen_server:call(Erl, get_db, infinity).
 
-halt(Erl) -> gen_server:cast(Erl, halt).
+set_db(Erl, Db)		-> gen_server:call(Erl, {set_db,Db}, infinity).
+
+halt(Erl)		-> gen_server:cast(Erl, halt).
 
 %% Erlang server code.
 -record(state, {erlog}).			%Erlog state
