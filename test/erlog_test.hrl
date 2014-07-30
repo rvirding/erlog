@@ -1,4 +1,4 @@
-
+-include("../src/erlog_int.hrl").
 
 get_quickcheck_properties() ->
     Funs  = ?MODULE:module_info(functions),
