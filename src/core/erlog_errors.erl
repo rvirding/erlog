@@ -78,8 +78,8 @@ fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
 	ec_unify:unify_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
-fail_retract(#cp{data = {Ch, Cb, Cs, Fun}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:retract_clauses(Ch, Cb, Cs, Fun, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
+	erlog_core:retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->

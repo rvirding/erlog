@@ -30,7 +30,9 @@
 	prove_clause/3,
 	prove_current_predicate/2,
 	prove_ecall/3,
-	prove_goal/4, retractall/7, retract/7, retract_clauses/5, prove_findall/4]).
+	prove_goal/4,
+	prove_findall/4,
+	retract_clauses/4]).
 %% Adding to database.
 -export([load/1]).
 
@@ -158,20 +160,20 @@ prove_goal_clause(G, {_Tag, H0, {B0, _}}, Param = #param{next_goal = Next, bindi
 %%      void.
 %% Retract clauses in database matching Clause.
 prove_retract({':-', H, B}, Params) ->
-	prove_retract(H, B, fun retract/7, Params);
+	prove_retract(H, B, Params);
 prove_retract(H, Params) ->
-	prove_retract(H, true, fun retract/7, Params).
+	prove_retract(H, true, Params).
 
 prove_retractall({':-', H, B}, Params) ->
-	prove_retract(H, B, fun retractall/7, Params);
+	prove_retractall(H, B, Params);
 prove_retractall(H, Params) ->
-	prove_retract(H, true, fun retractall/7, Params).
+	prove_retractall(H, true, Params).
 
 %% @private
-prove_retract(H, B, Fun, Params = #param{database = Db}) ->
+prove_retract(H, B, Params = #param{database = Db}) ->
 	Functor = ec_support:functor(H),
 	case erlog_memory:get_procedure(Db, Functor) of
-		{clauses, Cs} -> retract_clauses(H, B, Cs, Fun, Params);
+		{clauses, Cs} -> retract_clauses(H, B, Cs, Params);
 		{code, _} ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		built_in ->
@@ -180,32 +182,38 @@ prove_retract(H, B, Fun, Params = #param{database = Db}) ->
 	end.
 
 %% @private
-retract(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1) ->
-	erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
-	Cp = #cp{type = retract, data = {Ch, Cb, Cs, fun retract/7}, next = Next, bs = Bs0, vn = Vn0},
-	ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}).
-
-%% @private
-retractall(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1) ->
-	erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
-	Cp = #cp{type = retract, data = {Ch, Cb, Cs, fun retractall/7}, next = Next, bs = Bs0, vn = Vn0},
-	case Cs of
-		[] ->
-			ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
-		_ ->
-			retract_clauses(Ch, Cb, Cs, fun retractall/7, Param#param{choice = [Cp | Cps], bindings = Bs1, var_num = Vn1})
+prove_retractall(H, B, Params = #param{next_goal = Next, bindings = Bs0, var_num = Vn0, database = Db}) ->
+	Functor = ec_support:functor(H),
+	case erlog_memory:get_procedure(Db, Functor) of
+		{clauses, Cs} ->
+			lists:foreach(
+				fun(Clause) ->
+					case ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
+						{succeed, _, _} ->
+							erlog_memory:retract_clause(Db, ec_support:functor(H), element(1, Clause));
+						fail -> ok
+					end
+				end, Cs),
+			ec_body:prove_body(Params#param{goal = Next});
+		{code, _} ->
+			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		built_in ->
+			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		undefined -> ec_body:prove_body(Params#param{goal = Next})
 	end.
 
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
-retract_clauses(_Ch, _Cb, [], _, Param) -> erlog_errors:fail(Param);
-retract_clauses(Ch, Cb, [C | Cs], Fun, Param = #param{bindings = Bs0, var_num = Vn0}) -> %TODO foreach vs handmade recursion?
+retract_clauses(_Ch, _Cb, [], Param) -> erlog_errors:fail(Param);
+retract_clauses(Ch, Cb, [C | Cs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}) -> %TODO foreach vs handmade recursion?
 	case ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			%% We have found a right clause so now retract it.
-			Fun(Ch, Cb, C, Cs, Param, Bs1, Vn1);
-		fail -> retract_clauses(Ch, Cb, Cs, Fun, Param)
+			erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
+			Cp = #cp{type = retract, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
+			ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+		fail -> retract_clauses(Ch, Cb, Cs, Param)
 	end.
 
 %% partial_list(Term, Bindings) -> Term.
