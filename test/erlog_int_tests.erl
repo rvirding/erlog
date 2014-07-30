@@ -10,11 +10,11 @@ prop_equal() ->
     ?FORALL({I,J},
 	    {int(),int()},
 	    begin
-		E   = erlog:new(),
-	        case E({prove, {'==',I,J}}) of
-		    {fail, _} ->
+		{ok,E}   = erlog:new(),
+	        case erlog:prove(E, {'==',I,J}) of
+		    {fail,#est{}} ->
 			I =/= J;
-		    {{succeed,[]},_} ->
+		    {{succeed,[]},#est{}} ->
 			I == J
 		end
 	    end).
@@ -23,8 +23,8 @@ prop_not_equal() ->
     ?FORALL({I,J, Op},
 	    {int(),int(), oneof(['\\==','\\='])},
 	    begin
-		E   = erlog:new(),
-	        case E({prove, {Op,I,J}}) of
+		{ok,E}   = erlog:new(),
+	        case erlog:prove(E, {Op,I,J}) of
 		    {fail, _} ->
 			I == J;
 		    {{succeed,[]},_} ->
@@ -33,8 +33,8 @@ prop_not_equal() ->
 	    end).
 
 fail_test() ->
-    {ok, PID}   = erlog:start_link(),
-    ?assertEqual(fail,erlog:prove(PID, fail)),
+    {ok, ERLOG}   = erlog:new(),
+    {fail,#est{}} = erlog:prove(ERLOG, fail),
     true.
 
 
@@ -62,10 +62,10 @@ keys() ->
      "537E16D9"].
 
 bool_test() ->
-    E = erlog:new(),
-    {{succeed, []},_} =  E({prove, true}),
-    {fail,_}          =  E({prove, false}),
-    {fail,_}          =  E({prove, fail}),
+    {ok,E} = erlog:new(),
+    {{succeed, []},_} =  erlog:prove(E, true),
+    {fail,_}          =  erlog:prove(E, false),
+    {fail,_}          =  erlog:prove(E, fail),
     true.
 
 
@@ -80,10 +80,10 @@ prop_assert() ->
     ?FORALL({Op, Value},
             {option(), value()},
             begin
-                {ok, PID}   = erlog:start_link(),
-                {succeed,_} = erlog:prove(PID, {Op, Value}),
-                case  erlog:prove(PID, Value) of
-                    {succeed,_} -> true;
+                {ok, ERLOG}   = erlog:new(),
+                {{succeed,_},ERLOG1} = erlog:prove(ERLOG, {Op, Value}),
+                case  erlog:prove(ERLOG1, Value) of
+                    {{succeed,_},#est{}} -> true;
                     _           -> false
                 end
             end).
@@ -92,13 +92,13 @@ prop_retract() ->
     ?FORALL({Op, Value},
             {oneof([retract]), value()},
             begin
-                {ok, PID}   = erlog:start_link(),
-                {succeed,_} = erlog:prove(PID, {asserta, Value}),
-                {succeed,_} = erlog:prove(PID, Value),
-                {succeed,_} = erlog:prove(PID, {Op, Value}),
-                case  erlog:prove(PID, Value) of
-                    {succeed,_} -> false;
-                    _           -> true
+                {ok, ERLOG}		= erlog:new(),
+                {{succeed,_},ERLOG1}	= erlog:prove(ERLOG, {asserta, Value}),
+                {{succeed,_}, ERLOG2}	= erlog:prove(ERLOG1, Value),
+                {{succeed,_}, ERLOG3}	= erlog:prove(ERLOG2, {Op, Value}),
+                case  erlog:prove(ERLOG3, Value) of
+                    {{succeed,_},#est{}}  -> false;
+                    {fail, #est{}}        -> true
                 end
             end).
               
