@@ -9,10 +9,10 @@ prop_lang_test() ->
     PLFiles     = lists:filter(fun(File) ->
 				       filename:extension(File) =:= ".pl"
 			       end, Files),
-    PL = erlog:new(),
+    {ok,PL} = erlog:new(),
     [begin
-	 {ok,PL1} = PL({consult,"../test/lang_tests/"++ File}),
-	 case  PL1({prove, {test,File}}) of
+	 {ok,PL1} = erlog:consult(PL,"../test/lang_tests/"++ File),
+	 case  erlog:prove(PL1, {test,File}) of
 	     {{succeed, _},_} ->
 		 true;
 	     {fail, _} ->

@@ -6,16 +6,16 @@
 
 
 consult_no_file_test() ->
-    {ok, PID}    = erlog:start_link(),
-    ?assertEqual({error,enoent}, erlog:consult(PID, "no_file.pl")),
-    ?assertEqual({error,enoent}, erlog:reconsult(PID, "no_file.pl")),
-    erlog:halt(PID),
+    {ok, ERLOG}    = erlog:new(),
+    ?assertMatch({error,enoent}, erlog:consult(ERLOG, "no_file.pl")),
+    ?assertMatch({error,enoent}, erlog:reconsult(ERLOG, "no_file.pl")),
+   
     true.
 
 consult_with_file_test()->
-    {ok, PID}    = erlog:start_link(),
-    ?assertEqual(ok, erlog:consult(PID,   "../test/graph.pl")),
-    ?assertEqual(ok, erlog:reconsult(PID, "../test/graph.pl")),
-    erlog:halt(PID),
+    {ok, ERLOG}    = erlog:new(),
+    {ok, ERLOG1} =  erlog:consult(ERLOG,   "../test/graph.pl"),
+    {ok, ERLOG2} =  erlog:reconsult(ERLOG1, "../test/graph.pl"),
+    ?assert(is_record(ERLOG2,est)),
     true.
     
