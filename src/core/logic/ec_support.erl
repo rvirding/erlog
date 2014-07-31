@@ -15,7 +15,7 @@
 -export([new_bindings/0, get_binding/2, add_binding/3,
 	functor/1, cut/3, collect_alternatives/3,
 	update_result/4, update_vars/4, deref/2, dderef_list/2,
-	make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3]).
+	make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2]).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
@@ -124,6 +124,12 @@ index_of(Item, [_ | Tl], Index) -> index_of(Item, Tl, Index + 1).
 remove_nth(List, N) ->
 	{A, B} = lists:split(N - 1, List),
 	A ++ tl(B).
+
+write(Res, Bs) when is_list(Res) ->
+	lists:concat(lists:foldr(fun(Var, Acc) -> [ec_support:dderef(Var, Bs) | Acc] end, [], Res));
+write(Res, Bs) ->
+	ec_support:dderef(Res, Bs).
+
 
 cut(Label, Last, Param = #param{next_goal = Next, choice = [#cut{label = Label} | Cps] = Cps0}) ->
 	if Last -> ec_body:prove_body(Param#param{goal = Next, choice = Cps});
