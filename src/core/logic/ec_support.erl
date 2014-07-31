@@ -126,9 +126,12 @@ remove_nth(List, N) ->
 	A ++ tl(B).
 
 write(Res, Bs) when is_list(Res) ->
-	lists:concat(lists:foldr(fun(Var, Acc) -> [ec_support:dderef(Var, Bs) | Acc] end, [], Res));
+	case io_lib:printable_list(Res) of
+		true -> Res;
+		false -> lists:concat(ec_support:dderef(Res, Bs))
+	end;
 write(Res, Bs) ->
-	ec_support:dderef(Res, Bs).
+	write([Res], Bs).
 
 
 cut(Label, Last, Param = #param{next_goal = Next, choice = [#cut{label = Label} | Cps] = Cps0}) ->

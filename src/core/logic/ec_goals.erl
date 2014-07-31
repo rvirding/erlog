@@ -135,7 +135,6 @@ prove_goal(Param = #param{goal = {ecall, C0, Val}, bindings = Bs, database = Db}
 %% Non-standard but useful.
 prove_goal(Param = #param{goal = {writeln, T}, next_goal = Next, bindings = Bs, event_man = Evman}) ->
 	%% Display procedure.
-	io:format("writeln ~p~n", [T]),
 	Res = ec_support:write(T, Bs),
 	gen_event:notify(Evman, Res),
 	ec_body:prove_body(Param#param{goal = Next});
