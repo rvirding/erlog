@@ -49,15 +49,15 @@ If the prolog code works correctly it will return the tuple `{{succeed,
            end
 ````
 
-Erlog prove has a type signature like this:
+The dialyzer types of some of erlog's functions are as such
 
 ````erlang
--opaque erlog_state()			:: *internal*.
+-opaque erlog_state()			:: #est{}.
+-type functor()                 :: tuple().
 -type erlog_return(Value)		:: {Value,erlog_state()}.
--type erlog_prove()		        :: erlog_return({succeed, [{atom(), any()}]}|fail).
--type erlog_prove_failure()		:: erlog_return(fail).
--type erlog_consult_success()	:: erlog_return(ok).
-_type erlog_consult_failure()	:: erlog_return({error, atom()}).
+-spec prove(erlog_state(), functor()) -> erlog_return({succeed, [{atom(), any()}]}|fail).
+-spec prove(erlog_state(), file()) -> erlog_return(ok|{error, atom()}).
+
 
 ````
 
