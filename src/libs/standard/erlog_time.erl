@@ -137,5 +137,4 @@ check_var({'-', Var}, Bs) ->
 		Res when is_integer(Res) -> -1 * Res;
 		Res -> Res
 	end;
-check_var({Var}, Bs) -> check_var(ec_support:deref({Var}, Bs), Bs);
-check_var(Var, _) -> Var.
+check_var(Var, Bs) -> check_var(ec_support:deref({Var}, Bs), Bs).

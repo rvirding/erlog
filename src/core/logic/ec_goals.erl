@@ -139,8 +139,8 @@ prove_goal(Param = #param{goal = {writeln, T}, next_goal = Next, bindings = Bs, 
 	gen_event:notify(Evman, Res),
 	ec_body:prove_body(Param#param{goal = Next});
 %% File utils
-prove_goal(Param = #param{goal = {consult, Name}, next_goal = Next, f_consulter = Fcon, database = Db}) ->
-	case erlog_file:consult(Fcon, Name, Db) of
+prove_goal(Param = #param{goal = {consult, Name}, next_goal = Next, bindings = Bs, f_consulter = Fcon, database = Db}) ->
+	case erlog_file:consult(Fcon, ec_support:dderef(Name, Bs), Db) of
 		ok -> ok;
 		{Err, Error} when Err == erlog_error; Err == error ->
 			erlog_errors:erlog_error(Error, Db)
