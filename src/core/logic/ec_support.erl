@@ -128,7 +128,7 @@ remove_nth(List, N) ->
 write(Res, Bs) when is_list(Res) ->
 	case io_lib:printable_list(Res) of
 		true -> Res;
-		false -> lists:concat(ec_support:dderef(Res, Bs))
+		false -> ec_support:dderef(Res, Bs)
 	end;
 write(Res, Bs) ->
 	write([Res], Bs).
