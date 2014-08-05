@@ -134,7 +134,8 @@
 
 %% Bindings, unification and dereferncing.
 -export([new_bindings/0,add_binding/3,make_vars/2]).
--export([deref/2,deref_list/2,dderef/2,dderef_list/2,unify/3,functor/1]).
+-export([deref/2,deref_list/2,dderef/2,dderef_list/2,partial_list/2]).
+-export([unify/3,functor/1]).
 
 %% Creating term and body instances.
 -export([well_form_body/3,well_form_goal/4,term_instance/2]).

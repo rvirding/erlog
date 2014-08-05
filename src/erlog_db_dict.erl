@@ -31,11 +31,9 @@
 -export([get_procedure/2,get_procedure_type/2]).
 -export([get_interpreted_functors/1]).
 
-%% Catch thrown error and just return it.
+%% Return {ok,E} or catch thrown error and just return it.
 -define(RET_CATCH(E), try
-			  E
-		      of
-			  Ret -> {ok,Ret}
+			  {ok,E}
 		      catch
 			  throw:Error -> Error
 		      end).
