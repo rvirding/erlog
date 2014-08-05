@@ -160,7 +160,7 @@ prop_split_with_append() ->
                         {ok,E1}                 = erlog:consult(E0, "../priv/split.pl"),
 
                         {{succeed, A }, _E2}    = erlog:prove(E1, {split, {'Head'}, {'Tail'}, Pivot, List}),
-                        ?debugVal(A),
+                      
                         Head                    = proplists:get_value('Head',A ),
                         Tail                    = proplists:get_value('Tail',A ),
                         ?assertEqual(Pivot, length(Head)),

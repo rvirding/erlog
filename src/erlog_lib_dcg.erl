@@ -39,8 +39,8 @@ load(Db0) ->
     Db1 = foldl(fun ({Head,M,F}, Db) -> add_compiled_proc(Head, M, F, Db) end,
 		Db0,
 		[
-		 {{expand_term,2},erlog_dcg,expand_term_2},
-		 {{phrase,3},erlog_dcg,phrase_3}
+		 {{expand_term,2},erlog_lib_dcg,expand_term_2},
+		 {{phrase,3},erlog_lib_dcg,phrase_3}
 		]),
     %% Interpreted DCG predicates.
     foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
