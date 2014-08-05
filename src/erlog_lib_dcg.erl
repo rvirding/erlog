@@ -12,11 +12,11 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : erlog_dcg.erl
+%% File    : erlog_lib_dcg.erl
 %% Author  : Robert Virding
 %% Purpose : DCG conversion and procedures.
 
--module(erlog_dcg).
+-module(erlog_lib_dcg).
 
 -include("erlog_int.hrl").
 

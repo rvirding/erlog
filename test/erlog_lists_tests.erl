@@ -138,21 +138,32 @@ prop_sort_list2() ->
                 end
             end).
 
-% prop_split_with_append() ->
-%     ?FORALL(List, 
-% 	    non_empty(list(int())),
-% 	    ?FORALL(Pivot,choose(1, length(List)),
-% 		    begin
-% 			E0			= erlog:new(),
-% 			{ok,E1}			= E0({consult, "../priv/split.pl"}),
-% 			?debugVal(E1({prove, {clause, split, {'x'}}})),
-% 			?debugVal({prove, {split, {'Head'}, {'Tail'}, Pivot, List}}),
+prop_lists_length() ->
+    ?FORALL(List, 
+            list(int()),
+            begin
+                {ok,E0}                         = erlog:new(),
+                {{succeed, _ }, _}              = erlog:prove(E0, {length, List, length(List)}),
+                {fail, _}                       = erlog:prove(E0, {length, List, length(List) + 1}),
+                {{succeed, [{length, Len}]},_}  = erlog:prove(E0, {length, List, {'length'}}),
+                ?assertEqual(Len, length(List)),
+                true
+             end).
 
-% 			{{succeed, A }, _E2}	= E1({prove, {split, {'Head'}, {'Tail'}, Pivot, List}}),
-% 			?debugVal(A),
-% 			Head			= proplists:get_value('Head',A ),
-% 			Tail			= proplists:get_value('Tail',A ),
-% 			?assertEqual(Pivot, length(Head)),
-% 			?assertEqual(List, list:append(Head, Tail)),
-% 			true
-% 			end)).
+
+prop_split_with_append() ->
+    ?FORALL(List, 
+            non_empty(list(int())),
+            ?FORALL(Pivot,choose(1, length(List)),
+                    begin
+                        {ok,E0}                 = erlog:new(),
+                        {ok,E1}                 = erlog:consult(E0, "../priv/split.pl"),
+
+                        {{succeed, A }, _E2}    = erlog:prove(E1, {split, {'Head'}, {'Tail'}, Pivot, List}),
+                        ?debugVal(A),
+                        Head                    = proplists:get_value('Head',A ),
+                        Tail                    = proplists:get_value('Tail',A ),
+                        ?assertEqual(Pivot, length(Head)),
+                        ?assertEqual(List, lists:append(Head, Tail)),
+                        true
+                    end)).
