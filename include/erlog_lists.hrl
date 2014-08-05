@@ -15,5 +15,6 @@
 		{{member, 2}, ?MODULE, member_2},
 		{{memberchk, 2}, ?MODULE, memberchk_2},
 		{{reverse, 2}, ?MODULE, reverse_2},
-		{{sort, 2}, ?MODULE, sort_2}
+		{{sort, 2}, ?MODULE, sort_2},
+		{{length, 2}, ?MODULE, length_2}
 	]).

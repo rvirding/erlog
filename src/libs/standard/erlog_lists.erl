@@ -30,7 +30,7 @@
 -export([load/1]).
 
 %% Library functions.
--export([append_3/2, insert_3/2, member_2/2, memberchk_2/2, reverse_2/2, sort_2/2]).
+-export([append_3/2, insert_3/2, member_2/2, memberchk_2/2, reverse_2/2, sort_2/2, length_2/2]).
 
 %% load(Database) -> Database.
 %%  Assert predicates into the database.
@@ -48,6 +48,14 @@ load(Db) ->
 			{perm, [], []},
 			{':-', {perm, [{1} | {2}], {3}}, {',', {perm, {2}, {4}}, {insert, {4}, {1}, {3}}}}
 		]).
+
+length_2({length, ListVar, Len}, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	case ec_support:deref(ListVar, Bs0) of
+		List when is_list(List) ->
+			Bs1 = ec_support:add_binding(Len, length(List), Bs0),
+			ec_body:prove_body(Params#param{goal = Next, bindings = Bs1});
+		_ -> erlog_errors:fail(Params)
+	end.
 
 %% append_3(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% append([], L, L).
