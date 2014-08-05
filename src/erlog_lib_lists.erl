@@ -12,7 +12,7 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : erlog_lists.erl
+%% File    : erlog_lib_lists.erl
 %% Author  : Robert Virding
 %% Purpose : Standard Erlog lists library.
 %% 
@@ -21,7 +21,7 @@
 %% and some predicates are compiled. We only get a small benefit when
 %% only implementing indexing on the first argument.
 
--module(erlog_lists).
+-module(erlog_lib_lists).
 
 -include("erlog_int.hrl").
 

@@ -52,8 +52,8 @@ new(DbMod, DbArg) ->
     {ok,Db0} = erlog_int:new(DbMod, DbArg),
     Db1 = foldl(fun (M, Db) -> M:load(Db) end, Db0,
 		[erlog_bips,
-		 erlog_dcg,
-		 erlog_lists
+		 erlog_lib_dcg,
+		 erlog_lib_lists
 		]),
     {ok,#est{vs=[],cps=[],bs=[],vn=0,db=Db1}}.
 
