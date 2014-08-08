@@ -1,3 +1,4 @@
+%%% -*- mode: prolog -*-
 %% Homer Simpson, after a stop at Moe’s, went to the Springfield Mall to buy
 %% Marge, Lisa, Bart and Maggie a gift in anticipation that they will be upset 
 %% with him when he gets home. He bought 4 gifts: a green dress for Marge, a 

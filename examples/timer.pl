@@ -1,3 +1,4 @@
+%%% -*- mode: prolog -*-
 %%% Some simple timer procedures.
 
 cpu_time(Time) :-
