@@ -1,4 +1,4 @@
-%%% Some simple timer procedures.
+%%% -*- mode: prolog -*-
 
 cpu_time(Time) :-
 	ecall(erlog_demo:efunc(erlang:statistics(runtime)), R),
