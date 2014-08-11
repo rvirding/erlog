@@ -1,4 +1,5 @@
-/* -*-Prolog -*-*/
+%%% -*- mode: prolog -*-
+
 mt([], [], []).
 mt([X|Xs], [Y|Ys], [Z|Zs]) :-
 	m(X, Y, Z),

@@ -1,4 +1,5 @@
-/* -*-Prolog -*-*/
+%%% -*- mode: prolog -*-
+
 et((H0 --> B0), (H1 :- B1)) :-
 	et(H0, H1, V1, V2),
 	et(B0, B1, V1, V2).

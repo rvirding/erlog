@@ -1,4 +1,4 @@
-/* -*-Prolog -*-*/
+%%% -*- mode: prolog -*-
 %%% File    : family.pl
 %%% Purpose : Family tree example from Bratko
 %%%

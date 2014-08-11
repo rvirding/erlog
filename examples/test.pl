@@ -1,4 +1,5 @@
-/* -*-Prolog -*-*/
+%%% -*- mode: prolog -*-
+
 :- dynamic(a/0).
 %:- dynamic b/0.
 %:- dynamic c/0.

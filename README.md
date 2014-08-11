@@ -61,6 +61,9 @@ The dialyzer types of some of erlog's functions are as such
 
 ````
 
+If you want to build a gen_server out of your prolog code checkout the erlog server project https://github.com/zkessin/erlog-server
+
+If you have questions about Erlog post them tagged with Erlog on Stack Overflow http://stackoverflow.com/questions/tagged/erlog
 
 ## Passing Data between Erlang and Prolog
 
