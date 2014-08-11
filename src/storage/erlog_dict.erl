@@ -26,7 +26,8 @@
 	raw_store/2,
 	raw_fetch/2,
 	raw_append/2,
-	raw_erase/2]).
+	raw_erase/2,
+	listing/1]).
 
 %% API
 -export([]).
@@ -112,17 +113,20 @@ clause(Head, Body0, Db, ClauseFun) ->
 			({clauses, T, Cs}) -> ClauseFun(T, Body, Cs)
 		end, {clauses, 1, [{0, Head, Body}]}, Db).
 
-findall(State, {Functor}) ->  %TODO implement me!
+findall(_State, {_Functor}) ->  %TODO implement me!
 	erlang:error(not_implemented).
 
-raw_store(State, {Key, Value}) ->
+raw_store(_State, {_Key, _Value}) ->
 	erlang:error(not_implemented).
 
-raw_fetch(State, {Key}) ->
+raw_fetch(_State, {_Key}) ->
 	erlang:error(not_implemented).
 
-raw_append(State, {Key, Value}) ->
+raw_append(_State, {_Key, _Value}) ->
 	erlang:error(not_implemented).
 
-raw_erase(State, {Key}) ->
+raw_erase(_State, {_Key}) ->
+	erlang:error(not_implemented).
+
+listing(_State) ->
 	erlang:error(not_implemented).

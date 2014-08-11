@@ -26,7 +26,9 @@
 	raw_store/2,
 	raw_fetch/2,
 	raw_append/2,
-	raw_erase/2]).
+	raw_erase/2,
+	listing/1,
+	listing/2]).
 
 new() -> {ok, ets:new(eets, [])}.
 
@@ -169,3 +171,9 @@ raw_append(Db, {Key, AppendValue}) ->
 raw_erase(Db, {Key}) ->
 	ets:delete(Db, Key),
 	{ok, Db}.
+
+listing(Db, Collection) ->
+	Ets = ets_db_storage:get_db(Collection),
+	{Res, _} = listing(Ets),
+	{Res, Db}.
+listing(Db) -> {ets:foldl(fun(Pred, Acc) -> [Pred | Acc] end, [], Db), Db}.

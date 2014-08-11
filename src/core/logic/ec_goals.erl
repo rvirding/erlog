@@ -160,6 +160,10 @@ prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db
 			erlog_errors:erlog_error(Error, Db)
 	end,
 	ec_body:prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {listing, Res}, next_goal = Next, bindings = Bs0, database = Db}) ->
+	Content = erlog_memory:listing(Db),
+	Bs = ec_support:add_binding(Res, Content, Bs0),
+	ec_body:prove_body(Param#param{goal = Next, bindings = Bs});
 prove_goal(Param = #param{goal = {findall, T, G, B}}) ->
 	erlog_core:prove_findall(T, G, B, Param);
 prove_goal(Param = #param{goal = {{findall}, Tag, T0}, bindings = Bs, database = Db}) ->

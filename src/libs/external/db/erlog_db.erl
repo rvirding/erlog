@@ -13,7 +13,15 @@
 -include("erlog_db.hrl").
 
 %% API
--export([load/1, db_assert_2/2, db_asserta_2/2, db_abolish_2/2, db_retract_2/2, db_retractall_2/2, fail_retract/2, db_call_2/2]).
+-export([load/1,
+	db_assert_2/2,
+	db_asserta_2/2,
+	db_abolish_2/2,
+	db_retract_2/2,
+	db_retractall_2/2,
+	fail_retract/2,
+	db_call_2/2,
+	db_listing_2/2]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DB).
@@ -51,6 +59,10 @@ db_retractall_2({db_retractall, Table, Fact}, Params = #param{bindings = Bs}) ->
 	C = ec_support:dderef(Fact, Bs),
 	prove_retractall(C, Table, Params).
 
+db_listing_2({db_listing, Table, Res}, Params = #param{next_goal = Next, database = Db, bindings = Bs0}) ->
+	Content = erlog_memory:db_listing(Db, Table),
+	Bs = ec_support:add_binding(Res, Content, Bs0),
+	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 prove_retract({':-', H, B}, Table, Params) ->
 	prove_retract(H, B, Table, Params);
