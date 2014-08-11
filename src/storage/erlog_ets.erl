@@ -176,4 +176,8 @@ listing(Db, Collection) ->
 	Ets = ets_db_storage:get_db(Collection),
 	{Res, _} = listing(Ets),
 	{Res, Db}.
-listing(Db) -> {ets:foldl(fun(Pred, Acc) -> [Pred | Acc] end, [], Db), Db}.
+listing(Db) ->
+	{ets:foldl(
+		fun({Fun, clauses, _, _}, Acc) -> [Fun | Acc];
+			(_, Acc) -> Acc
+		end, [], Db), Db}.
