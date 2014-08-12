@@ -1,66 +1,18 @@
-%% Copyright (c) 2008-2013 Robert Virding
-%%
-%% Licensed under the Apache License, Version 2.0 (the "License");
-%% you may not use this file except in compliance with the License.
-%% You may obtain a copy of the License at
-%%
-%%     http://www.apache.org/licenses/LICENSE-2.0
-%%
-%% Unless required by applicable law or agreed to in writing, software
-%% distributed under the License is distributed on an "AS IS" BASIS,
-%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-%% See the License for the specific language governing permissions and
-%% limitations under the License.
-
-%% File    : erlog_dcg.erl
-%% Author  : Robert Virding
-%% Purpose : DCG conversion and procedures.
-
--module(erlog_dcg).
+%%%-------------------------------------------------------------------
+%%% @author tihon
+%%% @copyright (C) 2014, <COMPANY>
+%%% @doc
+%%%
+%%% @end
+%%% Created : 12. Авг. 2014 17:48
+%%%-------------------------------------------------------------------
+-module(ed_logic).
+-author("tihon").
 
 -include("erlog_core.hrl").
--include("erlog_dcg.hrl").
 
--export([expand_term/1, expand_term/2]).
--export([expand_term_2/1, phrase_3/1]).
--export([load/1]).
-
-load(Db) ->
-	%% Compiled DCG predicates.
-	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DCG),
-	%% Interpreted DCG predicates.
-	lists:foreach(fun(Clause) -> erlog_memory:assertz_clause(Db, Clause) end,
-		[
-			%% 'C'([H|T], H, T).
-			%% {'C',[{1}|{2}],{1},{2}},		%For DCGs
-			%% phrase(V, L) :- phrase(V, L, []).
-			{':-', {phrase, {1}, {2}}, {phrase, {1}, {2}, []}}
-			%% phrase(V, L, R) :-
-			%%     V =.. Z, append(Z, [L,R], G), C =.. G, C.
-			%% {':-',{phrase,{1},{2},{3}},
-			%%  {',',{'=..',{1},{4}},{',',{append,{4},[{2},{3}],{5}},
-			%% 			{',',{'=..',{6},{5}},{6}}}}}
-		]).
-
-%% expand_term_2(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
-%%     void
-%%  Call the expand_term/2 predicate.
-expand_term_2(Param = #param{goal = Goal, bindings = Bs, var_num = Vn0}) ->
-	{expand_term, DCGRule, A2} = ec_support:dderef(Goal, Bs),
-	{Exp, Vn1} = expand_term(DCGRule, Vn0),
-	ec_body:unify_prove_body(A2, Exp, Param#param{var_num = Vn1}).
-
-%% phrase_3(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void.
-%%  Call the phrase/3 preidicate. We could easily do this in prolog
-%%  except for that it calls dcg_body/4 which is not exported.
-%%
-%%  phrase(GRBody, S0, S) -> dcg_body(GRBody, S0, S, Goal), call(Goal).
-phrase_3(Param = #param{goal = Goal, next_goal = Next0, bindings = Bs, var_num = Vn0}) ->
-	{phrase, GRBody, S0, S} = ec_support:dderef(Goal, Bs),
-	{Body, Vn1} = dcg_body(GRBody, S0, S, Vn0),
-	%% io:format("~p\n", [Body]),
-	Next1 = [{call, Body} | Next0],    %Evaluate body
-	ec_body:prove_body(Param#param{goal = Next1, var_num = Vn1}).
+%% API
+-export([expand_term/1, phrase/1]).
 
 %% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
@@ -72,6 +24,13 @@ expand_term(Term) ->
 expand_term({'-->', _, _} = Term, Vn) ->
 	dcg_rule(Term, Vn);
 expand_term(Term, Vn) -> {Term, Vn}.
+
+phrase(Params = #param{goal = Goal, next_goal = Next0, bindings = Bs, var_num = Vn0}) ->
+	{phrase, GRBody, S0, S} = ec_support:dderef(Goal, Bs),
+	{Body, Vn1} = ed_logic:dcg_body(GRBody, S0, S, Vn0),
+	%% io:format("~p\n", [Body]),
+	Next1 = [{call, Body} | Next0],    %Evaluate body
+	ec_core:prove_body(Params#param{goal = Next1, var_num = Vn1}).
 
 %% dcg_rule(Term, VarNum) -> {ExpTerm,NewVarNum}.
 %% dcg_rule(DCGRule, VarIn, VarOout, VarNum) -> {ExpTerm,NewVarNum}.

@@ -48,14 +48,14 @@ reconsult(Fun, File, Db) ->
 %% @private
 -spec consult_assert(Term0 :: term(), Db :: pid()) -> {ok, Db :: pid()}.
 consult_assert(Term0, Db) ->
-	Term1 = erlog_dcg:expand_term(Term0),
+	Term1 = ed_logic:expand_term(Term0),
 	erlog_memory:assertz_clause(Db, Term1),
 	{ok, Db}.  %TODO refactor consult_terms not to pass DB everywhere!
 
 %% @private
 -spec reconsult_assert(Term0 :: term(), {Db :: pid(), Seen :: list()}) -> {ok, {Db :: pid(), list()}}.
 reconsult_assert(Term0, {Db, Seen}) ->
-	Term1 = erlog_dcg:expand_term(Term0),
+	Term1 = ed_logic:expand_term(Term0),
 	Func = functor(Term1),
 	case lists:member(Func, Seen) of
 		true ->

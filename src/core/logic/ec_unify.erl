@@ -41,14 +41,14 @@ unify(T10, T20, Bs0) ->
 unify_clauses(Ch, Cb, [C], Param = #param{next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
 	%% No choice point on last clause
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
-		{succeed, Bs1, Vn1} -> ec_body:prove_body(Param#param{goal = Next, bindings = Bs1, var_num = Vn1});
+		{succeed, Bs1, Vn1} -> ec_core:prove_body(Param#param{goal = Next, bindings = Bs1, var_num = Vn1});
 		fail -> erlog_errors:fail(Param)
 	end;
 unify_clauses(Ch, Cb, [C | Cs], Param = #param{next_goal = Next, bindings = Bs0, var_num = Vn0, choice = Cps}) ->
 	case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 		{succeed, Bs1, Vn1} ->
 			Cp = #cp{type = clause, data = {Ch, Cb, Cs}, next = Next, bs = Bs0, vn = Vn0},
-			ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+			ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
 		fail -> unify_clauses(Ch, Cb, Cs, Param)
 	end;
 unify_clauses(_Ch, _Cb, [], Param) -> erlog_errors:fail(Param).

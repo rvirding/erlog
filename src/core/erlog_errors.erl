@@ -67,11 +67,11 @@ fail(#param{choice = [], database = Db}) -> {fail, Db}.
 
 %% @private
 fail_disjunction(#cp{next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_body:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
+	ec_core:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:prove_ecall(Efun, Val, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	ec_logic:prove_ecall(Efun, Val, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
@@ -79,15 +79,15 @@ fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
 
 %% @private
 fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	ec_logic:retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:prove_predicates(Pi, Fs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	ec_logic:prove_predicates(Pi, Fs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_goal_clauses(#cp{data = {G, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	erlog_core:prove_goal_clauses(G, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	ec_core:prove_goal_clauses(G, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
 	Data = erlog_memory:raw_fetch(Db, Tag),

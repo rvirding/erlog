@@ -10,11 +10,11 @@
 
 -define(ERLOG_LISTS,
 	[
-		{{append, 3}, ?MODULE, append_3},
-		{{insert, 3}, ?MODULE, insert_3},
-		{{member, 2}, ?MODULE, member_2},
-		{{memberchk, 2}, ?MODULE, memberchk_2},
-		{{reverse, 2}, ?MODULE, reverse_2},
-		{{sort, 2}, ?MODULE, sort_2},
-		{{length, 2}, ?MODULE, length_2}
+		{append, 3},
+		{insert, 3},
+		{member, 2},
+		{memberchk, 2},
+		{reverse, 2},
+		{sort, 2},
+		{length, 2}
 	]).

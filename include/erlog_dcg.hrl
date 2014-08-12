@@ -10,6 +10,6 @@
 
 -define(ERLOG_DCG,
 	[
-		{{expand_term, 2}, erlog_dcg, expand_term_2},
-		{{phrase, 3}, erlog_dcg, phrase_3}
+		{expand_term, 2},
+		{phrase, 3}
 	]).

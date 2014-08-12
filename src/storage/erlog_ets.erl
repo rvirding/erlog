@@ -13,8 +13,8 @@
 
 %% erlog callbacks
 -export([new/0, new/1,
-	add_built_in/2,
-	add_compiled_proc/2,
+	load_kernel_space/2,
+	load_library_space/2,
 	assertz_clause/2,
 	asserta_clause/2,
 	retract_clause/2,
@@ -34,13 +34,13 @@ new() -> {ok, ets:new(eets, [])}.
 
 new(_) -> {ok, ets:new(eets, [])}.
 
-add_built_in(Db, {Functor}) ->
-	true = ets:insert(Db, {Functor, built_in}),
+load_kernel_space(Db, {Module, Functor}) ->
+	true = ets:insert(Db, {Functor, {built_in, Module}}),
 	{ok, Db}.
 
-add_compiled_proc(Db, {{Functor, M, F}}) ->
+load_library_space(Db, {{Functor, M, F}}) ->
 	case ets:lookup(Db, Functor) of
-		[{_, built_in}] ->
+		[{_, {built_in, _}}] ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[_] -> ets:insert(Db, {Functor, code, {M, F}});
 		[] -> ets:insert(Db, {Functor, code, {M, F}})
@@ -75,7 +75,7 @@ retract_clause(Db, {Collection, Functor, Ct}) ->
 	{Res, Db};
 retract_clause(Db, {Functor, Ct}) ->
 	case ets:lookup(Db, Functor) of
-		[{_, built_in}] ->
+		[{_, {built_in, _}}] ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[{_, code, _}] ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
@@ -91,7 +91,7 @@ abolish_clauses(Db, {Collection, Functor}) ->
 	{Res, Db};
 abolish_clauses(Db, {Functor}) ->
 	case ets:lookup(Db, Functor) of
-		[{_, built_in}] ->
+		[{_, {built_in, _}}] ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[{_, code, _}] -> ets:delete(Db, Functor);
 		[{_, clauses, _, _}] -> ets:delete(Db, Functor);
@@ -110,7 +110,7 @@ findall(Db, {Functor}) ->
 	case ets:lookup(Db, {Fun, Len}) of
 		[{_, clauses, _, Body}] -> {Body, Db};
 		[{_, code, Body}] -> {Body, Db};
-		[{Body, built_in}] -> {Body, Db};
+		[{Body, {built_in, _}}] -> {Body, Db};
 		[] -> {[], Db}
 	end.
 
@@ -120,7 +120,7 @@ get_procedure(Db, {Collection, Functor}) ->
 	{Res, Db};
 get_procedure(Db, {Functor}) ->
 	{case ets:lookup(Db, Functor) of
-		 [{_, built_in}] -> built_in;
+		 [{_, {built_in, Module}}] -> {built_in, Module};
 		 [{_, code, C}] -> {code, C};
 		 [{_, clauses, _, Cs}] -> {clauses, Cs};
 		 [] -> undefined
@@ -128,14 +128,14 @@ get_procedure(Db, {Functor}) ->
 
 get_procedure_type(Db, {Functor}) ->
 	{case ets:lookup(Db, Functor) of
-		 [{_, built_in}] -> built_in;    %A built-in
+		 [{_, {built_in, _}}] -> built_in;    %A built-in
 		 [{_, code, _C}] -> compiled;    %Compiled (perhaps someday)
 		 [{_, clauses, _, _Cs}] -> interpreted;  %Interpreted clauses
 		 [] -> undefined        %Undefined
 	 end, Db}.
 
 get_interp_functors(Db) ->
-	{ets:foldl(fun({_, built_in}, Fs) -> Fs;
+	{ets:foldl(fun({_, {built_in, _}}, Fs) -> Fs;
 		({Func, code, _}, Fs) -> [Func | Fs];
 		({Func, clauses, _, _}, Fs) -> [Func | Fs]
 	end, [], Db), Db}.
@@ -146,7 +146,7 @@ clause(Head, Body0, Db, ClauseFun) ->
 		                  {ok, F, B} -> {F, B}
 	                  end,
 	case ets:lookup(Db, Functor) of
-		[{_, built_in}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		[{_, {built_in, _}}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[{_, clauses, Tag, Cs}] -> ClauseFun(Functor, Tag, Cs, Body);
 		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})

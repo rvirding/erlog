@@ -12,28 +12,14 @@
 -include("erlog_core.hrl").
 
 %% API
--export([body_instance/5, prove_body/1, unify_prove_body/3, unify_prove_body/5, body_term/3, well_form_body/4, well_form_body/3]).
-
-%% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
-%%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
-%% Prove the goals in a body. Remove the first goal and try to prove
-%% it. Return when there are no more goals. This is how proving a
-%% goal/body succeeds.
-prove_body(Params = #param{goal = [G | Gs]}) -> %TODO use lists:foldr instead!
-	%%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
-	ec_goals:prove_goal(Params#param{goal = G, next_goal = Gs});
-prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
-	%%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
-	%%      [get(erlog_cps),get(erlog_cut),get(erlog_var),dict:size(Bs)]),
-	%%io:fwrite("PB: ~p\n", [Cps]),
-	{succeed, Cps, Bs, Vn, Db}.      %No more body  %TODO why should we return database?
+-export([body_instance/5, unify_prove_body/3, unify_prove_body/5, body_term/3, well_form_body/4, well_form_body/3]).
 
 %% unify_prove_body(Term1, Term2, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
 %% Unify Term1 = Term2, on success prove body Next else fail.
 unify_prove_body(T1, T2, Params = #param{next_goal = Next, bindings = Bs0}) ->
 	case ec_unify:unify(T1, T2, Bs0) of
-		{succeed, Bs1} -> prove_body(Params#param{goal = Next, bindings = Bs1});
+		{succeed, Bs1} -> ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
 		fail -> erlog_errors:fail(Params)
 	end.
 

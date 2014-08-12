@@ -14,7 +14,7 @@
 %% API
 -export([start_link/1,
 	start_link/2,
-	add_compiled_proc/2,
+	load_library_space/2,
 	assertz_clause/3,
 	asserta_clause/3,
 	retract_clause/3,
@@ -41,7 +41,7 @@
 	db_findall/3,
 	db_listing/2]).
 
--export([add_built_in/2]).
+-export([load_kernel_space/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -62,10 +62,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-add_built_in(Database, Element) -> gen_server:call(Database, {add_built_in, {Element}}).
+%% kernelspace predicate loading
+load_kernel_space(Database, Module, Element) -> gen_server:call(Database, {load_kernel_space, {Module, Element}}).
 
-add_compiled_proc(Database, Proc) -> gen_server:call(Database, {add_compiled_proc, {Proc}}).
+%% libraryspace predicate loading
+load_library_space(Database, Proc) -> gen_server:call(Database, {load_library_space, {Proc}}).
 
+%% userspace predicate loading
 assertz_clause(Database, {':-', Head, Body}) -> assertz_clause(Database, Head, Body);
 assertz_clause(Database, Head) -> assertz_clause(Database, Head, true).
 assertz_clause(Database, Head, Body) -> gen_server:call(Database, {assertz_clause, {Head, Body}}).

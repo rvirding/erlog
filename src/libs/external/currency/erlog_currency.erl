@@ -17,10 +17,10 @@
 
 load(Db) ->
 	start_sync_if_needed(),
-	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_CURRENCY).
+	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_CURRENCY).
 
-exchange_4({exchange, ValueFrom, CurrencyTypeFrom, ValueTo, CurrencyTypeTo}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	From = ec_support:dderef(ValueFrom, Bs0),
+exchange_4({exchange, _, _, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	{exchange, From, CurrencyTypeFrom, To, CurrencyTypeTo} = ec_support:dderef(Goal, Bs0),
 	Course = lists:concat(lists:sort([CurrencyTypeFrom, CurrencyTypeTo])),
 	ResultCurrency = case erlog_curr_sync:get_course_by_curr(Course) of
 		                 error -> erlog_errors:erlog_error("Unknown currency type!");
@@ -31,8 +31,8 @@ exchange_4({exchange, ValueFrom, CurrencyTypeFrom, ValueTo, CurrencyTypeTo}, Par
 				                 _ -> erlog_errors:erlog_error("Unknown currency type!")
 			                 end
 	                 end,
-	Bs = ec_support:add_binding(ValueTo, ResultCurrency, Bs0),
-	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
+	Bs = ec_support:add_binding(To, ResultCurrency, Bs0),
+	ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 
 %% @private

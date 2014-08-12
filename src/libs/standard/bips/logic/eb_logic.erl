@@ -1,167 +1,37 @@
-%% Copyright (c) 2008-2013 Robert Virding
-%%
-%% Licensed under the Apache License, Version 2.0 (the "License");
-%% you may not use this file except in compliance with the License.
-%% You may obtain a copy of the License at
-%%
-%%     http://www.apache.org/licenses/LICENSE-2.0
-%%
-%% Unless required by applicable law or agreed to in writing, software
-%% distributed under the License is distributed on an "AS IS" BASIS,
-%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-%% See the License for the specific language governing permissions and
-%% limitations under the License.
-
-%% File    : erlog_bips.erl
-%% Author  : Robert Virding
-%% Purpose : Built-in predicates of Erlog interpreter.
-%% 
-%% These are the built-in predicates of the Prolog interpreter which
-%% are not control predicates or database predicates.
-
--module(erlog_bips).
+%%%-------------------------------------------------------------------
+%%% @author tihon
+%%% @copyright (C) 2014, <COMPANY>
+%%% @doc
+%%%
+%%% @end
+%%% Created : 12. Авг. 2014 17:24
+%%%-------------------------------------------------------------------
+-module(eb_logic).
+-author("tihon").
 
 -include("erlog_core.hrl").
--include("erlog_bips.hrl").
 
-%% Main interface functions.
--export([load/1]).
--export([prove_goal/2]).
-
-%%-compile(export_all).
-
-%% load(Database) -> Database.
-%%  Assert predicates into the database.
-load(Db) ->
-	lists:foreach(fun(Head) -> erlog_memory:add_built_in(Db, Head) end, ?ERLOG_BIPS).
-
-%% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
-%%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |
-%%      {fail,NewDatabase}.
-%% Prove one goal. We seldom return succeed here but usually go directly to
-%% to NextGoal.
-
-%% Term unification and comparison
-prove_goal({'=', L, R}, Params) ->
-	ec_body:unify_prove_body(L, R, Params);
-prove_goal({'\\=', L, R}, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	case ec_unify:unify(L, R, Bs0) of
-		{succeed, _Bs1} -> erlog_errors:fail(Params);
-		fail -> ec_body:prove_body(Params#param{goal = Next})
-	end;
-prove_goal({'@>', L, R}, Params) ->
-	term_test_prove_body('>', L, R, Params);
-prove_goal({'@>=', L, R}, Params) ->
-	term_test_prove_body('>=', L, R, Params);
-prove_goal({'==', L, R}, Params) ->
-	term_test_prove_body('==', L, R, Params);
-prove_goal({'\\==', L, R}, Params) ->
-	term_test_prove_body('/=', L, R, Params);
-prove_goal({'@<', L, R}, Params) ->
-	term_test_prove_body('<', L, R, Params);
-prove_goal({'@=<', L, R}, Params) ->
-	term_test_prove_body('=<', L, R, Params);
-%% Term creation and decomposition.
-prove_goal({arg, I, Ct, A}, Params = #param{bindings = Bs}) ->
-	prove_arg(ec_support:deref(I, Bs), ec_support:deref(Ct, Bs), A, Params);
-prove_goal({copy_term, T0, C}, Params = #param{bindings = Bs, var_num = Vn0}) ->
-	%% Use term_instance to create the copy, can ignore orddict it creates.
-	{T, _Nbs, Vn1} = ec_term:term_instance(ec_support:dderef(T0, Bs), Vn0),
-	ec_body:unify_prove_body(T, C, Params#param{var_num = Vn1});
-prove_goal({functor, T, F, A}, Params = #param{bindings = Bs}) ->
-	prove_functor(ec_support:dderef(T, Bs), F, A, Params);
-prove_goal({'=..', T, L}, Params = #param{bindings = Bs}) ->
-	prove_univ(ec_support:dderef(T, Bs), L, Params);
-%% Type testing.
-prove_goal({atom, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		T when is_atom(T) -> ec_body:prove_body(Params#param{goal = Next});
-		_Other -> erlog_errors:fail(Params)
-	end;
-prove_goal({atomic, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		T when ?IS_ATOMIC(T) -> ec_body:prove_body(Params#param{goal = Next});
-		_Other -> erlog_errors:fail(Params)
-	end;
-prove_goal({compound, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		T when ?IS_ATOMIC(T) -> erlog_errors:fail(Params);
-		_Other -> ec_body:prove_body(Params#param{goal = Next})
-	end;
-prove_goal({integer, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		T when is_integer(T) -> ec_body:prove_body(Params#param{goal = Next});
-		_Other -> erlog_errors:fail(Params)
-	end;
-prove_goal({float, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		T when is_float(T) -> ec_body:prove_body(Params#param{goal = Next});
-		_Other -> erlog_errors:fail(Params)
-	end;
-prove_goal({number, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		T when is_number(T) -> ec_body:prove_body(Params#param{goal = Next});
-		_Other -> erlog_errors:fail(Params)
-	end;
-prove_goal({nonvar, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		{_} -> erlog_errors:fail(Params);
-		_Other -> ec_body:prove_body(Params#param{goal = Next})
-	end;
-prove_goal({var, T0}, Params = #param{next_goal = Next, bindings = Bs}) ->
-	case ec_support:deref(T0, Bs) of
-		{_} -> ec_body:prove_body(Params#param{goal = Next});
-		_Other -> erlog_errors:fail(Params)
-	end;
-%% Atom processing.
-prove_goal({atom_chars, A, L}, Params) ->
-	prove_atom_chars(A, L, Params);
-prove_goal({atom_length, A0, L0}, Params = #param{bindings = Bs, database = Db}) ->
-	case ec_support:dderef(A0, Bs) of
-		A when is_atom(A) ->
-			Alen = length(atom_to_list(A)),  %No of chars in atom
-			case ec_support:dderef(L0, Bs) of
-				L when is_integer(L) ->
-					ec_body:unify_prove_body(Alen, L, Params);
-				{_} = Var ->
-					ec_body:unify_prove_body(Alen, Var, Params);
-				Other -> erlog_errors:type_error(integer, Other, Db)
-			end;
-		{_} -> erlog_errors:instantiation_error(Db);
-		Other -> erlog_errors:type_error(atom, Other, Db)
-	end;
-%% Arithmetic evalution and comparison.
-prove_goal({is, N, E0}, Params = #param{bindings = Bs, database = Db}) ->
-	E = eval_arith(ec_support:deref(E0, Bs), Bs, Db),
-	ec_body:unify_prove_body(N, E, Params);
-prove_goal({'>', L, R}, Params) ->
-	arith_test_prove_body('>', L, R, Params);
-prove_goal({'>=', L, R}, Params) ->
-	arith_test_prove_body('>=', L, R, Params);
-prove_goal({'=:=', L, R}, Params) ->
-	arith_test_prove_body('==', L, R, Params);
-prove_goal({'=\\=', L, R}, Params) ->
-	arith_test_prove_body('/=', L, R, Params);
-prove_goal({'<', L, R}, Params) ->
-	arith_test_prove_body('<', L, R, Params);
-prove_goal({'=<', L, R}, Params) ->
-	arith_test_prove_body('=<', L, R, Params).
+%% API
+-export([term_test_prove_body/4,
+	prove_arg/4,
+	prove_functor/4,
+	prove_univ/3,
+	prove_atom_chars/3,
+	arith_test_prove_body/4]).
 
 %% term_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, Varnum, Database) ->
 %%      void.
-
 term_test_prove_body(Test, L, R, Params = #param{next_goal = Next, bindings = Bs}) ->
 	case erlang:Test(ec_support:dderef(L, Bs), ec_support:dderef(R, Bs)) of
-		true -> ec_body:prove_body(Params#param{goal = Next});
+		true -> ec_core:prove_body(Params#param{goal = Next});
 		false -> erlog_errors:fail(Params)
 	end.
 
 %% prove_arg(Index, Term, Arg, Next, ChoicePoints, VarNum, Database) -> void.
 %%  Prove the goal arg(I, Ct, Arg), Index and Term have been dereferenced.
-
 prove_arg(I, [H | T], A, Param = #param{database = Db}) when is_integer(I) ->
-	%% He, he, he!
-	if I == 1 -> ec_body:unify_prove_body(H, A, Param);
+	if
+		I == 1 -> ec_body:unify_prove_body(H, A, Param);
 		I == 2 -> ec_body:unify_prove_body(T, A, Param);
 		true -> {fail, Db}
 	end;
@@ -179,7 +49,6 @@ prove_arg(I, Ct, _, #param{database = Db}) ->
 
 %% prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Prove the call functor(T, F, A), Term has been dereferenced.
-
 prove_functor(T, F, A, Params) when tuple_size(T) >= 2 ->
 	ec_body:unify_prove_body(F, element(1, T), A, tuple_size(T) - 1, Params);
 prove_functor(T, F, A, Params) when ?IS_ATOMIC(T) ->
@@ -191,14 +60,14 @@ prove_functor({_} = Var, F0, A0, Params = #param{next_goal = Next, bindings = Bs
 	case {ec_support:dderef(F0, Bs0), ec_support:dderef(A0, Bs0)} of
 		{'.', 2} ->        %He, he, he!
 			Bs1 = ec_support:add_binding(Var, [{Vn0} | {Vn0 + 1}], Bs0),
-			ec_body:prove_body(Params#param{goal = Next, bindings = Bs1, var_num = Vn0 + 2});
+			ec_core:prove_body(Params#param{goal = Next, bindings = Bs1, var_num = Vn0 + 2});
 		{F1, 0} when ?IS_ATOMIC(F1) ->
 			Bs1 = ec_support:add_binding(Var, F1, Bs0),
-			ec_body:prove_body(Params#param{goal = Next, bindings = Bs1});
+			ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
 		{F1, A1} when is_atom(F1), is_integer(A1), A1 > 0 ->
 			As = ec_support:make_vars(A1, Vn0),
 			Bs1 = ec_support:add_binding(Var, list_to_tuple([F1 | As]), Bs0),
-			ec_body:prove_body(Params#param{goal = Next, bindings = Bs1, var_num = Vn0 + A1}); %!!!
+			ec_core:prove_body(Params#param{goal = Next, bindings = Bs1, var_num = Vn0 + A1}); %!!!
 	%% Now the error cases.
 		{{_}, _} -> erlog_errors:instantiation_error(Db);
 		{F1, A1} when is_atom(F1) -> erlog_errors:type_error(integer, A1, Db);
@@ -207,14 +76,12 @@ prove_functor({_} = Var, F0, A0, Params = #param{next_goal = Next, bindings = Bs
 
 %% prove_univ(Term, List, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Prove the goal Term =.. List, Term has already been dereferenced.
-
 prove_univ(T, L, Params) when tuple_size(T) >= 2 ->
 	Es = tuple_to_list(T),
 	ec_body:unify_prove_body(Es, L, Params);
 prove_univ(T, L, Params) when ?IS_ATOMIC(T) ->
 	ec_body:unify_prove_body([T], L, Params);
 prove_univ([Lh | Lt], L, Params) ->
-	%% He, he, he!  %TODO what does it mean?
 	ec_body:unify_prove_body(['.', Lh, Lt], L, Params);
 prove_univ({_} = Var, L, Params = #param{next_goal = Next, bindings = Bs0, database = Db}) ->
 	Bs1 = case ec_support:dderef(L, Bs0) of
@@ -229,12 +96,11 @@ prove_univ({_} = Var, L, Params = #param{next_goal = Next, bindings = Bs0, datab
 		      {_} -> erlog_errors:instantiation_error(Db);
 		      Other -> erlog_errors:type_error(list, Other, Db)
 	      end,
-	ec_body:prove_body(Params#param{goal = Next, bindings = Bs1}).
+	ec_core:prove_body(Params#param{goal = Next, bindings = Bs1}).
 
 %% prove_atom_chars(Atom, List, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
 %%  Prove the atom_chars(Atom, List).
-
 prove_atom_chars(A, L, Params = #param{bindings = Bs, database = Db}) ->
 	%% After a suggestion by Sean Cribbs.
 	case ec_support:dderef(A, Bs) of
@@ -264,19 +130,19 @@ prove_atom_chars(A, L, Params = #param{bindings = Bs, database = Db}) ->
 
 %% arith_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%	void.
-
 arith_test_prove_body(Test, L, R, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
 	case erlang:Test(eval_arith(ec_support:deref(L, Bs), Bs, Db),
 		eval_arith(ec_support:deref(R, Bs), Bs, Db)) of
-		true -> ec_body:prove_body(Params#param{goal = Next});
+		true -> ec_core:prove_body(Params#param{goal = Next});
 		false -> erlog_errors:fail(Params)
 	end.
 
+
+%% @private
 %% eval_arith(ArithExpr, Bindings, Database) -> Number.
 %%  Evaluate an arithmetic expression, include the database for
 %%  errors.  Dereference each level as we go, might fail so save some
 %%  work.  Must be called deferenced.
-
 eval_arith({'+', A, B}, Bs, Db) ->
 	eval_arith(ec_support:deref(A, Bs), Bs, Db) + eval_arith(ec_support:deref(B, Bs), Bs, Db);
 eval_arith({'-', A, B}, Bs, Db) ->
@@ -322,13 +188,14 @@ eval_arith([_ | _], _Bs, Db) ->
 	erlog_errors:type_error(evaluable, pred_ind('.', 2), Db);
 eval_arith(O, _Bs, Db) -> erlog_errors:type_error(evaluable, O, Db).
 
+%% @private
 %% eval_int(IntegerExpr, Bindings, Database) -> Integer.
 %% Evaluate an integer expression, include the database for errors.
-
 eval_int(E0, Bs, Db) ->
 	E = eval_arith(E0, Bs, Db),
 	if is_integer(E) -> E;
 		true -> erlog_errors:type_error(integer, E, Db)
 	end.
 
+%% @private
 pred_ind(N, A) -> {'/', N, A}.

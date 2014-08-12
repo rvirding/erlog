@@ -24,45 +24,48 @@
 	db_listing_2/2]).
 
 load(Db) ->
-	lists:foreach(fun(Proc) -> erlog_memory:add_compiled_proc(Db, Proc) end, ?ERLOG_DB).
+	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
 
-db_call_2({db_call, Table, Goal}, Param = #param{database = Db}) ->
+db_call_2({db_call, _, _} = Goal, Param = #param{bindings = Bs, database = Db}) ->
+	{db_call, Table, Goal} = ec_support:dderef(Goal, Bs),
 %% Only add cut CP to Cps if goal contains a cut.
 	case erlog_memory:db_findall(Db, Table, Goal) of
 		[] -> erlog_errors:fail(Param);
-		Cs -> erlog_core:prove_goal_clauses(Goal, Cs, Param)
+		Cs -> ec_core:prove_goal_clauses(Goal, Cs, Param)
 	end.
 
-db_assert_2({db_assert, Table, Fact}, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
-	C = ec_support:dderef(Fact, Bs),
-	erlog_memory:db_assertz_clause(Db, Table, C),
-	ec_body:prove_body(Params#param{goal = Next}).
+db_assert_2({db_assert, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
+	{db_assert, Table, Fact} = ec_support:dderef(Goal, Bs),
+	erlog_memory:db_assertz_clause(Db, Table, Fact),
+	ec_core:prove_body(Params#param{goal = Next}).
 
-db_asserta_2({db_asserta, Table, Fact}, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
-	C = ec_support:dderef(Fact, Bs),
-	erlog_memory:db_asserta_clause(Db, Table, C),
-	ec_body:prove_body(Params#param{goal = Next}).
+db_asserta_2({db_asserta, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
+	{db_asserta, Table, Fact} = ec_support:dderef(Goal, Bs),
+	erlog_memory:db_asserta_clause(Db, Table, Fact),
+	ec_core:prove_body(Params#param{goal = Next}).
 
-db_abolish_2({db_abolish, Table, Fact}, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
-	case ec_support:dderef(Fact, Bs) of
+db_abolish_2({db_abolish, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
+	{db_abolish, Table, Fact} = ec_support:dderef(Goal, Bs),
+	case Fact of
 		{'/', N, A} when is_atom(N), is_integer(A), A > 0 ->
 			erlog_memory:db_abolish_clauses(Db, Table, {N, A}),
-			ec_body:prove_body(Params#param{goal = Next});
+			ec_core:prove_body(Params#param{goal = Next});
 		Pi -> erlog_errors:type_error(predicate_indicator, Pi, Db)
 	end.
 
-db_retract_2({db_retract, Table, Fact}, Params = #param{bindings = Bs}) ->
-	C = ec_support:dderef(Fact, Bs),
-	prove_retract(C, Table, Params).
+db_retract_2({db_retract, _, _} = Goal, Params = #param{bindings = Bs}) ->
+	{db_retract, Table, Fact} = ec_support:dderef(Goal, Bs),
+	prove_retract(Fact, Table, Params).
 
-db_retractall_2({db_retractall, Table, Fact}, Params = #param{bindings = Bs}) ->
-	C = ec_support:dderef(Fact, Bs),
-	prove_retractall(C, Table, Params).
+db_retractall_2({db_retractall, _, _} = Goal, Params = #param{bindings = Bs}) ->
+	{db_retractall, Table, Fact} = ec_support:dderef(Goal, Bs),
+	prove_retractall(Fact, Table, Params).
 
-db_listing_2({db_listing, Table, Res}, Params = #param{next_goal = Next, database = Db, bindings = Bs0}) ->
+db_listing_2({db_listing, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs0, database = Db}) ->
+	{db_listing, Table, Res} = ec_support:dderef(Goal, Bs0),
 	Content = erlog_memory:db_listing(Db, Table),
 	Bs = ec_support:add_binding(Res, Content, Bs0),
-	ec_body:prove_body(Params#param{goal = Next, bindings = Bs}).
+	ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
 
 prove_retract({':-', H, B}, Table, Params) ->
 	prove_retract(H, B, Table, Params);
@@ -95,19 +98,19 @@ prove_retractall(H, B, Table, Params = #param{next_goal = Next, bindings = Bs0, 
 						fail -> ok
 					end
 				end, Cs),
-			ec_body:prove_body(Params#param{goal = Next});
+			ec_core:prove_body(Params#param{goal = Next});
 		{code, _} ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		built_in ->
 			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		undefined -> ec_body:prove_body(Params#param{goal = Next})
+		undefined -> ec_core:prove_body(Params#param{goal = Next})
 	end.
 
 %% @private
 retract(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db}, Bs1, Vn1, Table) ->
 	erlog_memory:db_retract_clause(Db, Table, ec_support:functor(Ch), element(1, C)),
 	Cp = #cp{type = db_retract, data = {Ch, Cb, Cs, Table}, next = Next, bs = Bs0, vn = Vn0},
-	ec_body:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}).
+	ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}).
 
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
