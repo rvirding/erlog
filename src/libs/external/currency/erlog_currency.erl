@@ -12,6 +12,8 @@
 -include("erlog_currency.hrl").
 -include("erlog_core.hrl").
 
+%TODO remove me from erlog
+
 %% API
 -export([load/1, exchange_4/2]).
 
