@@ -81,6 +81,8 @@
 		{setof, 3},
 		{listing, 1},
 		%% Non standart functions
-		{use, 1} %load erlang library module
+		{use, 1}, %load erlang library module
+		{to_integer, 2},
+		{to_string, 2}
 	]
 ).

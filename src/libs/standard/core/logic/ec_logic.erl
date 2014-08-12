@@ -21,7 +21,7 @@
 	prove_predicates/3,
 	prove_retract/2,
 	prove_retractall/2,
-	retract_clauses/4]).
+	retract_clauses/4, parse_int/1, to_string/1]).
 
 %% prove_findall(Term, Goal, Bag, Param)
 %% Do findall on Goal and return list of each Term in Bag. We are
@@ -163,6 +163,18 @@ well_form_goal('!', Tail, Cut, Label) ->
 well_form_goal(Goal, Tail, Cut, _Label) ->
 	ec_support:functor(Goal),        %Check goal
 	{[Goal | Tail], Cut}.
+
+parse_int(Float) when is_float(Float) -> round(Float);
+parse_int(String) when is_list(String) ->
+	case string:to_integer(String) of
+		{error, E} -> throw(E);
+		{Res, _} -> Res
+	end;
+parse_int(Atom) when is_atom(Atom) ->
+	parse_int(atom_to_list(Atom)).
+
+to_string(Int) when is_integer(Int) -> integer_to_list(Int);
+to_string(Value) -> lists:flatten(io_lib:format("~p", [Value])).
 
 %% initial_goal(Goal) -> {Goal,Bindings,NewVarNum}.
 %% initial_goal(Goal, Bindings, VarNum) -> {Goal,NewBindings,NewVarNum}.

@@ -202,4 +202,16 @@ prove_goal(Param = #param{goal = {bagof, Goal, Fun, Res}, choice = Cs0, bindings
 			UpdBs1 = ec_support:update_vars(Goal, FunList, Key, UpdBs0),
 			[#cp{type = disjunction, label = Fun, next = Next, bs = UpdBs1, vn = Vn} | Acc]
 		end, Cs0, Collected),
-	ec_core:prove_body(Param#param{goal = Next, bindings = UBs#cp.bs, choice = Choises, var_num = Vn + length(Choises)}).
+	ec_core:prove_body(Param#param{goal = Next, bindings = UBs#cp.bs, choice = Choises, var_num = Vn + length(Choises)});
+prove_goal(Param = #param{goal = {to_integer, NumV, Res}, next_goal = Next, bindings = Bs0}) ->
+	Num = ec_support:dderef(NumV, Bs0),
+	case catch (ec_logic:parse_int(Num)) of
+		Int when is_integer(Int) ->
+			Bs = ec_support:add_binding(Res, Int, Bs0),
+			ec_core:prove_body(Param#param{goal = Next, bindings = Bs});
+		_ -> erlog_errors:fail(Param)
+	end;
+prove_goal(Param = #param{goal = {to_string, VarV, Res}, next_goal = Next, bindings = Bs0}) ->
+	Var = ec_support:dderef(VarV, Bs0),
+	Bs = ec_support:add_binding(Res, ec_logic:to_string(Var), Bs0),
+	ec_core:prove_body(Param#param{goal = Next, bindings = Bs}).
