@@ -17,7 +17,7 @@
 	prove_functor/4,
 	prove_univ/3,
 	prove_atom_chars/3,
-	arith_test_prove_body/4]).
+	arith_test_prove_body/4, eval_arith/3]).
 
 %% term_test_prove_body(Test, Left, Right, Next, ChoicePoints, Bindings, Varnum, Database) ->
 %%      void.
@@ -137,8 +137,6 @@ arith_test_prove_body(Test, L, R, Params = #param{next_goal = Next, bindings = B
 		false -> erlog_errors:fail(Params)
 	end.
 
-
-%% @private
 %% eval_arith(ArithExpr, Bindings, Database) -> Number.
 %%  Evaluate an arithmetic expression, include the database for
 %%  errors.  Dereference each level as we go, might fail so save some
@@ -187,6 +185,7 @@ eval_arith(N, _Bs, Db) when is_tuple(N) ->
 eval_arith([_ | _], _Bs, Db) ->
 	erlog_errors:type_error(evaluable, pred_ind('.', 2), Db);
 eval_arith(O, _Bs, Db) -> erlog_errors:type_error(evaluable, O, Db).
+
 
 %% @private
 %% eval_int(IntegerExpr, Bindings, Database) -> Integer.
