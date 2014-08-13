@@ -27,11 +27,11 @@ load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
 
 db_call_2({db_call, _, _} = Goal, Param = #param{bindings = Bs, database = Db}) ->
-	{db_call, Table, Goal} = ec_support:dderef(Goal, Bs),
+	{db_call, Table, G} = ec_support:dderef(Goal, Bs),
 %% Only add cut CP to Cps if goal contains a cut.
-	case erlog_memory:db_findall(Db, Table, Goal) of
+	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
-		Cs -> ec_core:prove_goal_clauses(Goal, Cs, Param)
+		Cs -> ec_core:prove_goal_clauses(G, Cs, Param)
 	end.
 
 db_assert_2({db_assert, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
