@@ -185,9 +185,9 @@ prove_goal(Param = #param{goal = {listing, Res}, next_goal = Next, bindings = Bs
 	Content = erlog_memory:listing(Db),
 	Bs = ec_support:add_binding(Res, Content, Bs0),
 	ec_core:prove_body(Param#param{goal = Next, bindings = Bs});
-prove_goal(Param = #param{goal = {findall, T, G, B}}) ->
+prove_goal(Param = #param{goal = {findall, T, G, B}}) ->  %findall start
 	ec_logic:prove_findall(T, G, B, Param);
-prove_goal(Param = #param{goal = {{findall}, Tag, T0}, bindings = Bs, database = Db}) ->
+prove_goal(Param = #param{goal = {findall, Tag, T0}, bindings = Bs, database = Db}) ->  %findall finish
 	T1 = ec_support:dderef(T0, Bs),
 	erlog_memory:raw_append(Db, Tag, T1),  %Append to saved list
 	erlog_errors:fail(Param);

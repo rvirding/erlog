@@ -77,6 +77,7 @@
 		{writeln, 1},
 		%% Searching functions
 		{findall, 3},
+		{findall, 2}, %support for findall
 		{bagof, 3},
 		{setof, 3},
 		{listing, 1},

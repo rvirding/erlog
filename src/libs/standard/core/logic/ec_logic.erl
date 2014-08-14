@@ -33,7 +33,7 @@
 prove_findall(T, G, B0, Param = #param{bindings = Bs, choice = Cps, next_goal = Next, var_num = Vn, database = Db}) ->
 	Label = Vn,
 	Tag = Vn + 1,  %Increment to avoid clashes
-	{Next1, _} = ec_logic:check_goal(G, [{{findall}, Tag, T}], Bs, Db, false, Label),
+	{Next1, _} = ec_logic:check_goal(G, [{findall, Tag, T}], Bs, Db, false, Label),
 	B1 = partial_list(B0, Bs),
 	Cp = #cp{type = findall, data = {Tag, B1}, next = Next, bs = Bs, vn = Vn},
 	erlog_memory:raw_store(Db, Tag, []),  %Initialise collection
