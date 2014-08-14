@@ -139,27 +139,27 @@ well_form_goal({',', L, R}, Tail0, Cut0, Label) ->
 	well_form_goal(L, Tail1, Cut1, Label);
 well_form_goal({';', {'->', C0, T0}, E0}, Tail, Cut0, Label) ->
 	{T1, Tc} = well_form_goal(T0, Tail, Cut0, Label),
-	{C1, _} = well_form_goal(C0, [{{cut}, Label, true} | T1], true, Label),
+	{C1, _} = well_form_goal(C0, [{cut, Label, true} | T1], true, Label),
 	{E1, Ec} = well_form_goal(E0, Tail, Cut0, Label),
-	{[{{if_then_else}, E1, Label} | C1], Tc or Ec};
+	{[{if_then_else, E1, Label} | C1], Tc or Ec};
 well_form_goal({';', L0, R0}, Tail, Cut0, Label) ->
 	{L1, Lc} = well_form_goal(L0, Tail, Cut0, Label),
 	{R1, Rc} = well_form_goal(R0, Tail, Cut0, Label),
-	{[{{disj}, R1} | L1], Lc or Rc};
+	{[{disj, R1} | L1], Lc or Rc};
 well_form_goal({'->', C0, T0}, Tail, Cut0, Label) ->
 	{T1, Cut1} = well_form_goal(T0, Tail, Cut0, Label),
 	%% N.B. an extra cut will be added at run-time!
-	{C1, _} = well_form_goal(C0, [{{cut}, Label, true} | T1], true, Label),
-	{[{{if_then}, Label} | C1], Cut1};
+	{C1, _} = well_form_goal(C0, [{cut, Label, true} | T1], true, Label),
+	{[{if_then, Label} | C1], Cut1};
 well_form_goal({once, G}, Tail, Cut, Label) ->
-	{G1, _} = well_form_goal(G, [{{cut}, Label, true} | Tail], true, Label),
-	{[{{once}, Label} | G1], Cut};
+	{G1, _} = well_form_goal(G, [{cut, Label, true} | Tail], true, Label),
+	{[{once, Label} | G1], Cut};
 well_form_goal({V}, Tail, Cut, _Label) ->
 	{[{call, {V}} | Tail], Cut};
 well_form_goal(true, Tail, Cut, _Label) -> {Tail, Cut}; %No-op
 well_form_goal(fail, _Tail, _Cut, _Label) -> {[fail], false};  %No further
 well_form_goal('!', Tail, Cut, Label) ->
-	{[{{cut}, Label, not Cut} | Tail], true};
+	{[{cut, Label, not Cut} | Tail], true};
 well_form_goal(Goal, Tail, Cut, _Label) ->
 	ec_support:functor(Goal),        %Check goal
 	{[Goal | Tail], Cut}.

@@ -40,30 +40,30 @@ unify_prove_body(A1, B1, A2, B2, Params = #param{bindings = Bs0}) ->
 %%  check Term as it should already be checked. Use term_instance to
 %%  handle goals. N.B. We have to be VERY careful never to go into the
 %%  original tail as this will cause havoc.
-body_instance([{{cut} = Cut, _, Last} | Gs0], Tail, Rs0, Vn0, Label) ->
+body_instance([{cut = Cut, _, Last} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
 	{[{Cut, Label, Last} | Gs1], Rs1, Vn1};
-body_instance([{{disj} = Disj, L0, R0} | Gs0], Tail, Rs0, Vn0, Label) ->
+body_instance([{disj = Disj, L0, R0} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
 	%% Append Gs1 directly to L and R.
 	{L1, Rs2, Vn2} = body_instance(L0, Gs1, Rs1, Vn1, Label),
 	{R1, Rs3, Vn3} = body_instance(R0, Gs1, Rs2, Vn2, Label),
 	{[{Disj, R1} | L1], Rs3, Vn3};
-body_instance([{{if_then} = IT, C0, T0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
+body_instance([{if_then = IT, C0, T0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
 	{T1, Rs2, Vn2} = body_instance(T0, Gs1, Rs1, Vn1, Label),
-	{C1, Rs3, Vn3} = body_instance(C0, [{{cut}, Label, true} | T1], Rs2, Vn2, Label),
+	{C1, Rs3, Vn3} = body_instance(C0, [{cut, Label, true} | T1], Rs2, Vn2, Label),
 	%% Append Gs1 directly to T1 to C1.
 	{[{IT, Label} | C1], Rs3, Vn3};
-body_instance([{{if_then_else} = ITE, C0, T0, E0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
+body_instance([{if_then_else = ITE, C0, T0, E0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
 	{T1, Rs2, Vn2} = body_instance(T0, Gs1, Rs1, Vn1, Label),
-	{C1, Rs3, Vn3} = body_instance(C0, [{{cut}, Label, true} | T1], Rs2, Vn2, Label),
+	{C1, Rs3, Vn3} = body_instance(C0, [{cut, Label, true} | T1], Rs2, Vn2, Label),
 	{E1, Rs4, Vn4} = body_instance(E0, Gs1, Rs3, Vn3, Label),
 	{[{ITE, E1, Label} | C1], Rs4, Vn4};
-body_instance([{{once} = Once, G0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
+body_instance([{once = Once, G0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
-	{G1, Rs2, Vn2} = body_instance(G0, [{{cut}, Label, true} | Gs1], Rs1, Vn1, Label),
+	{G1, Rs2, Vn2} = body_instance(G0, [{cut, Label, true} | Gs1], Rs1, Vn1, Label),
 	{[{Once, Label} | G1], Rs2, Vn2};
 body_instance([G0 | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
@@ -85,26 +85,26 @@ well_form_body({';', {'->', C0, T0}, E0}, Tail, Cut0, Label) ->
 	{E1, Ec} = well_form_body(E0, Cut0, Label),
 	%% N.B. an extra cut will be added at run-time!
 	{C1, _} = well_form_body(C0, true, Label),
-	{[{{if_then_else}, C1, T1, E1, Label} | Tail], Tc or Ec};
+	{[{if_then_else, C1, T1, E1, Label} | Tail], Tc or Ec};
 well_form_body({';', L0, R0}, Tail, Cut0, Label) ->
 	{L1, Lc} = well_form_body(L0, Cut0, Label),
 	{R1, Rc} = well_form_body(R0, Cut0, Label),
-	{[{{disj}, L1, R1} | Tail], Lc or Rc};
+	{[{disj, L1, R1} | Tail], Lc or Rc};
 well_form_body({'->', C0, T0}, Tail, Cut0, Label) ->
 	{T1, Cut1} = well_form_body(T0, Cut0, Label),
 	%% N.B. an extra cut will be added at run-time!
 	{C1, _} = well_form_body(C0, true, Label),
-	{[{{if_then}, C1, T1, Label} | Tail], Cut1};
+	{[{if_then, C1, T1, Label} | Tail], Cut1};
 well_form_body({once, G}, Tail, Cut, Label) ->
 	%% N.B. an extra cut is added at run-time!
 	{G1, _} = well_form_body(G, true, Label),
-	{[{{once}, G1, Label} | Tail], Cut};
+	{[{once, G1, Label} | Tail], Cut};
 well_form_body({V}, Tail, Cut, _Label) ->
 	{[{call, {V}} | Tail], Cut};
 well_form_body(true, Tail, Cut, _Label) -> {Tail, Cut}; %No-op
 well_form_body(fail, _Tail, _Cut, _Label) -> {[fail], false};  %No further
 well_form_body('!', Tail, Cut, Label) ->
-	{[{{cut}, Label, not Cut} | Tail], true};
+	{[{cut, Label, not Cut} | Tail], true};
 well_form_body(Goal, Tail, Cut, _Label) ->
 	ec_support:functor(Goal),        %Check goal
 	{[Goal | Tail], Cut}.
@@ -116,26 +116,26 @@ well_form_body(Goal, Tail, Cut, _Label) ->
 %%  overlapping integer ranges. Don't check Term as it should already
 %%  be checked. Use orddict as there will seldom be many variables and
 %%  it it fast to setup.
-body_term([{{cut}, _, _} | Gs0], Rs0, Vn0) ->
+body_term([{cut, _, _} | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
 	{body_conj('!', Gs1), Rs1, Vn1};
-body_term([{{disj}, L0, R0} | Gs0], Rs0, Vn0) ->
+body_term([{disj, L0, R0} | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
 	{L1, Rs2, Vn2} = body_term(L0, Rs1, Vn1),
 	{R1, Rs3, Vn3} = body_term(R0, Rs2, Vn2),
 	{body_conj({';', L1, R1}, Gs1), Rs3, Vn3};
-body_term([{{if_then}, C0, T0, _} | Gs0], Rs0, Vn0) ->
+body_term([{if_then, C0, T0, _} | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
 	{C1, Rs2, Vn2} = body_term(C0, Rs1, Vn1),
 	{T1, Rs3, Vn3} = body_term(T0, Rs2, Vn2),
 	{body_conj({'->', C1, T1}, Gs1), Rs3, Vn3};
-body_term([{{if_then_else}, C0, T0, E0, _} | Gs0], Rs0, Vn0) ->
+body_term([{if_then_else, C0, T0, E0, _} | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
 	{C1, Rs2, Vn2} = body_term(C0, Rs1, Vn1),
 	{T1, Rs3, Vn3} = body_term(T0, Rs2, Vn2),
 	{E1, Rs4, Vn4} = body_term(E0, Rs3, Vn3),
 	{body_conj({';', {'->', C1, T1}, E1}, Gs1), Rs4, Vn4};
-body_term([{{once}, G0, _} | Gs0], Rs0, Vn0) ->
+body_term([{once, G0, _} | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
 	{G1, Rs2, Vn2} = body_term(G0, Rs1, Vn1),
 	{body_conj({once, G1}, Gs1), Rs2, Vn2};

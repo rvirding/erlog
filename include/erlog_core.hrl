@@ -77,13 +77,19 @@
 		{writeln, 1},
 		%% Searching functions
 		{findall, 3},
-		{findall, 2}, %support for findall
 		{bagof, 3},
 		{setof, 3},
 		{listing, 1},
 		%% Non standart functions
 		{use, 1}, %load erlang library module
 		{to_integer, 2},
-		{to_string, 2}
+		{to_string, 2},
+		%% Support functions  %TODO do smth with me!
+		{findall, 2},
+		{cut, 2},
+		{disj, 1},
+		{if_then, 1},
+		{if_then_else, 2},
+		{once, 1}
 	]
 ).
