@@ -56,22 +56,22 @@ prove_goal(Param = #param{goal = {call, G}, next_goal = Next0, choice = Cps,
 			ec_core:prove_body(Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
 		{Next1, false} -> ec_core:prove_body(Param#param{goal = Next1, var_num = Vn + 1})
 	end;
-prove_goal(Param = #param{goal = {cut, Label, Last}}) ->
+prove_goal(Param = #param{goal = {{cut}, Label, Last}}) ->
 	%% Cut succeeds and trims back to cut ancestor.
 	ec_support:cut(Label, Last, Param);
-prove_goal(Param = #param{goal = {disj, R}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
+prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	%% There is no L here, it has already been prepended to Next.
 	Cp = #cp{type = disjunction, next = R, bs = Bs, vn = Vn},
 	ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Params = #param{goal = fail}) -> erlog_errors:fail(Params);
-prove_goal(Param = #param{goal = {if_then, Label}, next_goal = Next, choice = Cps}) ->
+prove_goal(Param = #param{goal = {{if_then}, Label}, next_goal = Next, choice = Cps}) ->
 	%% We effetively implement ( C -> T ) with ( C, !, T ) but cuts in
 	%% C are local to C.
 	%% There is no ( C, !, T ) here, it has already been prepended to Next.
 	%%io:fwrite("PG(->): ~p\n", [{Next}]),
 	Cut = #cut{label = Label},
 	ec_core:prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
-prove_goal(Param = #param{goal = {if_then_else, Else, Label}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
+prove_goal(Param = #param{goal = {{if_then_else}, Else, Label}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
 	%% Need to push a choicepoint to fail back to inside Cond and a cut
 	%% to cut back to before Then when Cond succeeds. #cp{type=if_then_else}
 	%% functions as both as is always removed whatever the outcome.
@@ -82,12 +82,12 @@ prove_goal(Param = #param{goal = {if_then_else, Else, Label}, next_goal = Next, 
 prove_goal(Param = #param{goal = {'\\+', G}, next_goal = Next0, choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
 	%% We effectively implementing \+ G with ( G -> fail ; true ).
 	Label = Vn,
-	{Next1, _} = ec_logic:check_goal(G, [{cut, Label, true}, fail], Bs, Db, true, Label),
+	{Next1, _} = ec_logic:check_goal(G, [{{cut}, Label, true}, fail], Bs, Db, true, Label),
 	Cp = #cp{type = if_then_else, label = Label, next = Next0, bs = Bs, vn = Vn},
 	%%io:fwrite("PG(\\+): ~p\n", [{G1,[Cp|Cps]]),
 	%% Must increment Vn to avoid clashes!!!
 	ec_core:prove_body(Param#param{goal = Next1, choice = [Cp | Cps], var_num = Vn + 1});
-prove_goal(Param = #param{goal = {once, Label}, next_goal = Next, choice = Cps}) ->
+prove_goal(Param = #param{goal = {{once}, Label}, next_goal = Next, choice = Cps}) ->
 	%% We effetively implement once(G) with ( G, ! ) but cuts in
 	%% G are local to G.
 	%% There is no ( G, ! ) here, it has already been prepended to Next.
