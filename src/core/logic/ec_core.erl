@@ -42,6 +42,35 @@ prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database
 	%%io:fwrite("PB: ~p\n", [Cps]),
 	{succeed, Cps, Bs, Vn, Db}.      %No more body  %TODO why should we return database?
 
+%% Prove support first. Then find in database.
+prove_goal(Param = #param{goal = {{once}, Label}, next_goal = Next, choice = Cps}) ->
+	%% We effetively implement once(G) with ( G, ! ) but cuts in
+	%% G are local to G.
+	%% There is no ( G, ! ) here, it has already been prepended to Next.
+	Cut = #cut{label = Label},
+	prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
+prove_goal(Param = #param{goal = {{if_then_else}, Else, Label}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
+	%% Need to push a choicepoint to fail back to inside Cond and a cut
+	%% to cut back to before Then when Cond succeeds. #cp{type=if_then_else}
+	%% functions as both as is always removed whatever the outcome.
+	%% There is no ( C, !, T ) here, it has already been prepended to Next.
+	Cp = #cp{type = if_then_else, label = Label, next = Else, bs = Bs, vn = Vn},
+	%%io:fwrite("PG(->;): ~p\n", [{Next,Else,[Cp|Cps]}]),
+	prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
+prove_goal(Param = #param{goal = {{if_then}, Label}, next_goal = Next, choice = Cps}) ->
+	%% We effetively implement ( C -> T ) with ( C, !, T ) but cuts in
+	%% C are local to C.
+	%% There is no ( C, !, T ) here, it has already been prepended to Next.
+	%%io:fwrite("PG(->): ~p\n", [{Next}]),
+	Cut = #cut{label = Label},
+	prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
+prove_goal(Param = #param{goal = {{cut}, Label, Last}}) ->
+	%% Cut succeeds and trims back to cut ancestor.
+	ec_support:cut(Label, Last, Param);
+prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
+	%% There is no L here, it has already been prepended to Next.
+	Cp = #cp{type = disjunction, next = R, bs = Bs, vn = Vn},
+	prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
 	case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of

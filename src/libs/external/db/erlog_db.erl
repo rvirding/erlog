@@ -26,12 +26,12 @@
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
 
-db_call_2({db_call, _, _} = Goal, Param = #param{bindings = Bs, database = Db}) ->
+db_call_2({db_call, _, _} = Goal, Param = #param{bindings = Bs, database = Db, var_num = Vn}) ->
 	{db_call, Table, G} = ec_support:dderef(Goal, Bs),
 %% Only add cut CP to Cps if goal contains a cut.
 	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
-		Cs -> ec_core:prove_goal_clauses(G, Cs, Param)
+		Cs -> ec_core:prove_goal_clauses(G, Cs, Param#param{var_num = Vn + 1})
 	end.
 
 db_assert_2({db_assert, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
@@ -112,6 +112,7 @@ retract(Ch, Cb, C, Cs, Param = #param{next_goal = Next, choice = Cps, bindings =
 	Cp = #cp{type = db_retract, data = {Ch, Cb, Cs, Table}, next = Next, bs = Bs0, vn = Vn0},
 	ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1}).
 
+%% @private
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
