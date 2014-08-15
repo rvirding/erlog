@@ -23,7 +23,7 @@
 
 -callback findall(State :: term(), Functor :: tuple()) -> {Res :: list(), NewState :: term()}.
 
--callback listing(State :: term()) -> {Res :: list(), NewState :: term()}.
+-callback listing(State :: term(), Param :: term()) -> {Res :: list(), NewState :: term()}.
 
 -callback retract_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
 

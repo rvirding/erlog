@@ -81,6 +81,8 @@
 		{bagof, 3},
 		{setof, 3},
 		{listing, 1},
+		{listing, 2},
+		{listing, 3},
 		%% Non standart functions
 		{use, 1}, %load erlang library module
 		{to_integer, 2},

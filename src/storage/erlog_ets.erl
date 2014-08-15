@@ -27,7 +27,6 @@
 	raw_fetch/2,
 	raw_append/2,
 	raw_erase/2,
-	listing/1,
 	listing/2]).
 
 new() -> {ok, ets:new(eets, [])}.
@@ -172,11 +171,23 @@ raw_erase(Db, {Key}) ->
 	ets:delete(Db, Key),
 	{ok, Db}.
 
-listing(Db, Collection) ->
+listing(Db, {Collection, Params}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = listing(Ets),
-	{Res, Db}.
-listing(Db) ->
+	{Res, _} = listing(Ets, Params),
+	{Res, Db};
+listing(Db, {[Functor, Arity]}) ->
+	{ets:foldl(
+		fun({{F, A} = Res, clauses, _, _}, Acc) when F == Functor andalso A == Arity ->
+			[Res | Acc];
+			(_, Acc) -> Acc
+		end, [], Db), Db};
+listing(Db, {[Functor]}) ->
+	{ets:foldl(
+		fun({{F, Arity}, clauses, _, _}, Acc) when F == Functor ->
+			[{Functor, Arity} | Acc];
+			(_, Acc) -> Acc
+		end, [], Db), Db};
+listing(Db, {[]}) ->
 	{ets:foldl(
 		fun({Fun, clauses, _, _}, Acc) -> [Fun | Acc];
 			(_, Acc) -> Acc

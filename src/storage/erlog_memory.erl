@@ -29,7 +29,7 @@
 	raw_fetch/2,
 	raw_append/3,
 	raw_erase/2,
-	listing/1]).
+	listing/2]).
 
 -export([db_assertz_clause/3,
 	db_assertz_clause/4,
@@ -39,7 +39,7 @@
 	db_abolish_clauses/3,
 	get_db_procedure/3,
 	db_findall/3,
-	db_listing/2]).
+	db_listing/3]).
 
 -export([load_kernel_space/3]).
 
@@ -111,9 +111,9 @@ raw_append(Database, Key, Value) -> gen_server:call(Database, {raw_append, {Key,
 
 raw_erase(Database, Key) -> gen_server:call(Database, {raw_erase, {Key}}).
 
-listing(Database) -> gen_server:call(Database, listing).
+listing(Database, Args) -> gen_server:call(Database, {listing, {Args}}).
 
-db_listing(Database, Collection) -> gen_server:call(Database, {listing, Collection}).
+db_listing(Database, Collection, Args) -> gen_server:call(Database, {listing, {Collection, Args}}).
 
 %%--------------------------------------------------------------------
 %% @doc

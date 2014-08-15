@@ -154,7 +154,15 @@ prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db
 	end,
 	ec_core:prove_body(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {listing, Res}, next_goal = Next, bindings = Bs0, database = Db}) ->
-	Content = erlog_memory:listing(Db),
+	Content = erlog_memory:listing(Db, []),
+	Bs = ec_support:add_binding(Res, Content, Bs0),
+	ec_core:prove_body(Param#param{goal = Next, bindings = Bs});
+prove_goal(Param = #param{goal = {listing, Pred, Res}, next_goal = Next, bindings = Bs0, database = Db}) ->
+	Content = erlog_memory:listing(Db, [Pred]),
+	Bs = ec_support:add_binding(Res, Content, Bs0),
+	ec_core:prove_body(Param#param{goal = Next, bindings = Bs});
+prove_goal(Param = #param{goal = {listing, Pred, Arity, Res}, next_goal = Next, bindings = Bs0, database = Db}) ->
+	Content = erlog_memory:listing(Db, [Pred, Arity]),
 	Bs = ec_support:add_binding(Res, Content, Bs0),
 	ec_core:prove_body(Param#param{goal = Next, bindings = Bs});
 prove_goal(Param = #param{goal = {findall, T, G, B}}) ->  %findall start
