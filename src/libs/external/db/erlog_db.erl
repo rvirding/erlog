@@ -23,7 +23,9 @@
 	db_retractall_2/1,
 	fail_retract/2,
 	db_call_2/1,
-	db_listing_2/1]).
+	db_listing_2/1,
+	db_listing_3/1,
+	db_listing_4/1]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
@@ -65,7 +67,19 @@ db_retractall_2(Params = #param{goal = {db_retractall, _, _} = Goal, bindings = 
 
 db_listing_2(Params = #param{goal = {db_listing, _, _} = Goal, next_goal = Next, bindings = Bs0, database = Db}) ->
 	{db_listing, Table, Res} = ec_support:dderef(Goal, Bs0),
-	Content = erlog_memory:db_listing(Db, Table),
+	Content = erlog_memory:db_listing(Db, Table, []),
+	Bs = ec_support:add_binding(Res, Content, Bs0),
+	ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
+
+db_listing_3(Params = #param{goal = {db_listing, _, _, _} = Goal, next_goal = Next, bindings = Bs0, database = Db}) ->
+	{db_listing, Table, Functor, Res} = ec_support:dderef(Goal, Bs0),
+	Content = erlog_memory:db_listing(Db, Table, [Functor]),
+	Bs = ec_support:add_binding(Res, Content, Bs0),
+	ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
+
+db_listing_4(Params = #param{goal = {db_listing, _, _, _, _} = Goal, next_goal = Next, bindings = Bs0, database = Db}) ->
+	{db_listing, Table, Functor, Arity, Res} = ec_support:dderef(Goal, Bs0),
+	Content = erlog_memory:db_listing(Db, Table, [Functor, Arity]),
 	Bs = ec_support:add_binding(Res, Content, Bs0),
 	ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
 

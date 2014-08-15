@@ -17,6 +17,8 @@
 		{{db_retract, 2}, ?MODULE, db_retract_2},
 		{{db_retractall, 2}, ?MODULE, db_retractall_2},
 		{{db_call, 2}, ?MODULE, db_call_2},
-		{{db_listing, 2}, ?MODULE, db_listing_2}
+		{{db_listing, 2}, ?MODULE, db_listing_2},
+		{{db_listing, 3}, ?MODULE, db_listing_3},
+		{{db_listing, 4}, ?MODULE, db_listing_4}
 	]
 ).

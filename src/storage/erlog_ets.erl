@@ -173,7 +173,7 @@ raw_erase(Db, {Key}) ->
 
 listing(Db, {Collection, Params}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = listing(Ets, Params),
+	{Res, _} = listing(Ets, {Params}),
 	{Res, Db};
 listing(Db, {[Functor, Arity]}) ->
 	{ets:foldl(
