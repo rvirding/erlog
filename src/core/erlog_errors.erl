@@ -87,7 +87,7 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
 
 %% @private
 fail_goal_clauses(#cp{data = {G, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_core:prove_goal_clauses(G, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+	ec_core:prove_goal_clauses(Cs, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
 	Data = erlog_memory:raw_fetch(Db, Tag),

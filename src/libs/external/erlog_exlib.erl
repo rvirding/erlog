@@ -1,15 +1,13 @@
 %%%-------------------------------------------------------------------
 %%% @author tihon
 %%% @copyright (C) 2014, <COMPANY>
-%%% @doc
+%%% @doc erlog external library interface
 %%%
 %%% @end
-%%% Created : 12. Авг. 2014 21:59
+%%% Created : 15. Авг. 2014 14:28
 %%%-------------------------------------------------------------------
+-module(erlog_exlib).
 -author("tihon").
 
--define(ERLOG_UID,
-	[
-		{{id, 1}, ?MODULE, id_1}
-	]
-).
+%% load database to kernel space
+-callback load(Db :: pid() | atom()) -> ok.

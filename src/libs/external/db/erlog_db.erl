@@ -12,39 +12,41 @@
 -include("erlog_core.hrl").
 -include("erlog_db.hrl").
 
+-behaviour(erlog_exlib).
+
 %% API
 -export([load/1,
-	db_assert_2/2,
-	db_asserta_2/2,
-	db_abolish_2/2,
-	db_retract_2/2,
-	db_retractall_2/2,
+	db_assert_2/1,
+	db_asserta_2/1,
+	db_abolish_2/1,
+	db_retract_2/1,
+	db_retractall_2/1,
 	fail_retract/2,
-	db_call_2/2,
-	db_listing_2/2]).
+	db_call_2/1,
+	db_listing_2/1]).
 
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
 
-db_call_2({db_call, _, _} = Goal, Param = #param{bindings = Bs, database = Db, var_num = Vn}) ->
+db_call_2(Param = #param{goal = {db_call, _, _} = Goal, bindings = Bs, database = Db, var_num = Vn}) ->
 	{db_call, Table, G} = ec_support:dderef(Goal, Bs),
 %% Only add cut CP to Cps if goal contains a cut.
 	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
-		Cs -> ec_core:prove_goal_clauses(G, Cs, Param#param{var_num = Vn + 1})
+		Cs -> ec_core:prove_goal_clauses(Cs, Param#param{var_num = Vn + 1})
 	end.
 
-db_assert_2({db_assert, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
+db_assert_2(Params = #param{goal = {db_assert, _, _} = Goal, next_goal = Next, bindings = Bs, database = Db}) ->
 	{db_assert, Table, Fact} = ec_support:dderef(Goal, Bs),
 	erlog_memory:db_assertz_clause(Db, Table, Fact),
 	ec_core:prove_body(Params#param{goal = Next}).
 
-db_asserta_2({db_asserta, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
+db_asserta_2(Params = #param{goal = {db_asserta, _, _} = Goal, next_goal = Next, bindings = Bs, database = Db}) ->
 	{db_asserta, Table, Fact} = ec_support:dderef(Goal, Bs),
 	erlog_memory:db_asserta_clause(Db, Table, Fact),
 	ec_core:prove_body(Params#param{goal = Next}).
 
-db_abolish_2({db_abolish, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs, database = Db}) ->
+db_abolish_2(Params = #param{goal = {db_abolish, _, _} = Goal, next_goal = Next, bindings = Bs, database = Db}) ->
 	{db_abolish, Table, Fact} = ec_support:dderef(Goal, Bs),
 	case Fact of
 		{'/', N, A} when is_atom(N), is_integer(A), A > 0 ->
@@ -53,15 +55,15 @@ db_abolish_2({db_abolish, _, _} = Goal, Params = #param{next_goal = Next, bindin
 		Pi -> erlog_errors:type_error(predicate_indicator, Pi, Db)
 	end.
 
-db_retract_2({db_retract, _, _} = Goal, Params = #param{bindings = Bs}) ->
+db_retract_2(Params = #param{goal = {db_retract, _, _} = Goal, bindings = Bs}) ->
 	{db_retract, Table, Fact} = ec_support:dderef(Goal, Bs),
 	prove_retract(Fact, Table, Params).
 
-db_retractall_2({db_retractall, _, _} = Goal, Params = #param{bindings = Bs}) ->
+db_retractall_2(Params = #param{goal = {db_retractall, _, _} = Goal, bindings = Bs}) ->
 	{db_retractall, Table, Fact} = ec_support:dderef(Goal, Bs),
 	prove_retractall(Fact, Table, Params).
 
-db_listing_2({db_listing, _, _} = Goal, Params = #param{next_goal = Next, bindings = Bs0, database = Db}) ->
+db_listing_2(Params = #param{goal = {db_listing, _, _} = Goal, next_goal = Next, bindings = Bs0, database = Db}) ->
 	{db_listing, Table, Res} = ec_support:dderef(Goal, Bs0),
 	Content = erlog_memory:db_listing(Db, Table),
 	Bs = ec_support:add_binding(Res, Content, Bs0),

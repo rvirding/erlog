@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %%% @author tihon
 %%% @copyright (C) 2014, <COMPANY>
-%%% @doc
+%%% @doc erlog standart library interface
 %%%
 %%% @end
 %%% Created : 12. Авг. 2014 18:31
