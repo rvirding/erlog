@@ -53,7 +53,10 @@ assertz_clause(Db, {Collection, Head, Body0}) ->
 assertz_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]})
+			case check_duplicates(Cs, Head, Body) of
+				false -> ok;  %found - do nothing
+				_ -> ets:insert(Db, {Functor, clauses, Tag + 1, Cs ++ [{Tag, Head, Body}]}) %not found - insert new
+			end
 		end),
 	{ok, Db}.
 
@@ -64,7 +67,10 @@ asserta_clause(Db, {Collection, Head, Body0}) ->
 asserta_clause(Db, {Head, Body0}) ->
 	clause(Head, Body0, Db,
 		fun(Functor, Tag, Cs, Body) ->
-			ets:insert(Db, {Functor, clauses, Tag + 1, [{Tag, Head, Body} | Cs]})
+			case check_duplicates(Cs, Head, Body) of
+				false -> ok;  %found - do nothing
+				_ -> ets:insert(Db, {Functor, clauses, Tag + 1, [{Tag, Head, Body} | Cs]}) %not found - insert new
+			end
 		end),
 	{ok, Db}.
 
@@ -139,18 +145,6 @@ get_interp_functors(Db) ->
 		({Func, clauses, _, _}, Fs) -> [Func | Fs]
 	end, [], Db), Db}.
 
-clause(Head, Body0, Db, ClauseFun) ->
-	{Functor, Body} = case catch {ok, ec_support:functor(Head), ec_body:well_form_body(Body0, false, sture)} of
-		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		                  {ok, F, B} -> {F, B}
-	                  end,
-	case ets:lookup(Db, Functor) of
-		[{_, {built_in, _}}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		[{_, clauses, Tag, Cs}] -> ClauseFun(Functor, Tag, Cs, Body);
-		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
-	end.
-
 raw_store(Db, {Key, Value}) ->
 	ets:insert(Db, {Key, Value}),
 	{ok, Db}.
@@ -192,3 +186,24 @@ listing(Db, {[]}) ->
 		fun({Fun, clauses, _, _}, Acc) -> [Fun | Acc];
 			(_, Acc) -> Acc
 		end, [], Db), Db}.
+
+%% @private
+clause(Head, Body0, Db, ClauseFun) ->
+	{Functor, Body} = case catch {ok, ec_support:functor(Head), ec_body:well_form_body(Body0, false, sture)} of
+		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
+		                  {ok, F, B} -> {F, B}
+	                  end,
+	case ets:lookup(Db, Functor) of
+		[{_, {built_in, _}}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		[{_, clauses, Tag, Cs}] -> ClauseFun(Functor, Tag, Cs, Body);
+		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
+	end.
+
+%% @private
+-spec check_duplicates(list(), tuple(), tuple()) -> boolean().
+check_duplicates(Cs, Head, Body) ->
+	lists:foldl(
+		fun({_, H, B}, _) when H == Head andalso B == Body -> false;  %find same fact
+			(_, Acc) -> Acc
+		end, true, Cs).
