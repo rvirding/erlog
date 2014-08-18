@@ -108,14 +108,14 @@ prove_goal({'@<',L,R}, Next, Cps, Bs, Vn, Db) ->
 prove_goal({'@=<',L,R}, Next, Cps, Bs, Vn, Db) ->
     term_test_prove_body('=<', L, R, Next, Cps, Bs, Vn, Db);
 %% Term creation and decomposition.
-prove_goal({arg,I,Ct,A}, Next, Cps, Bs, Vn, Db) ->
-    prove_arg(deref(I, Bs), deref(Ct, Bs), A, Next, Cps, Bs, Vn, Db);
+prove_goal({arg,I,Term,A}, Next, Cps, Bs, Vn, Db) ->
+    prove_arg(deref(I, Bs), deref(Term, Bs), A, Next, Cps, Bs, Vn, Db);
 prove_goal({copy_term,T0,C}, Next, Cps, Bs, Vn0, Db) ->
     %% Use term_instance to create the copy, can ignore orddict it creates.
     {T,_Nbs,Vn1} = term_instance(dderef(T0, Bs), Vn0),
     unify_prove_body(T, C, Next, Cps, Bs, Vn1, Db);
 prove_goal({functor,T,F,A}, Next, Cps, Bs, Vn, Db) ->
-    prove_functor(dderef(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
+    prove_functor(deref(T, Bs), F, A, Next, Cps, Bs, Vn, Db);
 prove_goal({'=..',T,L}, Next, Cps, Bs, Vn, Db) ->
     prove_univ(dderef(T, Bs), L, Next, Cps, Bs, Vn, Db);
 %% Type testing.
@@ -203,25 +203,52 @@ term_test_prove_body(Test, L, R, Next, Cps, Bs, Vn, Db) ->
     end.
 
 %% prove_arg(Index, Term, Arg, Next, ChoicePoints, VarNum, Database) -> void.
-%%  Prove the goal arg(I, Ct, Arg), Index and Term have been dereferenced.
+%%  Prove the goal arg(I, Ct, Arg). Index and Term have been dereferenced.
 
-prove_arg(I, [H|T], A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
+prove_arg(I, T, A, Next, Cps, Bs, Vn, Db) when is_integer(I) ->
+    prove_arg_int(I, T, A, Next, Cps, Bs, Vn, Db);
+prove_arg({_}=I, T, A, Next, Cps, Bs, Vn, Db) ->
+    prove_arg_var(I, T, A, Next, Cps, Bs, Vn, Db);
+prove_arg(I, _, _, _, _, _, _, Db) ->
+    erlog_int:type_error(integer, I, Db).
+
+prove_arg_int(I, [H|T], A, Next, Cps, Bs, Vn, Db) ->
     %% He, he, he!
-    if  I == 1 -> unify_prove_body(H, A, Next, Cps, Bs, Vn, Db);
-	I == 2 -> unify_prove_body(T, A, Next, Cps, Bs, Vn, Db);
+    if  I == 1 -> unify_prove_body(A, H, Next, Cps, Bs, Vn, Db);
+	I == 2 -> unify_prove_body(A, T, Next, Cps, Bs, Vn, Db);
 	true -> {fail,Db}
     end;
-prove_arg(I, Ct, A, Next, Cps, Bs, Vn, Db)
-  when is_integer(I), tuple_size(Ct) >= 2 ->
-    if  I >= 1, I + 1 =< tuple_size(Ct) ->
-	    unify_prove_body(element(I+1, Ct), A, Next, Cps, Bs, Vn, Db);
-	true -> {fail,Db}
+prove_arg_int(I, Ct, A, Next, Cps, Bs, Vn, Db) when tuple_size(Ct) >= 2 ->
+    if I >= 1, I =< tuple_size(Ct) - 1 ->
+	    Arg = element(I+1, Ct),
+	    unify_prove_body(A, Arg, Next, Cps, Bs, Vn, Db);
+       true -> {fail,Db}
     end;
-prove_arg(I, Ct, _, _, _, _, _, Db) ->
-    %%Type failure just generates an error.
-    if  not(is_integer(I)) -> erlog_int:type_error(integer, I, Db);
-	true -> erlog_int:type_error(compound, Ct, Db)
-    end.
+prove_arg_int(_, Ct, _, _, _, _, _, Db) ->
+    erlog_int:type_error(compound, Ct, Db).
+
+prove_arg_var(I, [H|T], A, Next, Cps, Bs, Vn, Db) ->
+    %% He, he, he!
+    prove_arg_list(I, 1, [H,T], A, Next, Cps, Bs, Vn, Db);
+prove_arg_var(I, Ct, A, Next, Cps, Bs, Vn, Db) when tuple_size(Ct) >= 2 ->
+    Args = tl(tuple_to_list(Ct)),
+    prove_arg_list(I, 1, Args, A, Next, Cps, Bs, Vn, Db);
+prove_arg_var(_, Ct, _, _, _, _, _, Db) ->
+    erlog_int:type_error(compound, Ct, Db).
+
+prove_arg_list(V, I, [H], A, Next, Cps, Bs0, Vn, Db) ->
+    Bs1 = add_binding(V, I, Bs0),
+    unify_prove_body(A, H, Next, Cps, Bs1, Vn, Db);
+prove_arg_list(V, I, [H|T], A, Next, Cps, Bs0, Vn, Db) ->
+    FailFun = fun (Lcp, Lcps, Ldb) ->
+		      fail_arg_3(Lcp, Lcps, Ldb, V, I+1, T, A)
+	      end,
+    Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs0,vn=Vn},
+    Bs1 = add_binding(V, I, Bs0),
+    unify_prove_body(A, H, Next, [Cp|Cps], Bs1, Vn, Db).
+
+fail_arg_3(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, V, I, List, A) ->
+    prove_arg_list(V, I, List, A, Next, Cps, Bs, Vn, Db).
 
 %% prove_functor(Term, Functor, Arity, Next, ChoicePoints, Bindings, VarNum, Database) -> void.
 %%  Prove the call functor(T, F, A), Term has been dereferenced.
@@ -234,7 +261,7 @@ prove_functor([_|_], F, A, Next, Cps, Bs, Vn, Db) ->
     %% Just the top level here.
     unify_prove_body(F, '.', A, 2, Next, Cps, Bs, Vn, Db);
 prove_functor({_}=Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
-    case {dderef(F0, Bs0),dderef(A0, Bs0)} of
+    case {deref(F0, Bs0),deref(A0, Bs0)} of
 	{'.',2} ->				%He, he, he!
 	    Bs1 = add_binding(Var, [{Vn0}|{Vn0+1}], Bs0),
 	    prove_body(Next, Cps, Bs1, Vn0+2, Db);
@@ -285,7 +312,7 @@ end.
 
 prove_atom_chars(A, L, Next, Cps, Bs, Vn, Db) ->
     %% After a suggestion by Sean Cribbs.
-    case dderef(A, Bs) of
+    case deref(A, Bs) of
         Atom when is_atom(Atom) ->
             AtomList = [ list_to_atom([C]) || C <- atom_to_list(Atom) ],
             unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
