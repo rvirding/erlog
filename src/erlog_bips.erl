@@ -70,6 +70,7 @@ load(Db0) ->
 	   {var,1},
 	   %% Atom processing.
 	   {atom_chars,2},
+	   {atom_codes,2},
 	   {atom_length,2},
 	   %% Arithmetic evaluation and comparison
 	   {'is',2},
@@ -162,8 +163,10 @@ prove_goal({var,T0}, Next, Cps, Bs, Vn, Db) ->
 %% Atom processing.
 prove_goal({atom_chars,A,L}, Next, Cps, Bs, Vn, Db) ->
     prove_atom_chars(A, L, Next, Cps, Bs, Vn, Db);
+prove_goal({atom_codes,A,L}, Next, Cps, Bs, Vn, Db) ->
+    prove_atom_codes(A, L, Next, Cps, Bs, Vn, Db);
 prove_goal({atom_length,A0,L0}, Next, Cps, Bs, Vn, Db) ->
-    case dderef(A0, Bs) of
+    case deref(A0, Bs) of
 	A when is_atom(A) ->
 	    Alen = length(atom_to_list(A)),	%No of chars in atom
 	    case dderef(L0, Bs) of
@@ -330,7 +333,34 @@ prove_atom_chars(A, L, Next, Cps, Bs, Vn, Db) ->
 			  end
 		  end,
 	    Chars = lists:map(Fun, List),
-	    Atom = list_to_atom(Chars),
+	    Atom = list_to_atom(Chars),		%This should not crash
+	    unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
+	Other ->
+	    %% Error #2: Atom is neither a variable nor an atom
+	    erlog_int:type_error(atom, Other, Db)
+    end.
+
+%% prove_atom_codes(Atom, List, Next, ChoicePoints, Bindings, VarNum, Database) ->
+%%	void.
+%%  Prove the atom_codes(Atom, List).
+
+prove_atom_codes(A, L, Next, Cps, Bs, Vn, Db) ->
+    case deref(A, Bs) of
+        Atom when is_atom(Atom) ->
+            AtomList = atom_to_list(Atom),
+            unify_prove_body(L, AtomList, Next, Cps, Bs, Vn, Db);
+        {_}=Var ->
+            %% Error #3: List is neither a list nor a partial list.
+            %% Handled in dderef_list/2.
+            List = dderef_list(L, Bs),
+            %% Error #1, #4: List is a list or partial list with an
+            %% element which is a variable or not one char atom.
+	    Fun = fun ({_}) -> erlog_int:instantiation_error(Db);
+		      (C) when is_integer(C), C >= 0, C < 255 -> C;
+		      (C) -> erlog_int:type_error(character_code, C, Db)
+		  end,
+	    Chars = lists:map(Fun, List),
+	    Atom = list_to_atom(Chars),		%This should not crash
 	    unify_prove_body(Var, Atom, Next, Cps, Bs, Vn, Db);
 	Other ->
 	    %% Error #2: Atom is neither a variable nor an atom
