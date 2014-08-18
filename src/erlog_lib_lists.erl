@@ -38,7 +38,7 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
-		    add_binding/3,make_vars/2,
+		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
@@ -118,13 +118,12 @@ make_list(0, L, Next, Cps, Bs, Vn, Db) ->
 make_list(N, L0, Next, Cps, Bs0, Vn, Db) ->
     case deref(L0, Bs0) of
 	[] -> fail(Cps, Db);			%We know N /= 0
-	[_|T] ->
+	[_|T] ->				%Keep stepping down the list
 	    make_list(N-1, T, Next, Cps, Bs0, Vn, Db);
-	{_}=L1 ->
-	    H = {Vn},
-	    T = {Vn+1},
-	    Bs1 = add_binding(L1, [H|T], Bs0),
-	    make_list(N-1, T, Next, Cps, Bs1, Vn+2, Db);
+	{_}=L1 ->				%Just make a list of the rest
+	    List = make_var_list(N, Vn),
+	    Bs1 = add_binding(L1, List, Bs0),
+	    prove_body(Next, Cps, Bs1, Vn+N, Db);
 	Other ->
 	    erlog_int:type_error(list, Other, Db)
     end.

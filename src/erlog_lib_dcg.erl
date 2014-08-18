@@ -28,7 +28,7 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
-		    add_binding/3,make_vars/2,
+		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,

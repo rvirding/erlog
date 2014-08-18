@@ -133,7 +133,7 @@
 -export([unify_prove_body/7,unify_prove_body/9]).
 
 %% Bindings, unification and dereferncing.
--export([new_bindings/0,add_binding/3,make_vars/2]).
+-export([new_bindings/0,add_binding/3,make_var_list/2]).
 -export([deref/2,deref_list/2,dderef/2,dderef_list/2,partial_list/2]).
 -export([unify/3,functor/1]).
 
@@ -716,12 +716,12 @@ unify_args(S1, S2, Bs0, I, S) ->
 	fail -> fail
     end.
 
-%% make_vars(Count, VarNum) -> [Var].
+%% make_var_list(Count, VarNum) -> [Var].
 %% Make a list of new variables starting at VarNum.
 
-make_vars(0, _) -> [];
-make_vars(I, Vn) ->
-    [{Vn}|make_vars(I-1, Vn+1)].
+make_var_list(0, _) -> [];
+make_var_list(I, Vn) ->
+    [{Vn}|make_var_list(I-1, Vn+1)].
 
 %% Errors
 %% To keep dialyzer quiet.

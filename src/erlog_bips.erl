@@ -33,7 +33,7 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
-		    add_binding/3,make_vars/2,
+		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
@@ -272,7 +272,7 @@ prove_functor({_}=Var, F0, A0, Next, Cps, Bs0, Vn0, Db) ->
 	    Bs1 = add_binding(Var, F1, Bs0),
 	    prove_body(Next, Cps, Bs1, Vn0, Db);
 	{F1,A1} when is_atom(F1), is_integer(A1), A1 > 0 ->
-	    As = make_vars(A1, Vn0),
+	    As = make_var_list(A1, Vn0),
 	    Bs1 = add_binding(Var, list_to_tuple([F1|As]), Bs0),
 	    prove_body(Next, Cps, Bs1, Vn0+A1, Db); %!!!
 	%% Now the error cases.
@@ -419,13 +419,15 @@ eval_arith({'truncate',A}, Bs, Db) ->
     trunc(eval_arith(deref(A, Bs), Bs, Db));
 eval_arith(N, _Bs, _Db) when is_number(N) -> N;	%Just a number
 %% Error cases.
-eval_arith({_}, _Bs, Db) -> erlog_int:instantiation_error(Db);
+eval_arith({_}, _Bs, Db) ->
+    erlog_int:instantiation_error(Db);
 eval_arith(N, _Bs, Db) when is_tuple(N) ->
     Pi = pred_ind(element(1, N), tuple_size(N)-1),
     erlog_int:type_error(evaluable, Pi, Db);
 eval_arith([_|_], _Bs, Db) ->
     erlog_int:type_error(evaluable, pred_ind('.', 2), Db);
-eval_arith(O, _Bs, Db) -> erlog_int:type_error(evaluable, O, Db).
+eval_arith(O, _Bs, Db) ->
+    erlog_int:type_error(evaluable, O, Db).
 
 %% eval_int(IntegerExpr, Bindings, Database) -> Integer.
 %% Evaluate an integer expression, include the database for errors.
