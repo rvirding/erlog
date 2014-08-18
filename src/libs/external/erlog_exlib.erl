@@ -9,5 +9,5 @@
 -module(erlog_exlib).
 -author("tihon").
 
-%% load database to kernel space
+%% load database to library space
 -callback load(Db :: pid() | atom()) -> ok.
