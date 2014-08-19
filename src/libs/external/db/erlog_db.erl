@@ -30,12 +30,12 @@
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
 
-db_call_2(Param = #param{goal = {db_call, _, _} = Goal, choice = Cps, next_goal = Next0, bindings = Bs, database = Db, var_num = Vn}) ->
+db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindings = Bs, database = Db}) ->
 	{db_call, Table, G} = ec_support:dderef(Goal, Bs),
 	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
 		{erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		{clauses, Cs} -> prove_call(G, Cs, Next0, Param);
+		{clauses, _, Cs} -> prove_call(G, Cs, Next0, Param);
 		Cs -> prove_call(G, Cs, Next0, Param)
 	end.
 
