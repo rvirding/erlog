@@ -30,12 +30,18 @@
 load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
 
-db_call_2(Param = #param{goal = {db_call, _, _} = Goal, bindings = Bs, database = Db, var_num = Vn}) ->
+db_call_2(Param = #param{goal = {db_call, _, _} = Goal, choice = Cps, next_goal = Next0, bindings = Bs, database = Db, var_num = Vn}) ->
 	{db_call, Table, G} = ec_support:dderef(Goal, Bs),
-%% Only add cut CP to Cps if goal contains a cut.
 	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
-		Cs -> ec_core:prove_goal_clauses(Cs, Param#param{var_num = Vn + 1})
+		Cs ->
+			case ec_logic:check_goal(G, Next0, Bs, Db, false, Vn) of
+				{[Next1 | _], true} ->
+					%% Must increment Vn to avoid clashes!!!
+					Cut = #cut{label = Vn},
+					ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
+				{[Next1 | _], false} -> ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
+			end
 	end.
 
 db_assert_2(Params = #param{goal = {db_assert, _, _} = Goal, next_goal = Next, bindings = Bs, database = Db}) ->
