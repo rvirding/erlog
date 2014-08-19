@@ -6,6 +6,7 @@ They are standard `built_in` libraries:
  * `erlog_dcg` - DCG conversion and procedures.  
  * `erlog_lists` - standard lists support.  
  * `erlog_time` - date and time support library.  
+
 All built-in libraries have same behaviour `erlog_stdlib`. They have `load/1` function and `prove_goal/1` function.  
 In `load` function - all initialisation of library is made. Starting all needed services, parsing prolog functors, 
 loading predicates to memory and what not.  
