@@ -34,14 +34,9 @@ db_call_2(Param = #param{goal = {db_call, _, _} = Goal, choice = Cps, next_goal 
 	{db_call, Table, G} = ec_support:dderef(Goal, Bs),
 	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
-		Cs ->
-			case ec_logic:check_goal(G, Next0, Bs, Db, false, Vn) of
-				{[Next1 | _], true} ->
-					%% Must increment Vn to avoid clashes!!!
-					Cut = #cut{label = Vn},
-					ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
-				{[Next1 | _], false} -> ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
-			end
+		{erlog_error, E} -> erlog_errors:erlog_error(E, Db);
+		{clauses, Cs} -> prove_call(G, Cs, Next0, Param);
+		Cs -> prove_call(G, Cs, Next0, Param)
 	end.
 
 db_assert_2(Params = #param{goal = {db_assert, _, _} = Goal, next_goal = Next, bindings = Bs, database = Db}) ->
@@ -98,6 +93,16 @@ prove_retractall({':-', H, B}, Table, Params) ->
 	prove_retractall(H, B, Table, Params);
 prove_retractall(H, Table, Params) ->
 	prove_retractall(H, true, Table, Params).
+
+%% @private
+prove_call(G, Cs, Next0, Param = #param{bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
+	case ec_logic:check_goal(G, Next0, Bs, Db, false, Vn) of
+		{[Next1 | _], true} ->
+			%% Must increment Vn to avoid clashes!!!
+			Cut = #cut{label = Vn},
+			ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
+		{[Next1 | _], false} -> ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
+	end.
 
 %% @private
 prove_retract(H, B, Table, Params = #param{database = Db}) ->

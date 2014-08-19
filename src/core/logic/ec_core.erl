@@ -78,7 +78,6 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 		{code, {Mod, Func}} -> Mod:Func(Param);  %library space
 		{clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
 		undefined -> erlog_errors:fail(Param);
-	%% Getting built_in here is an error!
 		{erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
 	end.
 
