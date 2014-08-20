@@ -31,22 +31,34 @@ load(Db) ->
 
 put_2(Params = #param{goal = {put, _, _} = Goal, next_goal = Next, bindings = Bs}) ->
 	{put, Key, Value} = ec_support:dderef(Goal, Bs),
-	case get(erlog_cache) of
-		undefined -> erlog_errors:fail(Params);
-		Ets ->
-			ets:insert(Ets, {Key, Value}),
-			ec_core:prove_body(Params#param{goal = Next})
+	case ec_support:is_bound(Value) of %Value must exists
+		true -> case get(erlog_cache) of
+			        undefined -> erlog_errors:fail(Params);
+			        Ets ->
+				        ets:insert(Ets, {Key, Value}),
+				        ec_core:prove_body(Params#param{goal = Next})
+		        end;
+		false -> erlog_errors:fail(Params)
 	end.
 
-get_2(Params = #param{goal = {get, _, _} = Goal, next_goal = Next, bindings = Bs0}) ->
-	{get, Key, Result} = ec_support:dderef(Goal, Bs0),
+get_2(Params = #param{goal = {get, _, _} = Goal, bindings = Bs}) ->
+	{get, Key, Result} = ec_support:dderef(Goal, Bs),
 	case get(erlog_cache) of
 		undefined -> erlog_errors:fail(Params);
-		Ets ->
-			case ets:lookup(Ets, Key) of
-				[{_, Value}] ->
-					Bs = ec_support:add_binding(Result, Value, Bs0),
-					ec_core:prove_body(Params#param{goal = Next, bindings = Bs});
-				[] -> erlog_errors:fail(Params)
-			end
+		Ets -> check_value(ets:lookup(Ets, Key), Result, Params)
 	end.
+
+
+%% @private
+check_value([], _, Params) -> erlog_errors:fail(Params);
+check_value([{_, Value}], Result, Params = #param{next_goal = Next, bindings = Bs0}) ->
+	case ec_support:is_bound(Result) of
+		true -> %compare value from cache with result
+			if Result == Value -> ec_core:prove_body(Params#param{goal = Next});
+				true -> erlog_errors:fail(Params)
+			end;
+		false ->  %save value from cache to result
+			Bs = ec_support:add_binding(Result, Value, Bs0),
+			ec_core:prove_body(Params#param{goal = Next, bindings = Bs})
+	end.
+

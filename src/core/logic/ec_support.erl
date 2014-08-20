@@ -15,7 +15,7 @@
 -export([new_bindings/0, get_binding/2, add_binding/3,
 	functor/1, cut/3, collect_alternatives/3,
 	update_result/4, update_vars/4, deref/2, dderef_list/2,
-	make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2]).
+	make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1]).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
@@ -66,6 +66,11 @@ dderef_list({V}, Bs) ->
 		error -> erlog_errors:instantiation_error()
 	end;
 dderef_list(Other, _Bs) -> erlog_errors:type_error(list, Other).
+
+%% detects, whether variable is bound or not
+-spec is_bound(term()) -> boolean().
+is_bound({N}) when is_integer(N) -> false;
+is_bound(_) -> true.
 
 %% make_vars(Count, VarNum) -> [Var].
 %% Make a list of new variables starting at VarNum.
