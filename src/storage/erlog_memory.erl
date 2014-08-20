@@ -55,7 +55,9 @@
 
 -record(state,
 {
-	database :: atom(), % callback module
+	stdlib :: ets:tid(),  %kernel-space memory
+	exlib :: ets:tid(), %library-space memory
+	database :: atom(), % callback module for user-space memory
 	state :: term() % callback state
 }).
 
@@ -63,7 +65,7 @@
 %%% API
 %%%===================================================================
 %% kernelspace predicate loading
-load_kernel_space(Database, Module, Element) -> gen_server:call(Database, {load_kernel_space, {Module, Element}}).
+load_kernel_space(Database, Module, Functor) -> gen_server:call(Database, {load_kernel_space, {Module, Functor}}).
 
 %% libraryspace predicate loading
 load_library_space(Database, Proc) -> gen_server:call(Database, {load_library_space, {Proc}}).
@@ -152,10 +154,10 @@ start_link(Database, Params) ->
 	{stop, Reason :: term()} | ignore).
 init([Database]) when is_atom(Database) ->
 	{ok, State} = Database:new(),
-	{ok, #state{database = Database, state = State}};
+	{ok, init_memory(#state{database = Database, state = State})};
 init([Database, Params]) when is_atom(Database) ->
 	{ok, State} = Database:new(Params),
-	{ok, #state{database = Database, state = State}}.
+	{ok, init_memory(#state{database = Database, state = State})}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -172,11 +174,22 @@ init([Database, Params]) when is_atom(Database) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Database}) ->
-	{Res, NewState} = Database:Fun(DbState, Params),
+handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib = StdLib}) ->  %load kernel space into memory
+	Res = ets:insert(StdLib, {Functor, {built_in, Module}}),
+	{reply, Res, State};
+handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{database = Db, stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+	Res = case ets:lookup(StdLib, Functor) of
+		      [{_, {built_in, _}}] ->
+			      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		      [_] -> ets:insert(ExLib, {Functor, code, {M, F}});
+		      [] -> ets:insert(ExLib, {Functor, code, {M, F}})
+	      end,
+	{reply, Res, State};
+handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+	{Res, NewState} = Db:Fun({StdLib, ExLib, DbState}, Params),
 	{reply, Res, State#state{state = NewState}};
-handle_call(Fun, _From, State = #state{state = DbState, database = Database}) ->
-	{Res, NewState} = Database:Fun(DbState),
+handle_call(Fun, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+	{Res, NewState} = Db:Fun({StdLib, ExLib, DbState}),
 	{reply, Res, State#state{state = NewState}};
 handle_call(_Request, _From, State) ->
 	{reply, ok, State}.
@@ -192,6 +205,8 @@ handle_call(_Request, _From, State) ->
 	{noreply, NewState :: #state{}} |
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), NewState :: #state{}}).
+handle_cast(halt, State) ->
+	{stop, normal, State};
 handle_cast(_Request, State) ->
 	{noreply, State}.
 
@@ -245,3 +260,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+%% @private
+%% Initialises two ets tables for kernel and library memory
+-spec init_memory(State :: #state{}) -> UpdState :: #state{}.
+init_memory(State) ->
+	KernelMemory = ets:new(kernelMem, []),
+	LibraryMemory = ets:new(libraryMem, []),
+	State#state{stdlib = KernelMemory, exlib = LibraryMemory}.

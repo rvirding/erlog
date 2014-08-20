@@ -13,32 +13,28 @@
 
 -callback new(Params :: list()) -> {ok, State :: term()}.
 
--callback load_kernel_space(State :: term(), Functor :: term()) -> {ok, NewState :: term()}.
+-callback assertz_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
 
--callback load_library_space(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
+-callback asserta_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
 
--callback assertz_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
+-callback findall({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Functor :: tuple()) -> {Res :: list(), NewState :: term()}.
 
--callback asserta_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
+-callback listing({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {Res :: list(), NewState :: term()}.
 
--callback findall(State :: term(), Functor :: tuple()) -> {Res :: list(), NewState :: term()}.
+-callback retract_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
 
--callback listing(State :: term(), Param :: term()) -> {Res :: list(), NewState :: term()}.
+-callback abolish_clauses({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {ok, NewState :: term()}.
 
--callback retract_clause(State :: term(), Param :: term()) -> {ok, NewState :: term()}.
+-callback get_procedure({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {atom, NewState :: term()}  | {term(), NewState :: term()}.
 
--callback abolish_clauses(State :: term(), Func :: term()) -> {ok, NewState :: term()}.
+-callback get_procedure_type({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {atom(), NewState :: term()}.
 
--callback get_procedure(State :: term(), Func :: term()) -> {atom, NewState :: term()}  | {term(), NewState :: term()}.
+-callback get_interp_functors({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}) -> {list(), NewState :: term()}.
 
--callback get_procedure_type(State :: term(), Func :: term()) -> {atom(), NewState :: term()}.
+-callback raw_store({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {ok, NewState :: term()}.
 
--callback get_interp_functors(State :: term()) -> {list(), NewState :: term()}.
+-callback raw_fetch({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {Value :: any(), NewState :: term()}.
 
--callback raw_store(State :: term(), Param :: tuple()) -> {ok, NewState :: term()}.
+-callback raw_append({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {ok, NewState :: term()}.
 
--callback raw_fetch(State :: term(), Param :: tuple()) -> {Value :: any(), NewState :: term()}.
-
--callback raw_append(State :: term(), Param :: tuple()) -> {ok, NewState :: term()}.
-
--callback raw_erase(State :: term(), Param :: tuple()) -> {ok, NewState :: term()}.
+-callback raw_erase({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {ok, NewState :: term()}.

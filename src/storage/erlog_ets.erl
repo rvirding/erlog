@@ -13,8 +13,6 @@
 
 %% erlog callbacks
 -export([new/0, new/1,
-	load_kernel_space/2,
-	load_library_space/2,
 	assertz_clause/2,
 	asserta_clause/2,
 	retract_clause/2,
@@ -22,7 +20,7 @@
 	get_procedure/2,
 	get_procedure_type/2,
 	get_interp_functors/1,
-	findall/2, %TODO remove me
+	findall/2,
 	raw_store/2,
 	raw_fetch/2,
 	raw_append/2,
@@ -33,25 +31,12 @@ new() -> {ok, ets:new(eets, [])}.
 
 new(_) -> {ok, ets:new(eets, [])}.
 
-load_kernel_space(Db, {Module, Functor}) ->
-	true = ets:insert(Db, {Functor, {built_in, Module}}),
-	{ok, Db}.
-
-load_library_space(Db, {{Functor, M, F}}) ->
-	case ets:lookup(Db, Functor) of
-		[{_, {built_in, _}}] ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		[_] -> ets:insert(Db, {Functor, code, {M, F}});
-		[] -> ets:insert(Db, {Functor, code, {M, F}})
-	end,
-	{ok, Db}.
-
-assertz_clause(Db, {Collection, Head, Body0}) ->
+assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = assertz_clause(Ets, {Head, Body0}),
+	{Res, _} = assertz_clause({StdLib, ExLib, Ets}, {Head, Body0}),
 	{Res, Db};
-assertz_clause(Db, {Head, Body0}) ->
-	clause(Head, Body0, Db,
+assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
+	clause(Head, Body0, Memory,
 		fun(Functor, Tag, Cs, Body) ->
 			case check_duplicates(Cs, Head, Body) of
 				false -> ok;  %found - do nothing
@@ -60,12 +45,12 @@ assertz_clause(Db, {Head, Body0}) ->
 		end),
 	{ok, Db}.
 
-asserta_clause(Db, {Collection, Head, Body0}) ->
+asserta_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = asserta_clause(Ets, {Head, Body0}),
+	{Res, _} = asserta_clause({StdLib, ExLib, Ets}, {Head, Body0}),
 	{Res, Db};
-asserta_clause(Db, {Head, Body0}) ->
-	clause(Head, Body0, Db,
+asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
+	clause(Head, Body0, Memory,
 		fun(Functor, Tag, Cs, Body) ->
 			case check_duplicates(Cs, Head, Body) of
 				false -> ok;  %found - do nothing
@@ -74,128 +59,152 @@ asserta_clause(Db, {Head, Body0}) ->
 		end),
 	{ok, Db}.
 
-retract_clause(Db, {Collection, Functor, Ct}) ->
+retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = retract_clause(Ets, {Functor, Ct}),
+	{Res, _} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
 	{Res, Db};
-retract_clause(Db, {Functor, Ct}) ->
+retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
+	ok = check_immutable(StdLib, Db, Functor),
+	ok = check_immutable(ExLib, Db, Functor),
 	case ets:lookup(Db, Functor) of
-		[{_, {built_in, _}}] ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		[{_, code, _}] ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[{_, clauses, Nt, Cs}] ->
 			ets:insert(Db, {Functor, clauses, Nt, lists:keydelete(Ct, 1, Cs)});
 		[] -> ok        %Do nothing
 	end,
 	{ok, Db}.
 
-abolish_clauses(Db, {Collection, Functor}) ->
+abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = abolish_clauses(Ets, {Functor}),
+	{Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
-abolish_clauses(Db, {Functor}) ->
-	case ets:lookup(Db, Functor) of
-		[{_, {built_in, _}}] ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+abolish_clauses({StdLib, ExLib, Db}, {Functor}) ->
+	ok = check_immutable(StdLib, Db, Functor),
+	case ets:lookup(ExLib, Functor) of  %delete from library-space
 		[{_, code, _}] -> ets:delete(Db, Functor);
-		[{_, clauses, _, _}] -> ets:delete(Db, Functor);
-		[] -> ok        %Do nothing
+		[] -> %if not found - delete from userspace
+			case ets:lookup(Db, Functor) of
+				[{_, clauses, _, _}] -> ets:delete(Db, Functor);
+				[] -> ok        %Do nothing
+			end
 	end,
 	{ok, Db}.
 
-findall(Db, {Collection, Functor}) ->
+findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = findall(Ets, {Functor}),
+	{Res, _} = findall({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
-findall(Db, {Functor}) ->
+findall({StdLib, ExLib, Db}, {Functor}) ->
 	Params = tuple_to_list(Functor),
 	Fun = hd(Params),
 	Len = length(Params) - 1,
-	case ets:lookup(Db, {Fun, Len}) of
-		[{_, clauses, _, Body}] -> {Body, Db};
-		[{_, code, Body}] -> {Body, Db};
-		[{Body, {built_in, _}}] -> {Body, Db};
-		[] -> {[], Db}
+	case ets:lookup(StdLib, Functor) of %search built-in first
+		[{Bin, {built_in, _}}] -> {Bin, Db};
+		[] ->
+			case ets:lookup(ExLib, Functor) of  %search libraryspace then
+				[{_, code, Lib}] -> {Lib, Db};
+				[] ->
+					case ets:lookup(Db, {Fun, Len}) of  %search userspace last
+						[{_, clauses, _, Body}] -> {Body, Db};
+						[] -> {[], Db}
+					end
+			end
 	end.
 
-get_procedure(Db, {Collection, Functor}) ->
+get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = get_procedure(Ets, {Functor}),
+	{Res, _} = get_procedure({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
-get_procedure(Db, {Functor}) ->
-	{case ets:lookup(Db, Functor) of
-		 [{_, {built_in, Module}}] -> {built_in, Module};
-		 [{_, code, C}] -> {code, C};
-		 [{_, clauses, _, Cs}] -> {clauses, Cs};
-		 [] -> undefined
-	 end, Db}.
+get_procedure({StdLib, ExLib, Db}, {Functor}) ->
+	Res = case ets:lookup(StdLib, Functor) of %search built-in first
+		      [{_, {built_in, Module}}] -> {built_in, Module};
+		      [] ->
+			      case ets:lookup(ExLib, Functor) of  %search libraryspace then
+				      [{_, code, C}] -> {code, C};
+				      [] ->
+					      case ets:lookup(Db, Functor) of  %search userspace last
+						      [{_, clauses, _, Cs}] -> {clauses, Cs};
+						      [] -> undefined
+					      end
+			      end
+	      end,
+	{Res, Db}.
 
-get_procedure_type(Db, {Functor}) ->
-	{case ets:lookup(Db, Functor) of
-		 [{_, {built_in, _}}] -> built_in;    %A built-in
-		 [{_, code, _C}] -> compiled;    %Compiled (perhaps someday)
-		 [{_, clauses, _, _Cs}] -> interpreted;  %Interpreted clauses
-		 [] -> undefined        %Undefined
-	 end, Db}.
+get_procedure_type({StdLib, ExLib, Db}, {Functor}) ->
+	Res = case ets:lookup(StdLib, Functor) of %search built-in first
+		      [{_, {built_in, _}}] -> built_in;
+		      [] ->
+			      case ets:lookup(ExLib, Functor) of  %search libraryspace then
+				      [{_, code, _}] -> compiled;
+				      [] ->
+					      case ets:lookup(Db, Functor) of  %search userspace last
+						      [{_, clauses, _, _}] -> interpreted;
+						      [] -> undefined
+					      end
+			      end
+	      end,
+	{Res, Db}.
 
-get_interp_functors(Db) ->
-	{ets:foldl(fun({_, {built_in, _}}, Fs) -> Fs;
-		({Func, code, _}, Fs) -> [Func | Fs];
-		({Func, clauses, _, _}, Fs) -> [Func | Fs]
-	end, [], Db), Db}.
+get_interp_functors({_, ExLib, Db}) ->
+	Library = ets:foldl(fun({Func, code, _}, Fs) -> [Func | Fs];
+		(_, Fs) -> Fs
+	end, [], ExLib),
 
-raw_store(Db, {Key, Value}) ->
+	Res = ets:foldl(fun({Func, clauses, _, _}, Fs) -> [Func | Fs];
+		(_, Fs) -> Fs
+	end, Library, Db),
+	{Res, Db}.
+
+raw_store({_, _, Db}, {Key, Value}) ->
 	ets:insert(Db, {Key, Value}),
 	{ok, Db}.
 
-raw_fetch(Db, {Key}) ->
+raw_fetch({_, _, Db}, {Key}) ->
 	Res = case ets:lookup(Db, Key) of
 		      [] -> [];
 		      [{_, Value}] -> Value
 	      end,
 	{Res, Db}.
 
-raw_append(Db, {Key, AppendValue}) ->
+raw_append({_, _, Db}, {Key, AppendValue}) ->
 	{Value, _} = raw_fetch(Db, {Key}),
 	raw_store(Db, {Key, lists:concat([Value, [AppendValue]])}),
 	{ok, Db}.
 
-raw_erase(Db, {Key}) ->
+raw_erase({_, _, Db}, {Key}) ->
 	ets:delete(Db, Key),
 	{ok, Db}.
 
-listing(Db, {Collection, Params}) ->
+listing({StdLib, ExLib, Db}, {Collection, Params}) ->
 	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = listing(Ets, {Params}),
+	{Res, _} = listing({StdLib, ExLib, Ets}, {Params}),
 	{Res, Db};
-listing(Db, {[Functor, Arity]}) ->
+listing({_, _, Db}, {[Functor, Arity]}) ->
 	{ets:foldl(
 		fun({{F, A} = Res, clauses, _, _}, Acc) when F == Functor andalso A == Arity ->
 			[Res | Acc];
 			(_, Acc) -> Acc
 		end, [], Db), Db};
-listing(Db, {[Functor]}) ->
+listing({_, _, Db}, {[Functor]}) ->
 	{ets:foldl(
 		fun({{F, Arity}, clauses, _, _}, Acc) when F == Functor ->
 			[{Functor, Arity} | Acc];
 			(_, Acc) -> Acc
 		end, [], Db), Db};
-listing(Db, {[]}) ->
+listing({_, _, Db}, {[]}) ->
 	{ets:foldl(
 		fun({Fun, clauses, _, _}, Acc) -> [Fun | Acc];
 			(_, Acc) -> Acc
 		end, [], Db), Db}.
 
 %% @private
-clause(Head, Body0, Db, ClauseFun) ->
+clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
 	{Functor, Body} = case catch {ok, ec_support:functor(Head), ec_body:well_form_body(Body0, false, sture)} of
 		                  {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
 		                  {ok, F, B} -> {F, B}
 	                  end,
+	ok = check_immutable(StdLib, Db, Functor),  %check built-in functions (read only) for clause
+	ok = check_immutable(ExLib, Db, Functor),   %check library functions (read only) for clauses
 	case ets:lookup(Db, Functor) of
-		[{_, {built_in, _}}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		[{_, code, _}] -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
 		[{_, clauses, Tag, Cs}] -> ClauseFun(Functor, Tag, Cs, Body);
 		[] -> ets:insert(Db, {Functor, clauses, 1, [{0, Head, Body}]})
 	end.
@@ -207,3 +216,9 @@ check_duplicates(Cs, Head, Body) ->
 		fun({_, H, B}, _) when H == Head andalso B == Body -> false;  %find same fact
 			(_, Acc) -> Acc
 		end, true, Cs).
+
+check_immutable(Ets, Db, Functor) ->
+	case ets:lookup(Ets, Functor) of
+		[] -> ok;
+		_ -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db)
+	end.

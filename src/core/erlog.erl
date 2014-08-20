@@ -28,7 +28,7 @@
 
 -module(erlog).
 -behaviour(gen_server).
--vsn('1.0').
+-vsn('2.0').
 
 -include("erlog_core.hrl").
 

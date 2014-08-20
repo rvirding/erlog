@@ -32,7 +32,7 @@ instantiation_error(Db) -> erlog_error(instantiation_error, Db).
 instantiation_error() -> erlog_error(instantiation_error).
 
 permission_error(Op, Type, Value, Db) ->
-	erlog_error({permission_error, Op, Type, Value}, Db).
+	erlog_error({permission_error, Op, Type, Value}, Db). %TODO remove DB!!
 
 erlog_error(E, Db) -> throw({erlog_error, E, Db}).
 erlog_error(E) -> throw({erlog_error, E}).
