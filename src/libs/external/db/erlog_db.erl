@@ -35,7 +35,7 @@ db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindi
 	case erlog_memory:db_findall(Db, Table, G) of
 		[] -> erlog_errors:fail(Param);
 		{erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-		{clauses, _, Cs} -> prove_call(G, Cs, Next0, Param);
+		{clauses, Cs} -> prove_call(G, Cs, Next0, Param);
 		Cs -> prove_call(G, Cs, Next0, Param)
 	end.
 
