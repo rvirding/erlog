@@ -80,7 +80,7 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
 abolish_clauses({StdLib, ExLib, Db}, {Functor}) ->
 	ok = check_immutable(StdLib, Db, Functor),
 	case ets:lookup(ExLib, Functor) of  %delete from library-space
-		[{_, code, _}] -> ets:delete(Db, Functor);
+		[{_, code, _}] -> ets:delete(ExLib, Functor);
 		[] -> %if not found - delete from userspace
 			case ets:lookup(Db, Functor) of
 				[{_, clauses, _, _}] -> ets:delete(Db, Functor);
