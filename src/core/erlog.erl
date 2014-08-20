@@ -87,8 +87,9 @@ handle_call({select, Command}, _From, State) ->  %in selection solutions mode
 	NewState = change_state(Repl), % change state, depending on reply
 	{reply, Res, NewState}.
 
-handle_cast(halt, St = #state{e_man = E}) ->
+handle_cast(halt, St = #state{e_man = E, db = Db}) ->
 	gen_event:stop(E),  %stom all handlers and event man
+	gen_server:cast(Db, halt),
 	{stop, normal, St}.
 
 handle_info(_, St) ->
@@ -130,7 +131,6 @@ init_consulter(Params) ->
 
 %% @private
 load_built_in(Database) ->
-	link(Database), %TODO some better solution to clean database, close it properly and free memory after erlog terminates
 	%Load basic interpreter predicates
 	lists:foreach(fun(Mod) -> Mod:load(Database) end,
 		[

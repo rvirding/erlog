@@ -42,7 +42,7 @@ server_loop(Core, State, Line) ->
 	      end,
 	{NewState, NewLine} = process_execute(Res, State, Line, Term),
 	case Term of
-		"halt." -> ok;
+		"halt.\n" -> ok;
 		_ -> server_loop(Core, NewState, NewLine)
 	end.
 
