@@ -165,9 +165,9 @@ raw_fetch({_, _, Db}, {Key}) ->
 	      end,
 	{Res, Db}.
 
-raw_append({_, _, Db}, {Key, AppendValue}) ->
-	{Value, _} = raw_fetch(Db, {Key}),
-	raw_store(Db, {Key, lists:concat([Value, [AppendValue]])}),
+raw_append({_, _, Db} = Param, {Key, AppendValue}) ->
+	{Value, _} = raw_fetch(Param, {Key}),
+	raw_store(Param, {Key, lists:concat([Value, [AppendValue]])}),
 	{ok, Db}.
 
 raw_erase({_, _, Db}, {Key}) ->
