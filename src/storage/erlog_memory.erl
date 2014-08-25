@@ -58,6 +58,7 @@
 	stdlib :: ets:tid(),  %kernel-space memory
 	exlib :: ets:tid(), %library-space memory
 	database :: atom(), % callback module for user-space memory
+	in_mem :: ets:tid(), %integrated memory for findall operations
 	state :: term() % callback state
 }).
 
@@ -185,6 +186,19 @@ handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{datab
 		      [] -> ets:insert(ExLib, {Functor, code, {M, F}})
 	      end,
 	{reply, Res, State};
+handle_call({raw_store, {Key, Value}}, _From, State = #state{in_mem = InMem}) ->  %findall store
+	store(Key, Value, InMem),
+	{reply, ok, State};
+handle_call({raw_fetch, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall fetch
+	Res = fetch(Key, InMem),
+	{reply, Res, State};
+handle_call({raw_append, {Key, AppendValue}}, _From, State = #state{in_mem = InMem}) ->  %findall append
+	{Value, _} = fetch(Key, InMem),
+	store(Key, lists:concat([Value, [AppendValue]]), InMem),
+	{reply, ok, State};
+handle_call({raw_erase, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall erase
+	ets:delete(InMem, Key),
+	{reply, ok, State};
 handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
 	{Res, NewState} = Db:Fun({StdLib, ExLib, DbState}, Params),
 	{reply, Res, State#state{state = NewState}};
@@ -266,4 +280,15 @@ code_change(_OldVsn, State, _Extra) ->
 init_memory(State) ->
 	KernelMemory = ets:new(kernelMem, []),
 	LibraryMemory = ets:new(libraryMem, []),
-	State#state{stdlib = KernelMemory, exlib = LibraryMemory}.
+	InMemory = ets:new(in_memory, []),
+	State#state{stdlib = KernelMemory, exlib = LibraryMemory, in_mem = InMemory}.
+
+fetch(Key, Memory) ->
+	case ets:lookup(Memory, Key) of
+		[] -> [];
+		[{_, Value}] -> Value
+	end.
+
+store(Key, Value, Memory) ->
+	ets:insert(Memory, {Key, Value}),
+	ok.

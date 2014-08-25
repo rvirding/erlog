@@ -154,26 +154,6 @@ get_interp_functors({_, ExLib, Db}) ->
 	end, Library, Db),
 	{Res, Db}.
 
-raw_store({_, _, Db}, {Key, Value}) ->
-	ets:insert(Db, {Key, Value}),
-	{ok, Db}.
-
-raw_fetch({_, _, Db}, {Key}) ->
-	Res = case ets:lookup(Db, Key) of
-		      [] -> [];
-		      [{_, Value}] -> Value
-	      end,
-	{Res, Db}.
-
-raw_append({_, _, Db} = Param, {Key, AppendValue}) ->
-	{Value, _} = raw_fetch(Param, {Key}),
-	raw_store(Param, {Key, lists:concat([Value, [AppendValue]])}),
-	{ok, Db}.
-
-raw_erase({_, _, Db}, {Key}) ->
-	ets:delete(Db, Key),
-	{ok, Db}.
-
 listing({StdLib, ExLib, Db}, {Collection, Params}) ->
 	Ets = ets_db_storage:get_db(Collection),
 	{Res, _} = listing({StdLib, ExLib, Ets}, {Params}),

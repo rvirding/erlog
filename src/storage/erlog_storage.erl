@@ -30,11 +30,3 @@
 -callback get_procedure_type({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {atom(), NewState :: term()}.
 
 -callback get_interp_functors({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}) -> {list(), NewState :: term()}.
-
--callback raw_store({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {ok, NewState :: term()}.
-
--callback raw_fetch({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {Value :: any(), NewState :: term()}.
-
--callback raw_append({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {ok, NewState :: term()}.
-
--callback raw_erase({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: tuple()) -> {ok, NewState :: term()}.
