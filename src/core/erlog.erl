@@ -68,6 +68,7 @@ init([]) -> % use built in database
 init(Params) -> % use custom database implementation
 	FileCon = init_consulter(Params),
 	{ok, Db} = init_database(Params),
+	ok = load_external_libraries(Params, Db),
 	{ok, E} = gen_event:start_link(),
 	case proplists:get_value(event_h, Params) of  %register handler, if any
 		undefined -> ok;
@@ -140,6 +141,13 @@ load_built_in(Database) ->
 			erlog_lists,      %Common lists library
 			erlog_time        %Bindings for working with data and time
 		]).
+
+%% @private
+load_external_libraries(Params, Database) ->
+	case proplists:get_value(libraries, Params) of
+		undefined -> ok;
+		Libraries -> lists:foreach(fun(Mod) -> Mod:load(Database) end, Libraries)
+	end.
 
 %% @private
 %% Run scanned command

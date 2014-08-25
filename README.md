@@ -97,7 +97,8 @@ To configure your gen_event module - just pass module and arguments as __event_h
     
 #### Working with libraries:
 Erlog is implemented in erlang modules, called libraries. They can be standard and external. 
-All predicates from standard functions are loaded to memory when you start erlog core.
+All predicates from standard functions are loaded to memory when you start erlog core.  
+##### Manual loading external libraries
 But to use predicates from external functions - you should manually load them to memory with the help of `use/1` command:
 
     | ?- db_assert(test,foo(a,b)).
@@ -109,4 +110,19 @@ But to use predicates from external functions - you should manually load them to
 This example demonstrates the loading of external database library.  
 First call is false, because there is no such function loaded to memory.   
 Second - library is loaded.  
-Third - function run successfully.
+Third - function run successfully.  
+__Important!__ If you are working with erlog from poolboy or dynamic creating erlog gen_servers through supervisor, 
+remember, that two execution requests can be processed on different erlog instance.  
+
+    use(some_lib). %returns true
+    some_lib_fun(some_val). %returns false
+In this example system erlog gen server is created one per one separate command (F.e. http request). Firstly - library
+`some_lib` is loaded. Than erlog server with loaded library is destroyed (as request is complete) and for another request
+`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.
+##### Auto loading external libraries on start
+For convenient libraries usage you can load all libraries you need when creating a core. It will let you not to call `use/1`
+everywhere in your code. Just add param `{libraries, [my_first_lib, my second_lib]}` in your params when starting a core:
+
+    ConfList = [{libraries, [my_first_lib, my second_lib]}],
+    erlog:start_link(ConfList).
+All libraries from array will be loaded.
