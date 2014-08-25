@@ -21,10 +21,6 @@
 	get_procedure_type/2,
 	get_interp_functors/1,
 	findall/2,
-	raw_store/2,
-	raw_fetch/2,
-	raw_append/2,
-	raw_erase/2,
 	listing/2]).
 
 new() -> {ok, ets:new(eets, [])}.

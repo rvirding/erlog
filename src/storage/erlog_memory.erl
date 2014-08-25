@@ -193,7 +193,7 @@ handle_call({raw_fetch, {Key}}, _From, State = #state{in_mem = InMem}) ->  %find
 	Res = fetch(Key, InMem),
 	{reply, Res, State};
 handle_call({raw_append, {Key, AppendValue}}, _From, State = #state{in_mem = InMem}) ->  %findall append
-	{Value, _} = fetch(Key, InMem),
+	Value = fetch(Key, InMem),
 	store(Key, lists:concat([Value, [AppendValue]]), InMem),
 	{reply, ok, State};
 handle_call({raw_erase, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall erase
