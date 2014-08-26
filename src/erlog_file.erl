@@ -36,7 +36,7 @@ consult(File, Db0) ->
     end.
 
 consult_assert(Term0, Db) ->
-    Term1 = erlog_dcg:expand_term(Term0),
+    Term1 = erlog_lib_dcg:expand_term(Term0),
     {ok,erlog_int:assertz_clause(Term1, Db)}.
 
 reconsult(File, Db0) ->
@@ -50,7 +50,7 @@ reconsult(File, Db0) ->
     end.
 
 reconsult_assert(Term0, {Db0,Seen}) ->
-    Term1 = erlog_dcg:expand_term(Term0),
+    Term1 = erlog_lib_dcg:expand_term(Term0),
     Func = functor(Term1),
     case lists:member(Func, Seen) of
 	true ->

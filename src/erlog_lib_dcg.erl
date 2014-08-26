@@ -12,11 +12,11 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : erlog_dcg.erl
+%% File    : erlog_lib_dcg.erl
 %% Author  : Robert Virding
 %% Purpose : DCG conversion and procedures.
 
--module(erlog_dcg).
+-module(erlog_lib_dcg).
 
 -include("erlog_int.hrl").
 
@@ -28,7 +28,7 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
-		    add_binding/3,make_vars/2,
+		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
@@ -39,8 +39,8 @@ load(Db0) ->
     Db1 = foldl(fun ({Head,M,F}, Db) -> add_compiled_proc(Head, M, F, Db) end,
 		Db0,
 		[
-		 {{expand_term,2},erlog_dcg,expand_term_2},
-		 {{phrase,3},erlog_dcg,phrase_3}
+		 {{expand_term,2},?MODULE,expand_term_2},
+		 {{phrase,3},?MODULE,phrase_3}
 		]),
     %% Interpreted DCG predicates.
     foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,

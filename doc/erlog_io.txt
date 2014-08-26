@@ -1,0 +1,42 @@
+MODULE
+
+        erlog_io
+
+MODULE SUMMARY
+
+        I/O functions for Erlog
+
+DESCRIPTION
+
+        Erlog is a Prolog interpreter implemented in Erlang and
+        integrated with the Erlang runtime system.
+
+erlog_io:read([IoDevice,] Prompt) ->
+        {ok,Term} | {ok,end_of_file} | {error,Error}.
+
+erlog_io:write([IoDevice,] Term) -> ok.
+
+erlog_parse:term([Token]) -> {ok,Term} | {error,ErrorDescriptor}.
+erlog_parse:term([Token], LineNo) -> {ok,Term} | {error,ErrorDescriptor}.
+
+        Parse a list of Erlang tokens as a Prolog term. The line
+        number (default 1) is used when returning errors.
+        ErrorDescriptor has the format:
+
+        {LineNo,ModuleName,Error}
+
+erlog_scan:string(String) -> {ok,[Token],Line} | {error,Error,LineNo}.
+erlog_scan:string(String, Line) -> {ok,[Token],Line} | {error,Error,Line}.
+
+        Scan String and return a list of tokens.
+
+erlog_scan:token(Continuation, Chars, Line) ->
+        {more,Continuation} | {done,ReturnVal,RestChars}.
+
+        Re-entrant scanner to scan one token. Compatible with io system.
+
+erlog_scan:tokens(Continuation, Chars, Line) ->
+        {more,Continuation} | {done,ReturnVal,RestChars}.
+
+        Re-entrant scanner to scan tokens upto an end token.
+        Compatible with io system.
