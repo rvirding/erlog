@@ -12,7 +12,7 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : erlog_lists.erl
+%% File    : erlog_lib_lists.erl
 %% Author  : Robert Virding
 %% Purpose : Standard Erlog lists library.
 %% 
@@ -21,7 +21,7 @@
 %% and some predicates are compiled. We only get a small benefit when
 %% only implementing indexing on the first argument.
 
--module(erlog_lists).
+-module(erlog_lib_lists).
 
 -include("erlog_int.hrl").
 
@@ -29,7 +29,8 @@
 -export([load/1]).
 
 %% Library functions.
--export([append_3/6,insert_3/6,member_2/6,memberchk_2/6,reverse_2/6,sort_2/6]).
+-export([length_2/6,append_3/6,insert_3/6,member_2/6,memberchk_2/6,
+	 reverse_2/6,sort_2/6]).
 
 %%-compile(export_all).
 
@@ -37,7 +38,7 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
-		    add_binding/3,make_vars/2,
+		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
@@ -51,6 +52,7 @@ load(Db0) ->
     Db1 = foldl(fun ({Head,M,F}, Db) ->
 			add_compiled_proc(Head, M, F, Db) end, Db0,
 		[
+		 {{length,2},?MODULE,length_2},
 		 {{append,3},?MODULE,append_3},
 		 {{insert,3},?MODULE,insert_3},
 		 {{member,2},?MODULE,member_2},
@@ -69,6 +71,62 @@ load(Db0) ->
 	   {perm,[],[]},
 	   {':-',{perm,[{1}|{2}],{3}},{',',{perm,{2},{4}},{insert,{4},{1},{3}}}}
 	  ]).
+
+%% length_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% length(L, N) :- integer(N), !, N >= 0, '$make_list'(N, L).
+%% length(L, N) :- '$length'(L, 0, N).
+%% '$length'([], N, N).
+%% '$length'([_|L], M, N) :- M1 is M + 1, '$length'(L, M1, N).
+%% '$make_list'(0, []) :- !.
+%% '$make_list'(N, [_|L]) :- N1 is N - 1, '$make_list'(N1, L).
+
+length_2({length,L,N0}, Next, Cps, Bs, Vn, Db) ->
+    case deref(N0, Bs) of				%Export N1
+	N1 when is_integer(N1) ->
+	    if N1 >= 0 -> make_list(N1, L, Next, Cps, Bs, Vn, Db);
+	       true -> fail(Cps, Db)
+	    end;
+	{_}=N1 ->
+	    length_3(L, 0, N1, Next, Cps, Bs, Vn, Db);
+	N1 ->
+	    erlog_int:type_error(integer, N1, Db)
+    end.
+
+length_3(L0, M, N, Next, Cps, Bs0, Vn, Db) ->
+    case deref(L0, Bs0) of
+	[] -> unify_prove_body(N, M, Next, Cps, Bs0, Vn, Db); 
+	[_|T] -> length_3(T, M+1, N, Next, Cps, Bs0, Vn, Db);
+	{_}=L1 ->
+	    FailFun = fun (Lcp, Lcps, Ldb) ->
+			      fail_length_3(Lcp, Lcps, Ldb, L1, M, N)
+		      end,
+	    Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs0,vn=Vn},
+	    Bs1 = add_binding(L1, [], Bs0),
+	    unify_prove_body(N, M, Next, [Cp|Cps], Bs1, Vn, Db);
+	Other ->
+	    erlog_int:type_error(list, Other, Db)
+    end.
+
+fail_length_3(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, Db, L, M, N) ->
+    H = {Vn},
+    T = {Vn+1},
+    Bs1 = add_binding(L, [H|T], Bs0),
+    length_3(T, M+1, N, Next, Cps, Bs1, Vn+2, Db).
+
+make_list(0, L, Next, Cps, Bs, Vn, Db) ->
+    unify_prove_body(L, [], Next, Cps, Bs, Vn, Db);
+make_list(N, L0, Next, Cps, Bs0, Vn, Db) ->
+    case deref(L0, Bs0) of
+	[] -> fail(Cps, Db);			%We know N /= 0
+	[_|T] ->				%Keep stepping down the list
+	    make_list(N-1, T, Next, Cps, Bs0, Vn, Db);
+	{_}=L1 ->				%Just make a list of the rest
+	    List = make_var_list(N, Vn),
+	    Bs1 = add_binding(L1, List, Bs0),
+	    prove_body(Next, Cps, Bs1, Vn+N, Db);
+	Other ->
+	    erlog_int:type_error(list, Other, Db)
+    end.
 
 %% append_3(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% append([], L, L).
@@ -139,7 +197,7 @@ fail_member_2(#cp{next=Next0,bs=Bs,vn=Vn}, Cps, Db, A1, A2) ->
 
 %% memberchk_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
 %% memberchk(X, [X|_]) :- !.
-%% memberchk(X, [_|T]) :- member(X, T).
+%% memberchk(X, [_|T]) :- memberchk(X, T).
 %%  We don't build the list and we never backtrack so we can be smart
 %%  and match directly. Should we give a type error?
 
