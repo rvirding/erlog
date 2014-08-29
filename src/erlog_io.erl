@@ -58,15 +58,19 @@ scan_stream(Fd, L0) ->
 %% Read a file containing Prolog terms. This has been taken from 'io'
 %% but cleaned up using try.
 
+get_path() ->
+    application:get_env(erlog, consult_path, ["."]).
+    
 read_file(File) ->
-    case file:open(File, [read]) of
-        {ok,Fd} ->
+    Path = get_path(),
+    case file:path_open(Path, File, [read]) of
+        {ok,Fd, _} ->
             try
                 {ok,read_stream(Fd, 1)}
             catch
-                throw:Term -> Term;
-                error:Error -> {error,einval,Error};
-                exit:Exit -> {exit,einval,Exit}
+                throw:Term	-> Term;
+                error:Error	-> {error,einval,Error};
+                exit:Exit	-> {exit,einval,Exit}
             after
                 file:close(Fd)
             end;
