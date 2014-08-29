@@ -1,93 +1,214 @@
 MODULE
 
-	erlog
+        erlog
 
 MODULE SUMMARY
 
-	Interpreter for sub-set of Prolog
+        Interpreter for sub-set of Prolog
 
 DESCRIPTION
 
-	Erlog is a Prolog interpreter implemented in Erlang and
-	integrated with the Erlang runtime system.
+        Erlog is a Prolog interpreter implemented in Erlang and
+        integrated with the Erlang runtime system.
+
+TYPES
+
+erlog()
+        State of the Erlog interpreter.
+
+solution() = {succeed,Bindings}
+           | fail
+           | {error,Error}
+           | {'EXIT',Error}
+
+eterm()
+        Erlog term.
 
 EXPORTS
 
-erlog:new() -> Erlog()
+erlog:new() -> {ok,Estate}.
+erlog:new(DbModule, DbInitArg) -> {ok,Estate}.
 
-	Start a new Erlog interpreter. The intrepreter is a function
-	which can be called with the following valid arguments:
+        Types
+            DbModule = atom()
+            DbInitArg = term()
+            Estate = erlog()
 
-	Erlog({prove,Goal}) -> {ProveRet,Erlog()}.
-	Erlog(next_solution) -> {ProveRet,Erlog()}.
+        Initialise the erlog interpreter. The database is initialised
+        by calling DbModule(DbInitArg). If DbModule and DbInitArg are
+        not given then the default database will be used.
 
-	where ProveRet = {succeed,VarBindings} | fail | Error.
+erlog:prove(Estate1, Goal) -> {Solution,Estate2}.
 
-	Goal can also be a list of goals here to simplify writing
-	conjunctions.
+        Types
+            Estate1 = Estate2 = erlog()
+            Goal = eterm()
+            Solution = solution()
 
-	Erlog({consult,FileName} -> {ok,Erlog()} | {Error,Erlog()}.
-	Erlog({reconsult,FileName} -> {ok,Erlog()} | {Error,Erlog()}.
+        Try to prove Goal, if this can be done return the first
+        solution. This will reset the interpreter and completely
+        replace any existing goal, except of course for operations on
+        the database.
 
-	Erlog(get_db) -> {{ok,Database},Erlog()}.
-	Erlog({set_db,Database}) -> {ok,Erlog()}.
+erlog:next_solution(Estate1) -> {Solution,Estate2}.
 
-	Get/set the database used by the interpreter to Database.
-	These functions can be used to save and quickly restore the
-	database to a predefined state.
+        Types
+            Estate1 = Estate2 = erlog()
+            Solution = solution()
 
-	Erlog(halt) -> ok.
-	This ends the interpreter.
+        Try to find the next solution of the last goal.
 
-erlog:start() -> Eint.
-erlog:start_link() -> Eint.
-erlog:prove(Eint, Goal) -> {succeed,VarBindings} | fail | Error.
-erlog:next_solution(Eint) -> {succeed,VarBindings} | fail | Error.
-erlog:consult(Eint, FileName) -> ok | Error.
-erlog:reconsult(Eint, FileName) -> ok | Error.
-erlog:get_db(Eint) -> {ok,Database}.
-erlog:set_db(Eint, Database) -> ok.
-erlog:halt(Eint) -> ok.
+erlog:consult(Estate1, FileName) -> {ok,Estate2} | {error,Error}.
+erlog:reconsult(Estate1, FileName) -> {ok,Estate2} | {error,Error}.
 
-	These functions run the Erlog interpreter as a separate
-	process, the interface functions correspond to the valid
-	arguments to the Erlog interpeter function above.
+        Types
+            Estate1 = Estate2 = erlog()
+            FileName = string()
+
+erlog:load(Estate1, Module) -> {ok,Estate2}.
+
+        Types
+            Estate1 = Estate2 = erlog()
+            Module = atom()
+
+erlog:get_db(Estate) -> {ok,Database}.
+
+        Types
+            Estate = erlog()
+            Database = term()
+
+erlog:set_db(Estate1, Database) -> {ok,Estate2}.
+erlog:set_db(Estate1, DbModule, Database) -> {ok,Estate2}.
+
+        Types
+            Estate1 = Estate2 = erlog()
+            DbModule = atom()
+            Database = term()
 
 erlog:is_legal_term(Term) -> bool().
 
-	Test if Term is a well-formed (legal) Erlog structure.
+        Test if Term is a well-formed (legal) Erlog structure.
 
 erlog:vars_in(Term) -> [{VarName,Variable}].
 
-	Returns a list of {VariableName,Variable} pairs.
+        Returns a list of {VariableName,Variable} pairs.
 
-erlog_parse:term([Token]) -> {ok,Term} | {error,ErrorDescriptor}.
-erlog_parse:term([Token], LineNo) -> {ok,Term} | {error,ErrorDescriptor}.
+DATABASE INTERFACE
 
-	Parse a list of Erlang tokens as a Prolog term. The line
-	number (default 1) is used when returning errors.
-	ErrorDescriptor has the format:
+        The following functions must be exported from the database
+        module.
 
-	{LineNo,ModuleName,Error}
+        Most of these datatypes are opaque, so for example the
+        interpreter will never inspect the a dbref() but just chain it
+        through the database calls. When intepreted clauses are added
+        to the database the body argument {Body,HasCut} must be
+        returned as is when return a clause tuple.
 
-erlog_scan:string(String) -> {ok,[Token],Line} | {error,Error,LineNo}.
-erlog_scan:string(String, Line) -> {ok,[Token],Line} | {error,Error,Line}.
+        The tag in a clause is some unique identifier for the clause
+        within that functor, it need not be global for the whole
+        database. It is used when retracting a clause to indicate
+        which clause of the procedure is to be removed.
 
-	Scan String and return a list of tokens.
+TYPES
 
-erlog_scan:token(Continuation, Chars, Line) ->
-	{more,Continuation} | {done,ReturnVal,RestChars}.
+dbref() An internal reference to the database. The interpreter will
+        never directly access this.
 
-	Re-entrant scanner to scan one token. Compatible with io system.
+functor() = {atom(),integer()}
+        The functor of a procedure which is used to reference functor
+        data. This is used as an opaque reference to a procedure.
 
-erlog_scan:tokens(Continuation, Chars, Line) ->
-	{more,Continuation} | {done,ReturnVal,RestChars}.
+clause() = {Tag,Head,{Body,HasCut}}
+        Head = Body = eterm()
 
-	Re-entrant scanner to scan tokens upto an end token.
-	Compatible with io system.
+        The structure of a clause as it is returned from the database.
+
+dbret() = {ok,dbref()}
+        | error
+
+EXPORTS
+
+DbModule:new(DbInitArg) -> DbRef.
+
+DbModule:add_built_in(DbRef1, Functor) -> DbRef2.
+
+        Types
+            DbRef1 = DbRef2 = dbref()
+            Functor = functor()
+
+DbModule:add_compiled_proc(DbRef, Functor, Module, Function) -> DbRet.
+
+        Types
+            DbRef  = dbref()
+            Functor = functor()
+            Module = Function = atom()
+
+        Add a compiled procedure to the database. This should return
+        'error' if the procedure has been defined as built in.
+
+DbModule:asserta_clause(DbRef, Functor, Head, {Body,HasCut}) -> DbRet.
+DbModule:assertz_clause(DbRef, Functor, Head, {Body,HasCut}) -> DbRet.
+
+        Types
+            DbRef  = dbref()
+            Functor = functor()
+            Head = Body = eterm()
+            HasCut = boolean()
+            DbRet = dbret()
+
+        Add a clause to an interpreted procedure in the database. This
+        should return 'error' if the procedure has been defined as
+        built in or compiled.
+
+DbModule:retract_clause(DbRef, Functor, Tag) -> DbRet.
+
+        Types
+            DbRef  = dbref()
+            Functor = functor()
+            Tag = term()
+            DbRet = dbret()
+
+        This will return 'error' if trying to retract clauses from a
+        built in or compiled procedure.
+
+DbModule:abolish_clauses(DbRef, Functor) -> DbRet.
+
+        Types
+            DbRef  = dbref()
+            Functor = functor()
+            DbRet = dbret()
+
+        This will return 'error' if trying to abolish a built in
+        procedure.
+
+DbModule:get_procedure(DbRef, Functor) -> Procedure.
+
+        Types
+            DbRef  = dbref()
+            Functor = functor()
+            Procedure = built_in
+                      | {code,{Module,Function}}
+                      | {clauses,[clause()]}
+                      | undefined
+
+DbModule:get_procedure_type(DbRef, Functor) -> Procedure.
+
+        Types
+            DbRef  = dbref()
+            Functor = functor()
+            Procedure = built_in
+                      | compiled
+                      | interpreted
+                      | undefined
+
+DbModule:get_interpreted_functors(DbRef) -> Functors.
+
+        Types
+            DbRef  = dbref()
+            Functors = [functor()]
 
 AUTHOR
 
-	Robert Virding - robert.virding@telia.com
-	(with thanks to Richard O'Keefe for explaining some finer
-	points of the Prolog standard)
+        Robert Virding - robert.virding@telia.com
+        (with thanks to Richard O'Keefe for explaining some finer
+        points of the Prolog standard)

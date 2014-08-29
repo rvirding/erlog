@@ -33,6 +33,9 @@ nonvar/1, var/1
 Atom processing
 atom_chars/2, atom_length/2
 
+All solutions
+findall/3
+
 Erlang interface
 ecall/2
 
