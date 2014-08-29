@@ -1,8 +1,8 @@
-%-*-Prolog-*-
+% -*- mode: prolog -*-
 % erlog standard lib, code for working with erlang
 %
 % Copyright 2014 Zachary Kessin
-% 
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % Code for handling erlang records
@@ -18,7 +18,6 @@ record(_,[]):- !.
 record(RecordName,Fields) :-
 	get_record(RecordName, Fields, 1),
 	set_record(RecordName, Fields, 1).
-	
 
 swap_place(New,[_Head|Tail],0,Acc) :-
 	Acc = [New|Tail].
@@ -29,7 +28,7 @@ swap_place(New,[Head|Tail],N,Acc) :-
 
 set_record(_, [], _) :- !.
 set_record(RecordName, [Field|Rest], Place) :-
-	SetRule =.. [RecordName, Field, Record, NewValue, NData],	
+	SetRule =.. [RecordName, Field, Record, NewValue, NData],
 	N is Place + 1,
 	set_record(RecordName, Rest, N),
 	asserta((SetRule :-
@@ -40,7 +39,6 @@ set_record(RecordName, [Field|Rest], Place) :-
 
 		)).
 
-	
 get_record(_, [], _) :-!.
 get_record(RecordName, [Field|Rest], Place) :-
 	GetRule =.. [RecordName, Field, Record, Value],

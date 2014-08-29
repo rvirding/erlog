@@ -9,7 +9,6 @@ get_quickcheck_properties() ->
 			 end, Funs1),
     Props.
 
-   
 run_quickcheck_properties_test_() ->
     run_quickcheck(get_quickcheck_properties()).
 
@@ -25,11 +24,7 @@ run_quickcheck(Tests, _Count) ->
 	 end  || Prop<-Tests]
     end.
 
-
-
-
-
-%--------------------------------------------------------------------------------
+%-------------------------------------------------------------------------------
 
 out(P) ->
    on_output(fun(S,F) -> io:format(user, S, F) end,P).

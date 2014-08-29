@@ -37,7 +37,7 @@ prop_prolog_records_get() ->
                 ?assertEqual(Person#person.comments, Comments),
                 true
 	    end).
- 
+
 prop_prolog_records_set() ->
     ?FORALL({Person,NewName},
 	    {person(),name()},

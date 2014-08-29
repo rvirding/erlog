@@ -60,7 +60,7 @@ scan_stream(Fd, L0) ->
 
 get_path() ->
     application:get_env(erlog, consult_path, ["."]).
-    
+
 read_file(File) ->
     Path = get_path(),
     case file:path_open(Path, File, [read]) of

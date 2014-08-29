@@ -37,8 +37,6 @@ $(EBINDIR)/%.beam: $(SRCDIR)/%.erl
 %.erl: %.xrl
 	$(ERLC) -o $(SRCDIR) $<
 
-
-
 DEPS_PLT=$(CURDIR)/.deps_plt
 DEPS=erts kernel stdlib
 
@@ -53,10 +51,6 @@ endif
 
 REBAR=$(shell which rebar)
 
-ifeq ($(REBAR),)
-$(error "Rebar not available on this system")
-endif
-
 .PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
   update-deps clean-common-test-data rebuild
 
@@ -66,29 +60,28 @@ all: deps compile test
 # Rules to build the system
 # =============================================================================
 
-
-
 deps:
-	$(REBAR) get-deps
-	$(REBAR) compile
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) get-deps ; $(REBAR) compile ; \
+	fi
 
 update-deps:
-	$(REBAR) update-deps
-	$(REBAR) compile
-
-
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) update-deps; $(REBAR) compile ; \
+	fi
 
 eunit: compile
-	$(REBAR)  eunit skip_deps=true
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) eunit skip_deps=true ; \
+	fi
 
-
-qc: compile 
-	$(REBAR) qc 
-
-
+qc: compile
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) qc ; \
+	fi
 
 compile:
-	if which rebar > /dev/null; \
+	if [ -n "$(REBAR)" ] ; \
 	then $(REBAR) compile; \
 	else $(MAKE) $(MFLAGS) erlc_compile; \
 	fi
@@ -97,24 +90,25 @@ compile:
 erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))
 
 doc:
-	$(REBAR) skip_deps=true doc
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) skip_deps=true doc ; \
+	fi
 
-
-ct: compile 
-	$(REBAR)  skip_deps=true ct
-
+ct: compile
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) skip_deps=true ct ; \
+	fi
 
 test: compile eunit
 
-
-start: compile 
-	erl -name erlog  -pa ebin  -pa deps/*/ebin   #-s reloader 
+start: compile
+	erl -name erlog -pa ebin -pa deps/*/ebin   #-s reloader
 
 $(DEPS_PLT):
 	@echo Building local plt at $(DEPS_PLT)
 	@echo
 	dialyzer --output_plt $(DEPS_PLT) --build_plt \
-	   --apps $(DEPS) 
+	   --apps $(DEPS)
 
 dialyzer: $(DEPS_PLT)
 	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -Wno_improper_lists -Wno_match -r ./ebin
