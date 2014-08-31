@@ -46,3 +46,19 @@ get_record(RecordName, [Field|Rest], Place) :-
 	N is Place + 1,
 	get_record(RecordName, Rest, N).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Send and receive
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+send(Pid,Msg) :-
+	ecall(erlog_mailbox:send(Pid,Msg),_).
+
+receive(Msg,Timeout) :-
+	ecall(erlog_mailbox:receive_msg(Timeout),Msg).
+
+receive(Msg) :-
+	receive(Msg, infinity).
+
+	
