@@ -17,10 +17,11 @@ person() ->
 
 
 prop_prolog_records_get() ->
+    application:set_env(erlog, consult_path, [".", "../stdlib"]),
     ?FORALL(Person,
 	    person(),
 	    begin
-		application:set_env(erlog, consult_path, [".", "../stdlib"]),
+
                 {ok,E}					= erlog:new(),
                 {ok, E1}                                = erlog:consult(E,"erlang.pl"),
                 Fields                                  = record_info(fields, person),
@@ -37,13 +38,15 @@ prop_prolog_records_get() ->
                 ?assertEqual(Person#person.comments, Comments),
                 true
 	    end).
-
+ 
 prop_prolog_records_set() ->
+    application:set_env(erlog, consult_path, [".", "../stdlib"]),
     ?FORALL({Person,NewName},
 	    {person(),name()},
 	    begin
                 {ok,E} = erlog:new(),
-                {ok, E1}                                = erlog:consult(E,"../stdlib/erlang.pl"),
+                {ok, E1}                                = erlog:consult(E,"erlang.pl"),
+
                 Fields                                  = record_info(fields, person),
                 {{succeed,_}, E2}                       = erlog:prove(E1,{record, person, Fields}),
 

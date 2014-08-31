@@ -6,7 +6,8 @@
 erlog_halt_test() ->
     {Pid,Ref} = spawn_monitor(fun() ->
 				      {ok,Erlog} = erlog:new(),
-				      erlog:prove(Erlog,{halt, test}),
+
+				      erlog:prove(Erlog, {halt, test}),
 				      timer:sleep(300),
 				      ok
 				end),
