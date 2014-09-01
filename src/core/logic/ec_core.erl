@@ -82,7 +82,7 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 		      {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
 	      end,
 	After = os:timestamp(),
-	io:format("run goal ~p for ~p seconds", [G, timer:now_diff(After, Before) / 1000000]),
+	io:format("run goal ~p for ~p seconds~n", [ec_support:functor(G), timer:now_diff(After, Before) / 1000000]),
 	Res.
 
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
