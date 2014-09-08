@@ -60,7 +60,7 @@ start_link(Params) ->
 	gen_server:start_link(?MODULE, Params, []).
 
 init([]) -> % use built in database
-	{ok, Db} = init_database([]), %default database is ets module
+	{ok, Db} = init_database([]),
 	F = init_consulter([]),
 	{ok, E} = gen_event:start_link(),
 	gen_event:add_handler(E, erlog_simple_printer, []), %set the default debug module
@@ -114,7 +114,7 @@ change_state({_, State}) -> State#state{state = normal}.
 -spec init_database(Params :: proplists:proplist()) -> {ok, Pid :: pid()}.
 init_database(Params) ->
 	{ok, DbPid} = case proplists:get_value(database, Params) of
-		              undefined -> erlog_memory:start_link(erlog_ets);
+		              undefined -> erlog_memory:start_link(erlog_dict); %default database is ets module
 		              Module ->
 			              Args = proplists:get_value(arguments, Params),
 			              erlog_memory:start_link(Module, Args)

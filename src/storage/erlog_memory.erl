@@ -55,10 +55,10 @@
 
 -record(state,
 {
-	stdlib :: ets:tid(),  %kernel-space memory
-	exlib :: ets:tid(), %library-space memory
+	stdlib :: dict:dict(),  %kernel-space memory
+	exlib :: dict:dict(), %library-space memory
 	database :: atom(), % callback module for user-space memory
-	in_mem :: ets:tid(), %integrated memory for findall operations
+	in_mem :: dict:dict(), %integrated memory for findall operations
 	state :: term() % callback state
 }).
 
@@ -176,29 +176,35 @@ init([Database, Params]) when is_atom(Database) ->
 	{stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
 	{stop, Reason :: term(), NewState :: #state{}}).
 handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib = StdLib}) ->  %load kernel space into memory
-	Res = ets:insert(StdLib, {Functor, {built_in, Module}}),
-	{reply, Res, State};
+	UStdlib = dict:store(Functor, {built_in, Module}, StdLib),
+	{reply, ok, State#state{stdlib = UStdlib}};
 handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{database = Db, stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
-	Res = case ets:lookup(StdLib, Functor) of
-		      [{_, {built_in, _}}] ->
-			      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-		      [_] -> ets:insert(ExLib, {Functor, code, {M, F}});
-		      [] -> ets:insert(ExLib, {Functor, code, {M, F}})
-	      end,
-	{reply, Res, State};
+	UExlib = case dict:is_key(Functor, StdLib) of
+		         true ->
+			         erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+		         false ->
+			         dict:store(Functor, {code, {M, F}}, ExLib)
+	         end,
+	{reply, ok, State#state{exlib = UExlib}};
 handle_call({raw_store, {Key, Value}}, _From, State = #state{in_mem = InMem}) ->  %findall store
-	store(Key, Value, InMem),
-	{reply, ok, State};
+	Umem = store(Key, Value, InMem),
+	{reply, ok, State#state{in_mem = Umem}};
 handle_call({raw_fetch, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall fetch
 	Res = fetch(Key, InMem),
 	{reply, Res, State};
 handle_call({raw_append, {Key, AppendValue}}, _From, State = #state{in_mem = InMem}) ->  %findall append
 	Value = fetch(Key, InMem),
-	store(Key, lists:concat([Value, [AppendValue]]), InMem),
-	{reply, ok, State};
+	Umem = store(Key, lists:concat([Value, [AppendValue]]), InMem),
+	{reply, ok, State#state{in_mem = Umem}};
 handle_call({raw_erase, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall erase
-	ets:delete(InMem, Key),
-	{reply, ok, State};
+	Umem = dict:erase(Key, InMem),
+	{reply, ok, State#state{in_mem = Umem}};
+handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+	{UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, {Func}),
+	{reply, Res, State#state{state = NewState, exlib = UpdExlib}};
+handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+	{UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
+	{reply, Res, State#state{state = NewState, exlib = UpdExlib}};
 handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
 	{Res, NewState} = Db:Fun({StdLib, ExLib, DbState}, Params),
 	{reply, Res, State#state{state = NewState}};
@@ -275,20 +281,26 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 %% @private
-%% Initialises two ets tables for kernel and library memory
+%% Initialises three dicts for kernel, library memory and in_memory for findall operations
 -spec init_memory(State :: #state{}) -> UpdState :: #state{}.
 init_memory(State) ->
-	KernelMemory = ets:new(kernelMem, []),
-	LibraryMemory = ets:new(libraryMem, []),
-	InMemory = ets:new(in_memory, []),
-	State#state{stdlib = KernelMemory, exlib = LibraryMemory, in_mem = InMemory}.
+	D = dict:new(),
+	State#state{stdlib = D, exlib = D, in_mem = D}.
 
 fetch(Key, Memory) ->
-	case ets:lookup(Memory, Key) of
-		[] -> [];
-		[{_, Value}] -> Value
+	case dict:find(Key, Memory) of
+		error -> [];
+		{ok, Value} -> Value
 	end.
 
 store(Key, Value, Memory) ->
-	ets:insert(Memory, {Key, Value}),
-	ok.
+	dict:store(Key, Value, Memory).
+
+check_abolish(Func, StdLib, ExLib, Db, DbState, Params) ->
+	case dict:erase(Func, ExLib) of
+		ExLib ->  %dict not changed - was not deleted. Search userspace
+			{Res, NewState} = Db:abolish_clauses({StdLib, ExLib, DbState}, Params),
+			{ExLib, NewState, Res};
+		UExlib -> %dict changed -> was deleted
+			{UExlib, DbState, ok}
+	end.

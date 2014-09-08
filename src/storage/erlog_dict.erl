@@ -7,7 +7,7 @@
 %%% Created : 18. июн 2014 18:00
 %%%-------------------------------------------------------------------
 
--module(erlog_ets).
+-module(erlog_dict).
 
 -behaviour(erlog_storage).
 
@@ -23,40 +23,41 @@
 	findall/2,
 	listing/2]).
 
-new() -> {ok, ets:new(eets, [bag, private])}.
+new() -> {ok, dict:new()}.
 
-new(_) -> {ok, ets:new(eets, [bag, private])}.
+new(_) -> {ok, dict:new()}.
 
 assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
 	Ets = ets_db_storage:get_db(Collection),
 	{Res, _} = assertz_clause({StdLib, ExLib, Ets}, {Head, Body0}),
 	{Res, Db};
 assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
-	clause(Head, Body0, Memory,
+	Udb = clause(Head, Body0, Memory,
 		fun(Functor, Cs, Body) ->
 			case check_duplicates(Cs, Head, Body) of
-				false -> ok;  %found - do nothing
-				_ -> ets:insert(Db, {Functor, {length(Cs), Head, Body}}) %not found - insert new
+				true -> Db;  %found - do nothing
+				_ -> dict:append(Functor, {length(Cs), Head, Body}, Db) %not found - insert new
 			end
 		end),
-	{ok, Db}.
+	{ok, Udb}.
 
 asserta_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
 	Ets = ets_db_storage:get_db(Collection),
 	{Res, _} = asserta_clause({StdLib, ExLib, Ets}, {Head, Body0}),
 	{Res, Db};
 asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
-	clause(Head, Body0, Memory,
+	Udb = clause(Head, Body0, Memory,
 		fun(Functor, Cs, Body) ->
 			case check_duplicates(Cs, Head, Body) of
-				false -> ok;  %found - do nothing
+				true -> Db;  %found - do nothing
 				_ ->
-					Clauses = [{Functor, {length(Cs), Head, Body}} | Cs],
-					ets:delete(Db, Functor),
-					ets:insert(Db, [Clauses])
+					dict:update(Functor,
+						fun(Old) ->
+							[{length(Cs), Head, Body} | Old]
+						end, [{length(Cs), Head, Body}], Db) %not found - insert new
 			end
 		end),
-	{ok, Db}.
+	{ok, Udb}.
 
 retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
 	Ets = ets_db_storage:get_db(Collection),
@@ -65,13 +66,12 @@ retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
 	ok = check_immutable(StdLib, Db, Functor),
 	ok = check_immutable(ExLib, Db, Functor),
-	case ets:lookup_element(Db, Functor, 2) of
-		[] -> ok;
-		Cs ->
-			Object = lists:keyfind(Ct, 1, Cs),
-			ets:delete_object(Db, Object)
-	end,
-	{ok, Db}.
+	Udb = case dict:is_key(Functor, Db) of
+		      true ->
+			      dict:update(Functor, fun(Old) -> lists:keydelete(Ct, 1, Old) end, [], Db);
+		      false -> Db        %Do nothing
+	      end,
+	{ok, Udb}.
 
 abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
@@ -79,8 +79,11 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	{Res, Db};
 abolish_clauses({StdLib, _, Db}, {Functor}) ->
 	ok = check_immutable(StdLib, Db, Functor),
-	ets:delete(Db, Functor),
-	{ok, Db}.
+	Udb = case dict:is_key(Functor, Db) of
+		      true -> dict:erase(Functor, Db);
+		      false -> Db        %Do nothing
+	      end,
+	{ok, Udb}.
 
 findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
@@ -92,7 +95,11 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
 		false ->
 			case dict:is_key(Functor, ExLib) of  %search libraryspace then
 				true -> {Functor, Db};
-				false -> {ets:lookup_element(Db, Functor, 2), Db}   %search userspace last
+				false ->
+					case dict:find(Functor, Db) of  %search userspace last
+						{ok, Cs} -> {Cs, Db};
+						error -> {[], Db}
+					end
 			end
 	end.
 
@@ -107,9 +114,9 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
 			      case dict:find(Functor, ExLib) of  %search libraryspace then
 				      {ok, ExFun} -> ExFun;
 				      error ->
-					      case ets:lookup_element(Db, Functor, 2) of  %search userspace last
-						      [] -> undefined;
-						      Cs -> {clauses, Cs}
+					      case dict:find(Functor, Db) of  %search userspace last
+						      {ok, Cs} -> {clauses, Cs};
+						      error -> undefined
 					      end
 			      end
 	      end,
@@ -122,7 +129,7 @@ get_procedure_type({StdLib, ExLib, Db}, {Functor}) ->
 			      case dict:is_key(Functor, ExLib) of  %search libraryspace then
 				      true -> compiled;
 				      false ->
-					      case ets:member(Db, Functor) of  %search userspace last
+					      case dict:is_key(Functor, Db) of  %search userspace last
 						      true -> interpreted;
 						      false -> undefined
 					      end
@@ -132,33 +139,27 @@ get_procedure_type({StdLib, ExLib, Db}, {Functor}) ->
 
 get_interp_functors({_, ExLib, Db}) ->
 	Library = dict:fetch_keys(ExLib),
-
-	Res = ets:foldl(fun({Func, _}, Fs) -> [Func | Fs];
-		(_, Fs) -> Fs
-	end, Library, Db),
-	{Res, Db}.
+	UserSpace = dict:fetch_keys(Db),
+	{lists:concat([Library, UserSpace]), Db}.
 
 listing({StdLib, ExLib, Db}, {Collection, Params}) ->
 	Ets = ets_db_storage:get_db(Collection),
 	{Res, _} = listing({StdLib, ExLib, Ets}, {Params}),
 	{Res, Db};
 listing({_, _, Db}, {[Functor, Arity]}) ->
-	{ets:foldl(
-		fun({{F, A} = Res, _}, Acc) when F == Functor andalso A == Arity ->
+	{dict:fold(
+		fun({F, A} = Res, _, Acc) when F == Functor andalso A == Arity ->
 			[Res | Acc];
-			(_, Acc) -> Acc
+			(_, _, Acc) -> Acc
 		end, [], Db), Db};
 listing({_, _, Db}, {[Functor]}) ->
-	{ets:foldl(
-		fun({{F, Arity}, _}, Acc) when F == Functor ->
+	{dict:fold(
+		fun({F, Arity}, _, Acc) when F == Functor ->
 			[{Functor, Arity} | Acc];
-			(_, Acc) -> Acc
+			(_, _, Acc) -> Acc
 		end, [], Db), Db};
 listing({_, _, Db}, {[]}) ->
-	{ets:foldl(
-		fun({Fun, _}, Acc) -> [Fun | Acc];
-			(_, Acc) -> Acc
-		end, [], Db), Db}.
+	{dict:fetch_keys(Db), Db}.
 
 %% @private
 clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
@@ -168,20 +169,21 @@ clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
 	                  end,
 	ok = check_immutable(StdLib, Db, Functor),  %check built-in functions (read only) for clause
 	ok = check_immutable(ExLib, Db, Functor),   %check library functions (read only) for clauses
-	case ets:lookup(Db, Functor) of
-		[] -> ets:insert(Db, {Functor, {0, Head, Body}});
-		Cs -> ClauseFun(Functor, Cs, Body)
+	case dict:find(Functor, Db) of
+		{ok, Cs} -> ClauseFun(Functor, Cs, Body);
+		error -> dict:append(Functor, {0, Head, Body}, Db)
 	end.
 
 %% @private
+%% true - duplicate found
 -spec check_duplicates(list(), tuple(), tuple()) -> boolean().
 check_duplicates(Cs, Head, Body) ->
-	lists:foldl(
-		fun({_, {_, H, B}}, _) when H == Head andalso B == Body -> false;  %find same fact
+	catch (lists:foldl(
+		fun({_, H, B}, _) when H == Head andalso B == Body -> throw(true);  %find same fact
 			(_, Acc) -> Acc
-		end, true, Cs).
+		end, false, Cs)).
 
-check_immutable(Dict, Db, Functor) -> %TODO may be move me to erlog_memory?
+check_immutable(Dict, Db, Functor) ->
 	case dict:is_key(Functor, Dict) of
 		false -> ok;
 		true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db)
