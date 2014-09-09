@@ -77,9 +77,13 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	Ets = ets_db_storage:get_db(Collection),
 	{Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
-abolish_clauses({StdLib, _, Db}, {Functor}) ->
+abolish_clauses({StdLib, ExLib, Db}, {Functor}) ->
 	ok = check_immutable(StdLib, Db, Functor),
-	ets:delete(Db, Functor),
+	case ets:member(ExLib, Functor) of  %delete from library-space
+		true -> ets:delete(ExLib, Functor);
+		false -> %if not found - delete from userspace
+			ets:delete(Db, Functor)
+	end,
 	{ok, Db}.
 
 findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
@@ -87,12 +91,13 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	{Res, _} = findall({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
 findall({StdLib, ExLib, Db}, {Functor}) ->
-	case dict:is_key(Functor, StdLib) of %search built-in first
+	case ets:member(StdLib, Functor) of %search built-in first
 		true -> {Functor, Db};
 		false ->
-			case dict:is_key(Functor, ExLib) of  %search libraryspace then
+			case ets:member(ExLib, Functor) of  %search libraryspace then
 				true -> {Functor, Db};
-				false -> {ets:lookup_element(Db, Functor, 2), Db}   %search userspace last
+				false ->
+					{ets:lookup_element(Db, Functor, 2), Db}  %search userspace last
 			end
 	end.
 
@@ -101,12 +106,12 @@ get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
 	{Res, _} = get_procedure({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
 get_procedure({StdLib, ExLib, Db}, {Functor}) ->
-	Res = case dict:find(Functor, StdLib) of %search built-in first
-		      {ok, StFun} -> StFun;
-		      error ->
-			      case dict:find(Functor, ExLib) of  %search libraryspace then
-				      {ok, ExFun} -> ExFun;
-				      error ->
+	Res = case ets:lookup(StdLib, Functor) of %search built-in first
+		      [{_, StFun}] -> StFun;
+		      [] ->
+			      case ets:lookup(ExLib, Functor) of  %search libraryspace then
+				      [{_, code, C}] -> {code, C};
+				      [] ->
 					      case ets:lookup_element(Db, Functor, 2) of  %search userspace last
 						      [] -> undefined;
 						      Cs -> {clauses, Cs}
@@ -116,10 +121,10 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
 	{Res, Db}.
 
 get_procedure_type({StdLib, ExLib, Db}, {Functor}) ->
-	Res = case dict:is_key(Functor, StdLib) of %search built-in first
+	Res = case ets:member(StdLib, Functor) of %search built-in first
 		      true -> built_in;
 		      false ->
-			      case dict:is_key(Functor, ExLib) of  %search libraryspace then
+			      case ets:member(ExLib, Functor) of  %search libraryspace then
 				      true -> compiled;
 				      false ->
 					      case ets:member(Db, Functor) of  %search userspace last
@@ -131,7 +136,9 @@ get_procedure_type({StdLib, ExLib, Db}, {Functor}) ->
 	{Res, Db}.
 
 get_interp_functors({_, ExLib, Db}) ->
-	Library = dict:fetch_keys(ExLib),
+	Library = ets:foldl(fun({Func, code, _}, Fs) -> [Func | Fs];
+		(_, Fs) -> Fs
+	end, [], ExLib),
 
 	Res = ets:foldl(fun({Func, _}, Fs) -> [Func | Fs];
 		(_, Fs) -> Fs
@@ -181,8 +188,8 @@ check_duplicates(Cs, Head, Body) ->
 			(_, Acc) -> Acc
 		end, true, Cs).
 
-check_immutable(Dict, Db, Functor) -> %TODO may be move me to erlog_memory?
-	case dict:is_key(Functor, Dict) of
+check_immutable(Ets, Db, Functor) ->
+	case ets:member(Ets, Functor) of
 		false -> ok;
 		true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db)
 	end.
