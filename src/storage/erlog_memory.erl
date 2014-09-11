@@ -55,10 +55,10 @@
 
 -record(state,
 {
-	stdlib :: dict:dict(),  %kernel-space memory
-	exlib :: dict:dict(), %library-space memory
+	stdlib :: dict,  %kernel-space memory
+	exlib :: dict, %library-space memory
 	database :: atom(), % callback module for user-space memory
-	in_mem :: dict:dict(), %integrated memory for findall operations
+	in_mem :: dict, %integrated memory for findall operations
 	state :: term() % callback state
 }).
 
