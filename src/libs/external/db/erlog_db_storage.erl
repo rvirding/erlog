@@ -160,7 +160,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-get_db(Collection, Dbs, CreateFun) ->
+get_db(Collection, CreateFun, Dbs) ->
 	case dict:find(Collection, Dbs) of
 		error ->
 			Db = CreateFun(),
