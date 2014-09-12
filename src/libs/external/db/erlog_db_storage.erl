@@ -164,6 +164,6 @@ get_db(Collection, Dbs, CreateFun) ->
 	case dict:find(Collection, Dbs) of
 		error ->
 			Db = CreateFun(),
-			{Db, [{Collection, Db} | Dbs]};
+			{Db, dict:store(Collection, Db, Dbs)};
 		{ok, Db} -> {Db, Dbs}
 	end.
