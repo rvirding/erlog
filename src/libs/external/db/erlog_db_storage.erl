@@ -7,13 +7,13 @@
 %%% @end
 %%% Created : 22. Июль 2014 0:49
 %%%-------------------------------------------------------------------
--module(ets_db_storage).
+-module(erlog_db_storage).
 -author("tihon").
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, get_db/1]).
+-export([start_link/0, get_db/2, update_db/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -27,15 +27,16 @@
 
 -record(state,
 {
-	ets = [] :: proplists:proplist()
+	memory = [] :: dict
 }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
--spec get_db(atom()) -> ets.
-get_db(Collection) -> gen_server:call(?MODULE, {get_db, Collection}).
+-spec get_db(atom(), atom()) -> ets.
+get_db(Type, Collection) -> gen_server:call(?MODULE, {get_db, Type, Collection}).
 
+update_db(Collection, Db) -> gen_server:call(?MODULE, {update_db, Collection, Db}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -66,7 +67,7 @@ start_link() ->
 	{ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term()} | ignore).
 init([]) ->
-	{ok, #state{}}.
+	{ok, #state{memory = dict:new()}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -83,13 +84,15 @@ init([]) ->
 	{noreply, NewState :: #state{}, timeout() | hibernate} |
 	{stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
 	{stop, Reason :: term(), NewState :: #state{}}).
-handle_call({get_db, Collection}, _From, State = #state{ets = Dbs}) ->
-	case proplists:get_value(Collection, Dbs) of
-		undefined ->
-			Ets = ets:new(Collection, [public]),
-			{reply, Ets, State#state{ets = [{Collection, Ets} | Dbs]}};
-		Ets -> {reply, Ets, State}
-	end;
+handle_call({get_db, ets, Collection}, _From, State = #state{memory = Dbs}) ->
+	{Ets, Memory} = get_db(Collection, fun() -> ets:new(Collection, [public]) end, Dbs),
+	{reply, Ets, State#state{memory = Memory}};
+handle_call({get_db, dict, Collection}, _From, State = #state{memory = Dbs}) ->
+	{Dict, Memory} = get_db(Collection, fun() -> dict:new() end, Dbs),
+	{reply, Dict, State#state{memory = Memory}};
+handle_call({update_db, Collection, Db}, _From, State = #state{memory = Dbs}) ->
+	Umemory = dict:store(Collection, Db, Dbs),
+	{reply, ok, State#state{memory = Umemory}};
 handle_call(_Request, _From, State) ->
 	{reply, ok, State}.
 
@@ -157,3 +160,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+get_db(Collection, Dbs, CreateFun) ->
+	case dict:find(Collection, Dbs) of
+		error ->
+			Db = CreateFun(),
+			{Db, [{Collection, Db} | Dbs]};
+		{ok, Db} -> {Db, Dbs}
+	end.

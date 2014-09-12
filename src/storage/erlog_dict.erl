@@ -28,8 +28,9 @@ new() -> {ok, dict:new()}.
 new(_) -> {ok, dict:new()}.
 
 assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = assertz_clause({StdLib, ExLib, Ets}, {Head, Body0}),
+	Ets = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = assertz_clause({StdLib, ExLib, Ets}, {Head, Body0}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
 	Udb = clause(Head, Body0, Memory,
@@ -42,8 +43,9 @@ assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
 	{ok, Udb}.
 
 asserta_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = asserta_clause({StdLib, ExLib, Ets}, {Head, Body0}),
+	Ets = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = asserta_clause({StdLib, ExLib, Ets}, {Head, Body0}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
 	Udb = clause(Head, Body0, Memory,
@@ -60,8 +62,9 @@ asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
 	{ok, Udb}.
 
 retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
+	Ets = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
 	ok = check_immutable(StdLib, Db, Functor),
@@ -74,8 +77,9 @@ retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
 	{ok, Udb}.
 
 abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
+	Ets = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 abolish_clauses({StdLib, _, Db}, {Functor}) ->
 	ok = check_immutable(StdLib, Db, Functor),
@@ -86,8 +90,9 @@ abolish_clauses({StdLib, _, Db}, {Functor}) ->
 	{ok, Udb}.
 
 findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = findall({StdLib, ExLib, Ets}, {Functor}),
+	Dict = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = findall({StdLib, ExLib, Dict}, {Functor}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 findall({StdLib, ExLib, Db}, {Functor}) ->
 	case dict:is_key(Functor, StdLib) of %search built-in first
@@ -104,8 +109,9 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
 	end.
 
 get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = get_procedure({StdLib, ExLib, Ets}, {Functor}),
+	Ets = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = get_procedure({StdLib, ExLib, Ets}, {Functor}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 get_procedure({StdLib, ExLib, Db}, {Functor}) ->
 	Res = case dict:find(Functor, StdLib) of %search built-in first
@@ -143,8 +149,9 @@ get_interp_functors({_, ExLib, Db}) ->
 	{lists:concat([Library, UserSpace]), Db}.
 
 listing({StdLib, ExLib, Db}, {Collection, Params}) ->
-	Ets = ets_db_storage:get_db(Collection),
-	{Res, _} = listing({StdLib, ExLib, Ets}, {Params}),
+	Ets = erlog_db_storage:get_db(dict, Collection),
+	{Res, Udict} = listing({StdLib, ExLib, Ets}, {Params}),
+	erlog_db_storage:update_db(Collection, Udict),
 	{Res, Db};
 listing({_, _, Db}, {[Functor, Arity]}) ->
 	{dict:fold(

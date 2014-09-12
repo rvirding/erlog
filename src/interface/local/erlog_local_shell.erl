@@ -27,7 +27,7 @@ start() ->
 		[erlang:system_info(version)]),
 	{ok, Core} = erlog:start_link(),
 	link(Core),
-	{ok, Proc} = ets_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
+	{ok, Proc} = erlog_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
 	link(Proc),
 	server_loop(Core, normal, []).
 
@@ -38,7 +38,7 @@ server_loop(Core, State, Line) ->
 	Term = io:get_line('| ?- '),
 	Res = case State of
 		      select -> erlog:select(Core, lists:append(Line, Term));
-		      _ -> erlog:execute(Core, lists:append(Line, Term))
+		      _ -> erlog:execute(Core, lists:append(Line, Term), infinity)
 	      end,
 	{NewState, NewLine} = process_execute(Res, State, Line, Term),
 	case Term of
