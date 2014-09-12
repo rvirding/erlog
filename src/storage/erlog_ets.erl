@@ -28,7 +28,7 @@ new() -> {ok, ets:new(eets, [bag, private])}.
 new(_) -> {ok, ets:new(eets, [bag, private])}.
 
 assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = assertz_clause({StdLib, ExLib, Ets}, {Head, Body0}),
 	{Res, Db};
 assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
@@ -42,7 +42,7 @@ assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
 	{ok, Db}.
 
 asserta_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = asserta_clause({StdLib, ExLib, Ets}, {Head, Body0}),
 	{Res, Db};
 asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
@@ -59,7 +59,7 @@ asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
 	{ok, Db}.
 
 retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
 	{Res, Db};
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
@@ -74,7 +74,7 @@ retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
 	{ok, Db}.
 
 abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
 abolish_clauses({StdLib, _, Db}, {Functor}) ->
@@ -83,7 +83,7 @@ abolish_clauses({StdLib, _, Db}, {Functor}) ->
 	{ok, Db}.
 
 findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = findall({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
 findall({StdLib, ExLib, Db}, {Functor}) ->
@@ -97,7 +97,7 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
 	end.
 
 get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = get_procedure({StdLib, ExLib, Ets}, {Functor}),
 	{Res, Db};
 get_procedure({StdLib, ExLib, Db}, {Functor}) ->
@@ -139,7 +139,7 @@ get_interp_functors({_, ExLib, Db}) ->
 	{Res, Db}.
 
 listing({StdLib, ExLib, Db}, {Collection, Params}) ->
-	Ets = ets_db_storage:get_db(Collection),
+	Ets = erlog_db_storage:get_db(ets, Collection),
 	{Res, _} = listing({StdLib, ExLib, Ets}, {Params}),
 	{Res, Db};
 listing({_, _, Db}, {[Functor, Arity]}) ->
