@@ -73,17 +73,13 @@ prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bi
 	prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
-	Before = os:timestamp(),
-	Res = case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
-		      {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
-		      {code, {Mod, Func}} -> Mod:Func(Param);  %library space
-		      {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
-		      undefined -> erlog_errors:fail(Param);
-		      {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
-	      end,
-	After = os:timestamp(),
-	io:format("run goal ~p for ~p seconds~n", [ec_support:functor(G), timer:now_diff(After, Before) / 1000000]),
-	Res.
+	case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
+		{built_in, Mod} -> Mod:prove_goal(Param); %kernel space
+		{code, {Mod, Func}} -> Mod:Func(Param);  %library space
+		{clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
+		undefined -> erlog_errors:fail(Param);
+		{erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
+	end.
 
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
