@@ -65,11 +65,11 @@ retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
 	ok = check_immutable(StdLib, Db, Functor),
 	ok = check_immutable(ExLib, Db, Functor),
-	case ets:lookup_element(Db, Functor, 2) of
-		[] -> ok;
-		Cs ->
+	case catch ets:lookup_element(Db, Functor, 2) of
+		Cs when is_list(Cs) ->
 			Object = lists:keyfind(Ct, 1, Cs),
-			ets:delete_object(Db, Object)
+			ets:delete_object(Db, Object);
+		_ -> ok
 	end,
 	{ok, Db}.
 
@@ -92,7 +92,12 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
 		false ->
 			case dict:is_key(Functor, ExLib) of  %search libraryspace then
 				true -> {Functor, Db};
-				false -> {ets:lookup_element(Db, Functor, 2), Db}   %search userspace last
+				false ->
+					CS = case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
+						     Cs when is_list(Cs) -> Cs;
+						     _ -> []
+					     end,
+					{CS, Db}
 			end
 	end.
 
@@ -107,9 +112,9 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
 			      case dict:find(Functor, ExLib) of  %search libraryspace then
 				      {ok, ExFun} -> ExFun;
 				      error ->
-					      case ets:lookup_element(Db, Functor, 2) of  %search userspace last
-						      [] -> undefined;
-						      Cs -> {clauses, Cs}
+					      case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
+						      Cs when is_list(Cs) -> {clauses, Cs};
+						      _ -> undefined
 					      end
 			      end
 	      end,
