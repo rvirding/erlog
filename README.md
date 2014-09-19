@@ -25,6 +25,17 @@ And connect to it via console:
     telnet 127.0.0.1 8080
 Port can be set up in `src/erlog.app.src`. 
 
+#### Debugger
+Debugger can be passed to erlog as a parameter {debugger, Fun}, where `Fun` is your fun of calling debugger:
+
+    {ok, Core} = erlog:start_link([{debugger, fun(Status, Functor, Result) -> gen_server:call(Debugger, {Status, Functor, Result}) end}]),
+Where __Status__ is a status of command - `ok|failed`, __Functor__ is current working functor, __Result__ is a result 
+prolog term - complex structure with all data.  
+As an example you can use `erlog_simple_debugger` with `erlog_local_shell`:
+
+    {ok, Pid} = erlog_simple_debugger:start_link().
+    erlog_local_shell:start(Pid).
+
 #### Processing prolog code from erlang:
 ##### Starting
 Spawn new logic core: 

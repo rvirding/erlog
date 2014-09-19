@@ -18,17 +18,21 @@
 
 -module(erlog_local_shell).
 
--export([start/0]).
-
--import(lists, [foldl/3, foreach/2]).
+-export([start/0, start/1]).
 
 start() ->
 	io:fwrite("Erlog Shell V~s (abort with ^G)\n",
 		[erlang:system_info(version)]),
 	{ok, Core} = erlog:start_link(),
-	link(Core),
-	{ok, Proc} = erlog_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
-	link(Proc),
+	{ok, _} = erlog_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
+	server_loop(Core, normal, []).
+
+start(Debugger) ->
+	io:fwrite("Erlog Shell V~s with debugger (abort with ^G)\n",
+		[erlang:system_info(version)]),
+	{ok, Core} = erlog:start_link(
+    [{debugger, fun(Status, Functor, Result) -> gen_server:call(Debugger, {Status, Functor, Result}) end}]),
+	{ok, _} = erlog_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
 	server_loop(Core, normal, []).
 
 %% A simple Erlog shell similar to a "normal" Prolog shell. It allows
