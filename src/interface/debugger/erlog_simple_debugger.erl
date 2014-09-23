@@ -24,7 +24,11 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state,
+{
+  policy = listing %default policy of debugger is listing.
+}).
+%% policy can be step - make N commands and
 
 %%%===================================================================
 %%% API

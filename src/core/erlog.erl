@@ -67,8 +67,9 @@ init([]) -> % use built in database
   {ok, Db} = init_database([]),
   F = init_consulter([]),
   {ok, E} = gen_event:start_link(),
+  Debugger = init_debugger([]),
   gen_event:add_handler(E, erlog_simple_printer, []), %set the default debug module
-  {ok, #state{db = Db, f_consulter = F, e_man = E}};
+  {ok, #state{db = Db, f_consulter = F, e_man = E, debugger = Debugger}};
 init(Params) -> % use custom database implementation
   FileCon = init_consulter(Params),
   {ok, Db} = init_database(Params),
