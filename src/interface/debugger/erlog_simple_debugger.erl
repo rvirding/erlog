@@ -173,20 +173,30 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+%% @private
 process_reply(Dict) ->
   case dict:is_empty(Dict) of
     true -> [];
-    false ->
-      Keys = dict:fetch_keys(Dict),
-      lists:foldl(
-        fun(Key, Res) ->
-          case dict:find(Key, Dict) of
-            {ok, {K}} ->
-              {ok, V} = dict:find(K, Dict),
-              [{Key, V} | Res];
-            _ -> Res
-          end
-        end, [], Keys)
+    false -> process_vars(Dict)
+  end.
+
+%% @private
+process_vars(Dict) ->
+  Keys = dict:fetch_keys(Dict),
+  lists:foldl(
+    fun(Key, Res) ->
+      case dict:find(Key, Dict) of
+        {ok, {K}} ->
+          process_values(Key, K, Dict, Res);
+        _ -> Res
+      end
+    end, [], Keys).
+
+%% @private
+process_values(Key, K, Dict, Res) ->
+  case dict:find(K, Dict) of
+    {ok, V} -> [{Key, V} | Res];
+    error -> Res
   end.
 
 %% @private
