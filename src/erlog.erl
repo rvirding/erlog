@@ -30,6 +30,9 @@
 
 -include("erlog_int.hrl").
 
+%% Top level erlog state.
+-record(erlog, {vs=[],est}).
+
 %% Basic evaluator interface.
 -export([new/0,new/2,
 	 prove/2,next_solution/1,
@@ -49,75 +52,79 @@
 new() -> new(erlog_db_dict, null).		%The default
 
 new(DbMod, DbArg) ->
-    {ok,Db0} = erlog_int:new(DbMod, DbArg),
-    Db1 = foldl(fun (M, Db) -> M:load(Db) end, Db0,
+    {ok,St} = erlog_int:new(DbMod, DbArg),
+    Db1 = foldl(fun (M, Db) -> M:load(Db) end, St#est.db,
 		[erlog_bips,
 		 erlog_lib_dcg,
 		 erlog_lib_lists
 		]),
-    {ok,#est{vs=[],cps=[],bs=[],vn=0,db=Db1}}.
+    {ok,#erlog{vs=[],est=St#est{db=Db1}}}.
 
-prove(#est{}=St, Goal) ->
-    prove_goal(Goal, St).
+prove(#erlog{}=Erl, Goal) ->
+    prove_goal(Goal, Erl).
 
-next_solution(#est{vs=Vs,cps=Cps,db=Db}) ->
+next_solution(#erlog{vs=Vs,est=St}=Erl) ->
     %% This generates a completely new #est{}.
-    prove_result(catch erlog_int:fail(Cps, Db), Vs, Db).
+    prove_result(catch erlog_int:fail(St), Vs, Erl).
 
-consult(#est{db=Db0}=St, File) ->
-    case erlog_file:consult(File, Db0) of
-	{ok,Db1} -> {ok,St#est{db=Db1}};
+consult(#erlog{est=St0}=Erl, File) ->
+    case erlog_file:consult(File, St0) of
+	{ok,St1} -> {ok,Erl#erlog{est=St1}};
 	{erlog_error,Error} -> {error,Error};
 	{error,Error} -> {error,Error}
     end.
 
-reconsult(#est{db=Db0}=St, File) ->
-    case erlog_file:reconsult(File, Db0) of
-  	{ok,Db1} -> {ok,St#est{db=Db1}};
+reconsult(#erlog{est=St0}=Erl, File) ->
+    case erlog_file:reconsult(File, St0) of
+  	{ok,St1} -> {ok,Erl#erlog{est=St1}};
 	{erlog_error,Error} -> {error,Error};
 	{error,Error} -> {error,Error}
     end.
 
-load(#est{db=Db0}=St, Mod) ->
-    Db1 = Mod:load(Db0),
-    {ok,St#est{db=Db1}}.
+load(#erlog{est=St}=Erl, Mod) ->
+    Db1 = Mod:load(St#est.db),
+    {ok,Erl#erlog{est=St#est{db=Db1}}}.
 
-get_db(#est{db=Db}) ->
-    Db#db.ref.
+get_db(#erlog{est=St}) ->
+    (St#est.db)#db.ref.
 
-set_db(#est{db=Db0}=St, Ref) ->
+set_db(#erlog{est=St}=Erl, Ref) ->
+    #est{db=Db0} = St,
     Db1 = Db0#db{ref=Ref},
-    St#est{db=Db1}.
+    Erl#erlog{est=St#est{db=Db1}}.
 
-set_db(#est{db=Db0}=St, Mod, Ref) ->
+set_db(#erlog{est=St}=Erl, Mod, Ref) ->
+    #est{db=Db0} = St,
     Db1 = Db0#db{mod=Mod,ref=Ref},
-    St#est{db=Db1}.
+    Erl#erlog{est=St#est{db=Db1}}.
 
-prove_goal(Goal0, #est{db=Db}) ->
+%% Internal functions.
+
+prove_goal(Goal0, #erlog{est=St}=Erl) ->
     Vs = vars_in(Goal0),
     %% Goal may be a list of goals, ensure proper goal.
     Goal1 = unlistify(Goal0),
     %% Must use 'catch' here as 'try' does not do last-call
     %% optimisation.
     %% This generates a completely new #est{}.
-    prove_result(catch erlog_int:prove_goal(Goal1, Db), Vs, Db).
+    prove_result(catch erlog_int:prove_goal(Goal1, St), Vs, Erl).
 
 unlistify([G]) -> G;
 unlistify([G|Gs]) -> {',',G,unlistify(Gs)};
 unlistify([]) -> true;
 unlistify(G) -> G.				%In case it wasn't a list.
 
-prove_result({succeed,Cps,Bs,Vn,Db1}, Vs, _Db0) ->
+prove_result({succeed,#est{bs=Bs}=St}, Vs, Erl) ->
     {{succeed,erlog_int:dderef(Vs, Bs)},
-     #est{vs=Vs,cps=Cps,bs=Bs,vn=Vn,db=Db1}};
-prove_result({fail,Db1}, _Vs, _Db0) ->
-    {fail,#est{vs=[],cps=[],bs=[],vn=0,db=Db1}};
-prove_result({erlog_error,Error,Db1}, _Vs, _Db0) ->
-    {{error,Error},#est{vs=[],cps=[],bs=[],vn=0,db=Db1}};
-prove_result({erlog_error,Error}, _Vs, Db) ->	%No new database
-    {{error,Error},#est{vs=[],cps=[],bs=[],vn=0,db=Db}};
-prove_result({'EXIT',Error}, _Vs, Db) ->
-    {{'EXIT',Error},#est{vs=[],cps=[],bs=[],vn=0,db=Db}}.
+     Erl#erlog{vs=Vs,est=St}};
+prove_result({fail,St}, _Vs, Erl) ->
+    {fail,Erl#erlog{vs=[],est=St}};
+prove_result({erlog_error,Error,St}, _Vs, Erl) ->
+    {{error,Error},Erl#erlog{vs=[],est=St}};
+prove_result({erlog_error,Error}, _Vs, Erl) ->	%No new state
+    {{error,Error},Erl#erlog{vs=[]}};		% keep old state
+prove_result({'EXIT',Error}, _Vs, Erl) ->
+    {{'EXIT',Error},Erl#erlog{vs=[]}}.		%Keep old state
 
 %% vars_in(Term) -> [{Name,Var}].
 %% Returns an ordered list of {VarName,Variable} pairs.

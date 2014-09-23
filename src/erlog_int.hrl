@@ -26,9 +26,15 @@
 -define(IS_FUNCTOR(T), (is_tuple(T) andalso (tuple_size(T) >= 2) andalso is_atom(element(1, T)))).
 
 %% Define the interpreter state record.
-
--record(est, {vs,cps,bs,vn,db}).
--record(db, {mod,ref,loc}).
+-record(est, {cps,				%Choice points
+	      bs,				%Bindings
+	      vn,				%Var num
+	      db				%Database
+	     }).
+-record(db, {mod,				%Database module
+	     ref,				%Database reference
+	     loc				%Local database
+	    }).
 
 %% Define the choice point record.
 -record(cp, {type,label,data,next,bs,vn}).

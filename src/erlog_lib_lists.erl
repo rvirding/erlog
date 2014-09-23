@@ -29,15 +29,15 @@
 -export([load/1]).
 
 %% Library functions.
--export([length_2/6,append_3/6,insert_3/6,member_2/6,memberchk_2/6,
-	 reverse_2/6,sort_2/6]).
+-export([length_2/3,append_3/3,insert_3/3,member_2/3,memberchk_2/3,
+	 reverse_2/3,sort_2/3]).
 
 %%-compile(export_all).
 
 -import(lists, [map/2,foldl/3]).
 
 %% We use these a lot so we import them for cleaner code.
--import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
+-import(erlog_int, [prove_body/2,unify_prove_body/4,unify_prove_body/6,fail/1,
 		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
@@ -72,7 +72,7 @@ load(Db0) ->
 	   {':-',{perm,[{1}|{2}],{3}},{',',{perm,{2},{4}},{insert,{4},{1},{3}}}}
 	  ]).
 
-%% length_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% length_2(Head, NextGoal, State) -> void.
 %% length(L, N) :- integer(N), !, N >= 0, '$make_list'(N, L).
 %% length(L, N) :- '$length'(L, 0, N).
 %% '$length'([], N, N).
@@ -80,149 +80,149 @@ load(Db0) ->
 %% '$make_list'(0, []) :- !.
 %% '$make_list'(N, [_|L]) :- N1 is N - 1, '$make_list'(N1, L).
 
-length_2({length,L,N0}, Next, Cps, Bs, Vn, Db) ->
+length_2({length,L,N0}, Next, #est{bs=Bs}=St) ->
     case deref(N0, Bs) of				%Export N1
 	N1 when is_integer(N1) ->
-	    if N1 >= 0 -> make_list(N1, L, Next, Cps, Bs, Vn, Db);
-	       true -> fail(Cps, Db)
+	    if N1 >= 0 -> make_list(N1, L, Next, St);
+	       true -> fail(St)
 	    end;
 	{_}=N1 ->
-	    length_3(L, 0, N1, Next, Cps, Bs, Vn, Db);
+	    length_3(L, 0, N1, Next, St);
 	N1 ->
-	    erlog_int:type_error(integer, N1, Db)
+	    erlog_int:type_error(integer, N1, St)
     end.
 
-length_3(L0, M, N, Next, Cps, Bs0, Vn, Db) ->
+length_3(L0, M, N, Next, #est{cps=Cps,bs=Bs0,vn=Vn}=St) ->
     case deref(L0, Bs0) of
-	[] -> unify_prove_body(N, M, Next, Cps, Bs0, Vn, Db); 
-	[_|T] -> length_3(T, M+1, N, Next, Cps, Bs0, Vn, Db);
+	[] -> unify_prove_body(N, M, Next, St); 
+	[_|T] -> length_3(T, M+1, N, Next, St);
 	{_}=L1 ->
-	    FailFun = fun (Lcp, Lcps, Ldb) ->
-			      fail_length_3(Lcp, Lcps, Ldb, L1, M, N)
+	    FailFun = fun (Lcp, Lcps, Lst) ->
+			      fail_length_3(Lcp, Lcps, Lst, L1, M, N)
 		      end,
 	    Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs0,vn=Vn},
 	    Bs1 = add_binding(L1, [], Bs0),
-	    unify_prove_body(N, M, Next, [Cp|Cps], Bs1, Vn, Db);
+	    unify_prove_body(N, M, Next, St#est{cps=[Cp|Cps],bs=Bs1});
 	Other ->
-	    erlog_int:type_error(list, Other, Db)
+	    erlog_int:type_error(list, Other, St)
     end.
 
-fail_length_3(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, Db, L, M, N) ->
+fail_length_3(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, St, L, M, N) ->
     H = {Vn},
     T = {Vn+1},
     Bs1 = add_binding(L, [H|T], Bs0),
-    length_3(T, M+1, N, Next, Cps, Bs1, Vn+2, Db).
+    length_3(T, M+1, N, Next, St#est{cps=Cps,bs=Bs1,vn=Vn+2}).
 
-make_list(0, L, Next, Cps, Bs, Vn, Db) ->
-    unify_prove_body(L, [], Next, Cps, Bs, Vn, Db);
-make_list(N, L0, Next, Cps, Bs0, Vn, Db) ->
+make_list(0, L, Next, St) ->
+    unify_prove_body(L, [], Next, St);
+make_list(N, L0, Next, #est{bs=Bs0,vn=Vn}=St) ->
     case deref(L0, Bs0) of
-	[] -> fail(Cps, Db);			%We know N /= 0
+	[] -> fail(St);				%We know N /= 0
 	[_|T] ->				%Keep stepping down the list
-	    make_list(N-1, T, Next, Cps, Bs0, Vn, Db);
+	    make_list(N-1, T, Next, St);
 	{_}=L1 ->				%Just make a list of the rest
 	    List = make_var_list(N, Vn),
 	    Bs1 = add_binding(L1, List, Bs0),
-	    prove_body(Next, Cps, Bs1, Vn+N, Db);
+	    prove_body(Next, St#est{bs=Bs1,vn=Vn+N});
 	Other ->
-	    erlog_int:type_error(list, Other, Db)
+	    erlog_int:type_error(list, Other, St)
     end.
 
-%% append_3(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% append_3(Head, NextGoal, State) -> void.
 %% append([], L, L).
 %% append([H|T], L, [H|L1]) :- append(T, L, L1).
 %%  Here we attempt to compile indexing in the first argument.
 
-append_3({append,A1,L,A3}, Next0, Cps, Bs0, Vn, Db) ->
+append_3({append,A1,L,A3}, Next0, #est{cps=Cps,bs=Bs0,vn=Vn}=St) ->
     case deref(A1, Bs0) of
 	[] ->					%Cannot backtrack
-	    unify_prove_body(L, A3, Next0, Cps, Bs0, Vn, Db);
+	    unify_prove_body(L, A3, Next0, St);
 	[H|T] ->				%Cannot backtrack
 	    L1 = {Vn},
 	    Next1 = [{append,T,L,L1}|Next0],
-	    unify_prove_body(A3, [H|L1], Next1, Cps, Bs0, Vn+1, Db);
+	    unify_prove_body(A3, [H|L1], Next1, St#est{vn=Vn+1});
 	{_}=Var ->				%This can backtrack
-	    FailFun = fun (LCp, LCps, LDb) ->
-			      fail_append_3(LCp, LCps, LDb, Var, L, A3)
+	    FailFun = fun (LCp, LCps, Lst) ->
+			      fail_append_3(LCp, LCps, Lst, Var, L, A3)
 		      end,
 	    Cp = #cp{type=compiled,data=FailFun,next=Next0,bs=Bs0,vn=Vn},
 	    Bs1 = add_binding(Var, [], Bs0),
-	    unify_prove_body(L, A3, Next0, [Cp|Cps], Bs1, Vn, Db);
-	_ -> fail(Cps, Db)			%Will fail here!
+	    unify_prove_body(L, A3, Next0, St#est{cps=[Cp|Cps],bs=Bs1});
+	_ -> fail(St)				%Will fail here!
     end.
 
-fail_append_3(#cp{next=Next0,bs=Bs0,vn=Vn}, Cps, Db, A1, L, A3) ->
+fail_append_3(#cp{next=Next0,bs=Bs0,vn=Vn}, Cps, St, A1, L, A3) ->
     H = {Vn},
     T = {Vn+1},
     L1 = {Vn+2},
     Bs1 = add_binding(A1, [H|T], Bs0),		%A1 always a variable here.
     Next1 = [{append,T,L,L1}|Next0],
-    unify_prove_body(A3, [H|L1], Next1, Cps, Bs1, Vn+3, Db).
+    unify_prove_body(A3, [H|L1], Next1, St#est{cps=Cps,bs=Bs1,vn=Vn+3}).
 
-%% insert_3(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% insert_3(Head, NextGoal, State) -> void.
 %% insert(L, X, [X|L]).
 %% insert([H|L], X, [H|L1]) :- insert(L, X, L1).
 
-insert_3({insert,A1,A2,A3}, Next, Cps, Bs, Vn, Db) ->
-    FailFun = fun (LCp, LCps, LDb) ->
-		      fail_insert_3(LCp, LCps, LDb, A1, A2, A3)
+insert_3({insert,A1,A2,A3}, Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
+    FailFun = fun (LCp, LCps, Lst) ->
+		      fail_insert_3(LCp, LCps, Lst, A1, A2, A3)
 	      end,
     Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs,vn=Vn},
-    unify_prove_body(A3, [A2|A1], Next, [Cp|Cps], Bs, Vn, Db).
+    unify_prove_body(A3, [A2|A1], Next, St#est{cps=[Cp|Cps]}).
 
-fail_insert_3(#cp{next=Next0,bs=Bs,vn=Vn}, Cps, Db, A1, X, A3) ->
+fail_insert_3(#cp{next=Next0,bs=Bs,vn=Vn}, Cps, St, A1, X, A3) ->
     H = {Vn},
     L = {Vn+1},
     L1 = {Vn+2},
     Next1 = [{insert,L,X,L1}|Next0],
-    unify_prove_body(A1, [H|L], A3, [H|L1], Next1, Cps, Bs, Vn+3, Db).
+    unify_prove_body(A1, [H|L], A3, [H|L1], Next1, St#est{cps=Cps,bs=Bs,vn=Vn+3}).
 
-%% member_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% member_2(Head, NextGoal, State) -> void.
 %% member(X, [X|_]).
 %% member(X, [_|T]) :- member(X, T).
 
-member_2({member,A1,A2}, Next, Cps, Bs, Vn, Db) ->
-    FailFun = fun (LCp, LCps, LDb) ->
-		      fail_member_2(LCp, LCps, LDb, A1, A2)
+member_2({member,A1,A2}, Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
+    FailFun = fun (LCp, LCps, Lst) ->
+		      fail_member_2(LCp, LCps, Lst, A1, A2)
 	      end,
     Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs,vn=Vn},
     T = {Vn},
-    unify_prove_body(A2, [A1|T], Next, [Cp|Cps], Bs, Vn+1, Db).
+    unify_prove_body(A2, [A1|T], Next, St#est{cps=[Cp|Cps],vn=Vn+1}).
 
-fail_member_2(#cp{next=Next0,bs=Bs,vn=Vn}, Cps, Db, A1, A2) ->
+fail_member_2(#cp{next=Next0,bs=Bs,vn=Vn}, Cps, St, A1, A2) ->
     H = {Vn},
     T = {Vn+1},
     Next1 = [{member,A1,T}|Next0],
-    unify_prove_body(A2, [H|T], Next1, Cps, Bs, Vn+2, Db).
+    unify_prove_body(A2, [H|T], Next1, St#est{cps=Cps,bs=Bs,vn=Vn+2}).
 
-%% memberchk_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% memberchk_2(Head, NextGoal, State) -> void.
 %% memberchk(X, [X|_]) :- !.
 %% memberchk(X, [_|T]) :- memberchk(X, T).
 %%  We don't build the list and we never backtrack so we can be smart
 %%  and match directly. Should we give a type error?
 
-memberchk_2({memberchk,A1,A2}, Next, Cps, Bs0, Vn, Db) ->
+memberchk_2({memberchk,A1,A2}, Next, #est{bs=Bs0}=St) ->
     case deref(A2, Bs0) of
 	[H|T] ->
 	    case unify(A1, H, Bs0) of
 		{succeed,Bs1} ->
-		    prove_body(Next, Cps, Bs1, Vn, Db);
+		    prove_body(Next, St#est{bs=Bs1});
 		fail ->
-		    memberchk_2({memberchk,A1,T}, Next, Cps, Bs0, Vn, Db)
+		    memberchk_2({memberchk,A1,T}, Next, St)
 	    end;
-	{_} -> erlog_int:instantiation_error();
-	_ -> fail(Cps, Db)
+	{_} -> erlog_int:instantiation_error(St);
+	_ -> fail(St)
     end.
 
-%% reverse_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% reverse_2(Head, NextGoal, State) -> void.
 %% reverse([], []).
 %% reverse([H|L1], L) :- reverse(L1, L2), append(L2, [H], L).
 %%  Here we attempt to compile indexing in the first argument.
 
-reverse_2({reverse,A1,A2}, Next0, Cps, Bs0, Vn, Db) ->
+reverse_2({reverse,A1,A2}, Next0, #est{cps=Cps,bs=Bs0,vn=Vn}=St) ->
     case deref(A1, Bs0) of
 	[] ->
-	    unify_prove_body(A2, [], Next0, Cps, Bs0, Vn, Db);
+	    unify_prove_body(A2, [], Next0, St);
 	[H|T] ->
 	    L = {Vn},
 	    L1 = A2,
@@ -231,18 +231,18 @@ reverse_2({reverse,A1,A2}, Next0, Cps, Bs0, Vn, Db) ->
 	    %%prove_body(Next1, Cps, Bs0, Vn+1, Db);
 	    %% Smarter direct calling of local function.
 	    Next1 = [{append,L,[H],L1}|Next0],
-	    reverse_2({reverse,T,L}, Next1, Cps, Bs0, Vn+1, Db);
+	    reverse_2({reverse,T,L}, Next1, St#est{vn=Vn+1});
 	{_}=Var ->
-	    FailFun = fun (LCp, LCps, LDb) ->
-			      fail_reverse_2(LCp, LCps, LDb, Var, A2)
+	    FailFun = fun (LCp, LCps, Lst) ->
+			      fail_reverse_2(LCp, LCps, Lst, Var, A2)
 		      end,
 	    Cp = #cp{type=compiled,data=FailFun,next=Next0,bs=Bs0,vn=Vn},
 	    Bs1 = add_binding(Var, [], Bs0),
-	    unify_prove_body(A2, [], Next0, [Cp|Cps], Bs1, Vn, Db);
-	_ -> fail(Cps, Db)			%Will fail here!
+	    unify_prove_body(A2, [], Next0, St#est{cps=[Cp|Cps],bs=Bs1});
+	_ -> fail(St)				%Will fail here!
     end.
 
-fail_reverse_2(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, Db, A1, A2) ->
+fail_reverse_2(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, St, A1, A2) ->
     H = {Vn},
     T = {Vn+1},
     L1 = A2,
@@ -251,12 +251,12 @@ fail_reverse_2(#cp{next=Next,bs=Bs0,vn=Vn}, Cps, Db, A1, A2) ->
     %%Next1 = [{reverse,T,L},{apperse,L,[H],L1}|Next],
     %%prove_body(Next1, Cps, Bs1, Vn+3, Db).
     Next1 = [{append,L,[H],L1}|Next],
-    reverse_2({reverse,T,L}, Next1, Cps, Bs1, Vn+3, Db).
+    reverse_2({reverse,T,L}, Next1, St#est{cps=Cps,bs=Bs1,vn=Vn+3}).
 
-%% sort_2(Head, NextGoal, Choicepoints, Bindings, VarNum, Database) -> void.
+%% sort_2(Head, NextGoal, State) -> void.
 %% sort(List, SortedList).
 
-sort_2({sort,L0,S}, Next, Cps, Bs, Vn, Db) ->
+sort_2({sort,L0,S}, Next, #est{bs=Bs}=St) ->
     %% This may throw an erlog error, we don't catch it here.
     L1 = lists:usort(dderef_list(L0, Bs)),
-    unify_prove_body(S, L1, Next, Cps, Bs, Vn, Db).
+    unify_prove_body(S, L1, Next, St).
