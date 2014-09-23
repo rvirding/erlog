@@ -25,6 +25,18 @@ And connect to it via console:
     telnet 127.0.0.1 8080
 Port can be set up in `src/erlog.app.src`. 
 
+#### Debugger
+Debugger can be passed to erlog as a parameter {debugger, Fun}, where `Fun` is your fun of calling debugger:
+
+    {ok, Core} = erlog:start_link([{debugger, fun(Status, Functor, Result) -> gen_server:call(Debugger, {Status, Functor, Result}) end}]),
+Where __Status__ is a status of command - `ok|failed`, __Functor__ is current working functor, __Result__ is a result 
+prolog term - complex structure with all data.  
+As an example you can use `erlog_simple_debugger` with `erlog_local_shell`:
+
+    {ok, Pid} = erlog_simple_debugger:start_link().
+    erlog_local_shell:start(Pid).
+More in [docs](https://github.com/comtihon/erlog/blob/master/doc/debugger.md "debugger").  
+
 #### Processing prolog code from erlang:
 ##### Starting
 Spawn new logic core: 
@@ -92,7 +104,7 @@ All debug events from such debug functions as `writeln/1` will be passed there.
 See `erlog_simple_printer` as a default implementation of console printer as an example, or `erlog_remote_eh`, which is intended to print debug to remote client.  
 To configure your gen_event module - just pass module and arguments as __event_h__ in configuration:
 
-    ConfList = [{event_h, {my_event_handler, Args}],
+    ConfList = [{event_h, {my_event_handler, Args}}],
     erlog:start_link(ConfList).
     
 #### Working with libraries:
@@ -118,11 +130,5 @@ remember, that two execution requests can be processed on different erlog instan
     some_lib_fun(some_val). %returns false
 In this example system erlog gen server is created one per one separate command (F.e. http request). Firstly - library
 `some_lib` is loaded. Than erlog server with loaded library is destroyed (as request is complete) and for another request
-`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.
-##### Auto loading external libraries on start
-For convenient libraries usage you can load all libraries you need when creating a core. It will let you not to call `use/1`
-everywhere in your code. Just add param `{libraries, [my_first_lib, my second_lib]}` in your params when starting a core:
-
-    ConfList = [{libraries, [my_first_lib, my second_lib]}],
-    erlog:start_link(ConfList).
-All libraries from array will be loaded.
+`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.  
+More in [docs](https://github.com/comtihon/erlog/blob/master/doc/libraries.md "libraries").  

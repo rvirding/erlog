@@ -29,7 +29,7 @@
 %% Define the choice point record
 -record(cp, {type, label, data, next, bs, vn}).
 -record(cut, {label, next}).
-%TODO move me to different hrl files (one lib - one file)
+
 %% record for passing arguments to erlog_core:prove_goal
 -record(param,
 {
@@ -40,7 +40,8 @@
 	var_num,
 	database,
 	event_man,
-	f_consulter
+	f_consulter,
+  debugger
 }).
 
 -define(ERLOG_CORE,
