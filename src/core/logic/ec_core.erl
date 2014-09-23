@@ -33,8 +33,9 @@ prove_goal(Goal0, Db, Fcon, Event, Deb) ->
 %% Prove the goals in a body. Remove the first goal and try to prove
 %% it. Return when there are no more goals. This is how proving a
 %% goal/body succeeds.
-prove_body(Params = #param{goal = [G | Gs]}) -> %TODO use lists:foldr instead!
+prove_body(Params = #param{goal = [G | Gs], debugger = Deb, bindings = Bs}) -> %TODO use lists:foldr instead!
   %%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
+  Deb(ok, ec_support:dderef(G, Bs), Bs),
   prove_goal(Params#param{goal = G, next_goal = Gs});
 prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
   %%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
@@ -71,23 +72,16 @@ prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bi
   %% There is no L here, it has already been prepended to Next.
   Cp = #cp{type = disjunction, next = R, bs = Bs, vn = Vn},
   prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
-prove_goal(Param = #param{goal = G, database = Db, bindings = Bs, debugger = Deb}) ->
+prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
-  try
-    Res = case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
-            {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
-            {code, {Mod, Func}} -> Mod:Func(Param);  %library space
-            {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
-            undefined -> erlog_errors:fail(Param);
-            {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
-          end,
-    Deb(ok, ec_support:dderef(G, Bs), Res),
-    Res
-  catch
-    throw:M ->
-      Deb(fail, ec_support:dderef(G, Bs), M),
-      throw(M)
+  case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
+    {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
+    {code, {Mod, Func}} -> Mod:Func(Param);  %library space
+    {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
+    undefined -> erlog_errors:fail(Param);
+    {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
   end.
+
 
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.

@@ -86,26 +86,25 @@ init([]) ->
 handle_call(conf, _From, State) ->
   Policy = process_action(),
   {reply, ok, State#state{policy = Policy}};
-handle_call({_, Functor, Result}, _From, State = #state{policy = {stop, Pred}}) ->  %stopping
+handle_call({_, Functor, Vars}, _From, State = #state{policy = {stop, Pred}}) ->  %stopping
   Polisy = case lists:flatten(io_lib:format("~p", [Functor])) of
              Pred ->
-               io:fwrite("Erlog debugger stopped execution on command ~s with result ~p.~n", [Pred, process_reply(Result)]),
+               io:fwrite("Erlog debugger stopped execution on command ~s with memory: ~p.~n", [Pred, process_reply(Vars)]),
                process_action();
              Other ->
-               io:format("~p - ~p ~p~n", [Pred, Other, Pred == Other]),
                io:format("Skip ~s~n", [Other]),
                {stop, Pred}
            end,
   {reply, ok, State#state{policy = Polisy}};
-handle_call({_, Functor, Result}, _From, State = #state{policy = {next, N}}) when N =< 1 -> %counting steps ending
-  io:fwrite("Erlog debugger stopped execution on command ~p with result ~p.~n", [Functor, process_reply(Result)]),
+handle_call({_, Functor, Vars}, _From, State = #state{policy = {next, N}}) when N =< 1 -> %counting steps ending
+  io:fwrite("Erlog debugger stopped execution on command ~p with memory: ~p.~n", [Functor, process_reply(Vars)]),
   Policy = process_action(),
   {reply, ok, State#state{policy = Policy}};
 handle_call({_, Functor, _}, _From, State = #state{policy = {next, N}}) ->  %counting steps
   io:fwrite("Skip ~p~n", [Functor]),
   {reply, ok, State#state{policy = {next, N - 1}}};
-handle_call({_Res, Functor, Result}, _From, State) -> %listing
-  io:format("Execute ~p, got ~p~n", [Functor, process_reply(Result)]),
+handle_call({_Res, Functor, Vars}, _From, State) -> %listing
+  io:format("Execute ~p, memory: ~p~n", [Functor, process_reply(Vars)]),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -174,13 +173,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-process_reply({fail, _}) -> "false";
-process_reply({succeed, _, Dict, _, _}) ->
+process_reply(Dict) ->
   case dict:is_empty(Dict) of
-    true -> "true";
+    true -> [];
     false ->
       Keys = dict:fetch_keys(Dict),
-      {"true : ", lists:foldl(
+      lists:foldl(
         fun(Key, Res) ->
           case dict:find(Key, Dict) of
             {ok, {K}} ->
@@ -188,7 +186,7 @@ process_reply({succeed, _, Dict, _, _}) ->
               [{Key, V} | Res];
             _ -> Res
           end
-        end, [], Keys)}
+        end, [], Keys)
   end.
 
 %% @private

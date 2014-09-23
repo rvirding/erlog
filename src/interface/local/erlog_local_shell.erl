@@ -31,7 +31,9 @@ start(Debugger) ->
 	io:fwrite("Erlog Shell V~s with debugger (abort with ^G)\n",
 		[erlang:system_info(version)]),
 	{ok, Core} = erlog:start_link(
-    [{debugger, fun(Status, Functor, Result) -> gen_server:call(Debugger, {Status, Functor, Result}, infinity) end}]),
+    [
+      {event_h, {erlog_simple_printer, []}},
+      {debugger, fun(Status, Functor, Result) -> gen_server:call(Debugger, {Status, Functor, Result}, infinity) end}]),
 	{ok, _} = erlog_db_storage:start_link(),  %start default ets-implementation of stand-alone database-module
 	server_loop(Core, normal, []).
 

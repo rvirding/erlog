@@ -26,3 +26,37 @@ are defined in `*.hrl` files as compiled:
 `Function` - is erlang processing function.  
 External libraries are load into memory on demand, by calling `use(LibName)` function, where LibName is the name of the 
 erlang module with exlib behaviour.
+
+### Library autoload
+For convenient libraries usage you can load all libraries you need when creating a core. It will let you not to call `use/1`
+everywhere in your code. Just add param `{libraries, [my_first_lib, my second_lib]}` in your params when starting a core:
+
+    ConfList = [{libraries, [my_first_lib, my second_lib]}],
+    erlog:start_link(ConfList).
+All libraries from array will be loaded.
+    
+### Writing your own libraries
+You can write your own external libraries. For doing so - just setup behaviour `erlog_exlib`. It has one callback function
+`load(Db)` for initialisation library. Then you should define your execution functions. See __External libraries__ for 
+instructions of library execution functions format.  
+Example:  
+_File `erlog_uid.hrl`_
+    
+    -define(ERLOG_UID,
+	[
+		{{id, 1}, ?MODULE, id_1}
+	]).
+_File `erlog_uid.erl`_	
+	
+	-behaviour(erlog_exlib).
+    -include("ep_uuid.hrl").
+    -include("erlog_core.hrl").
+    
+    -export([load/1, id_1/1]).
+    
+    load(Db) ->
+	    lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_UID).
+
+    id_1(Params = #param{goal = {id, Res}, next_goal = Next, bindings = Bs0}) ->
+	    Bs = ec_support:add_binding(Res, binary_to_list(uuid:generate()), Bs0),
+	    ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
