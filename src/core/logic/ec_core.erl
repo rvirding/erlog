@@ -77,7 +77,9 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
   case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
     {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
     {code, {Mod, Func}} -> Mod:Func(Param);  %library space
-    {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
+    {clauses, Cs} ->
+      io:format("clauses ~p~n", [Cs]),
+      prove_goal_clauses(Cs, Param);  %user space
     undefined -> erlog_errors:fail(Param);
     {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
   end.
@@ -87,6 +89,7 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
 prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) ->
+  io:format("clause ~p~n", [C]),
   %% Must be smart here and test whether we need to add a cut point.
   %% C has the structure {Tag,Head,{Body,BodyHasCut}}.
   case element(2, element(3, C)) of
@@ -98,18 +101,23 @@ prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) ->
   end;
 %% prove_goal_clause(G, C, Next, Cps, Bs, Vn, Db);
 prove_goal_clauses([C | Cs], Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps}) ->
+  io:format("clause ~p~n", [C]),
   Cp = #cp{type = goal_clauses, label = Vn, data = {G, Cs}, next = Next, bs = Bs, vn = Vn},
   prove_goal_clause(C, Params#param{choice = [Cp | Cps]});
-prove_goal_clauses([], Param) -> erlog_errors:fail(Param).
+prove_goal_clauses([], Param) ->
+  io:format("empty~n"),
+  erlog_errors:fail(Param).
 
 prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
   %% io:fwrite("PGC1: ~p\n", [{G,H0,B0}]),
+  io:format("prove goal clause ~p~n", [G]),
   Label = Vn0,
   case ec_unify:unify_head(G, H0, Bs0, Vn0 + 1) of
     {succeed, Rs0, Bs1, Vn1} ->
       %% io:fwrite("PGC2: ~p\n", [{Rs0}]),
       {B1, _Rs2, Vn2} = ec_body:body_instance(B0, Next, Rs0, Vn1, Label),
       %% io:fwrite("PGC3: ~p\n", [{B1,Next,Cps}]),
+      io:format("prove body ~p~n", [B1]),
       ec_core:prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
-    fail -> erlog_errors:fail(Param)
+    fail -> io:format("prove fail~n"), erlog_errors:fail(Param)
   end.
