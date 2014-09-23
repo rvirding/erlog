@@ -86,6 +86,7 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
+prove_goal_clauses([], Param) -> erlog_errors:fail(Param);
 prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) ->
   %% Must be smart here and test whether we need to add a cut point.
   %% C has the structure {Tag,Head,{Body,BodyHasCut}}.
@@ -99,8 +100,7 @@ prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) ->
 %% prove_goal_clause(G, C, Next, Cps, Bs, Vn, Db);
 prove_goal_clauses([C | Cs], Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps}) ->
   Cp = #cp{type = goal_clauses, label = Vn, data = {G, Cs}, next = Next, bs = Bs, vn = Vn},
-  prove_goal_clause(C, Params#param{choice = [Cp | Cps]});
-prove_goal_clauses([], Param) -> erlog_errors:fail(Param).
+  prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
 prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
   %% io:fwrite("PGC1: ~p\n", [{G,H0,B0}]),
