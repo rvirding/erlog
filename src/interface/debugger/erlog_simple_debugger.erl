@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, configure/2]).
+-export([start_link/0, configure/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -48,7 +48,8 @@ start_link() ->
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
-configure(Debugger, State) -> gen_server:call(Debugger, {conf, State}).
+-spec configure(pid()) -> ok.
+configure(Debugger) -> gen_server:call(Debugger, conf, infinity).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -82,7 +83,28 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({_Res, Functor, Result}, _From, State) ->
+handle_call(conf, _From, State) ->
+  Policy = process_action(),
+  {reply, ok, State#state{policy = Policy}};
+handle_call({_, Functor, Result}, _From, State = #state{policy = {stop, Pred}}) ->  %stopping
+  Polisy = case lists:flatten(io_lib:format("~p", [Functor])) of
+             Pred ->
+               io:fwrite("Erlog debugger stopped execution on command ~s with result ~p.~n", [Pred, process_reply(Result)]),
+               process_action();
+             Other ->
+               io:format("~p - ~p ~p~n", [Pred, Other, Pred == Other]),
+               io:format("Skip ~s~n", [Other]),
+               {stop, Pred}
+           end,
+  {reply, ok, State#state{policy = Polisy}};
+handle_call({_, Functor, Result}, _From, State = #state{policy = {next, N}}) when N =< 1 -> %counting steps ending
+  io:fwrite("Erlog debugger stopped execution on command ~p with result ~p.~n", [Functor, process_reply(Result)]),
+  Policy = process_action(),
+  {reply, ok, State#state{policy = Policy}};
+handle_call({_, Functor, _}, _From, State = #state{policy = {next, N}}) ->  %counting steps
+  io:fwrite("Skip ~p~n", [Functor]),
+  {reply, ok, State#state{policy = {next, N - 1}}};
+handle_call({_Res, Functor, Result}, _From, State) -> %listing
   io:format("Execute ~p, got ~p~n", [Functor, process_reply(Result)]),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
@@ -168,3 +190,30 @@ process_reply({succeed, _, Dict, _, _}) ->
           end
         end, [], Keys)}
   end.
+
+%% @private
+%% Is called when code execution is stopped. Waits for user action.
+process_action() ->
+  io:format("Select action~n"),
+  Order = io:get_line('| ?- '),
+  Listing = lists:prefix("listing", Order),
+  Next = lists:prefix("next", Order),
+  Stop = lists:prefix("stop", Order),
+  if
+    Listing -> listing;
+    Next -> process_next(Order);
+    Stop -> process_stop(Order);
+    true ->
+      io:format("Wrong action!~n"),
+      process_action()
+  end.
+
+%% @private
+process_next(Next) ->
+  N = Next -- "next ",
+  {Num, _Rest} = string:to_integer(N),
+  {next, Num}.
+
+%% @private
+process_stop(Stop) ->
+  {stop, Stop -- "stop \n"}.
