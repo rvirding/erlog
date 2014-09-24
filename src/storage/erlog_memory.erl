@@ -62,8 +62,8 @@
   database :: atom(), % callback module for user-space memory
   in_mem :: dict, %integrated memory for findall operations
   state :: term(), % callback state
-  core_cursor :: pid(), %cursors for db and normal operations
-  external_cursor :: pid()
+  core_cursor :: pid() | atom(), %cursors for db and normal operations
+  external_cursor :: pid() | atom()
 }).
 
 %%%===================================================================
@@ -212,22 +212,33 @@ handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, da
 handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
   {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
   {reply, Res, State#state{state = NewState, exlib = UpdExlib}};
+handle_call({findall, {Collection, Fun}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib,
+  exlib = ExLib, external_cursor = External}) ->
+  Db:close(External), %close old cursor
+  case Db:findall({StdLib, ExLib, DbState}, {Collection, Fun}) of %take new cursor if needed
+    {{Cursor, Res}, UState} when is_pid(Cursor); Cursor == external ->
+      {reply, Res, State#state{state = UState, external_cursor = Cursor}};
+    {Res, UState} ->
+      {reply, Res, State#state{state = UState}}
+  end;
 handle_call({get_procedure, {Func}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib,
   exlib = ExLib, core_cursor = Core}) ->
   Db:close(Core), %close old cursor
-  {UCore, {Res, UState}} = case Db:get_procedure({StdLib, ExLib, DbState}, {Func}) of %take new cursor if needed
-                             {Cursor, R} when is_pid(Cursor) -> {Cursor, R};
-                             Other -> {Core, Other}
-                           end,
-  {reply, Res, State#state{state = UState, core_cursor = UCore}};
+  case Db:get_procedure({StdLib, ExLib, DbState}, {Func}) of %take new cursor if needed
+    {{Cursor, Res}, UState} when is_pid(Cursor); Cursor == cursor ->
+      {reply, Res, State#state{state = UState, core_cursor = Cursor}};
+    {Res, UState} ->
+      {reply, Res, State#state{state = UState}}
+  end;
 handle_call({get_procedure, {Collection, Func}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib,
   exlib = ExLib, external_cursor = External}) ->
   Db:close(External), %close old cursor
-  {UExternal, {Res, UState}} = case Db:get_procedure({StdLib, ExLib, DbState}, {Collection, Func}) of %take new cursor if needed
-                                 {Cursor, R} when is_pid(Cursor) -> {Cursor, R};
-                                 Other -> {External, Other}
-                               end,
-  {reply, Res, State#state{state = UState, external_cursor = UExternal}};
+  case Db:get_procedure({StdLib, ExLib, DbState}, {Collection, Func}) of %take new cursor if needed
+    {{Cursor, Res}, UState} when is_pid(Cursor); Cursor == external ->
+      {reply, Res, State#state{state = UState, external_cursor = Cursor}};
+    {Res, UState} ->
+      {reply, Res, State#state{state = UState}}
+  end;
 handle_call(next, _From, State = #state{database = Db, core_cursor = Core}) ->  %get next result by cursor
   Res = Db:next(Core),
   {reply, Res, State};

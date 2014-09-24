@@ -84,17 +84,28 @@ abolish_clauses({StdLib, _, Db}, {Functor}) ->
   ets:delete(Db, Functor),
   {ok, Db}.
 
-findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
+findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
   Ets = erlog_db_storage:get_db(ets, Collection),
-  {Res, _} = findall({StdLib, ExLib, Ets}, {Functor}),
-  {Res, Db};
+  case dict:find(Functor, StdLib) of %search built-in first
+    {ok, StFun} -> {StFun, Db};
+    error ->
+      case dict:find(Functor, ExLib) of  %search libraryspace then
+        {ok, ExFun} -> {ExFun, Db};
+        error ->
+          CS = case catch ets:lookup_element(Ets, Functor, 2) of  %search userspace last
+                 Cs when is_list(Cs) -> Cs;
+                 _ -> []
+               end,
+          {{external, {clauses, form_clauses(CS, external)}}, Db}
+      end
+  end;
 findall({StdLib, ExLib, Db}, {Functor}) ->
-  case dict:is_key(Functor, StdLib) of %search built-in first
-    true -> {Functor, Db};
-    false ->
-      case dict:is_key(Functor, ExLib) of  %search libraryspace then
-        true -> {Functor, Db};
-        false ->
+  case dict:find(Functor, StdLib) of %search built-in first
+    {ok, StFun} -> {StFun, Db};
+    error ->
+      case dict:find(Functor, ExLib) of  %search libraryspace then
+        {ok, ExFun} -> {ExFun, Db};
+        error ->
           CS = case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
                  Cs when is_list(Cs) -> Cs;
                  _ -> []
@@ -103,23 +114,28 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
       end
   end.
 
-close(_) ->
-  put(cursor, queue:new()). %save empty queue
+close(Cursor) ->
+  put(Cursor, queue:new()). %save empty queue
 
-next(_) ->
-  Queue = get(cursor),  %get clauses
+next(Cursor) ->
+  Queue = get(Cursor),  %get clauses
   case queue:out(Queue) of  %take variant
     {{value, Val}, UQ} ->
-      put(cursor, UQ),  %save others
+      put(Cursor, UQ),  %save others
       Val;  %return it
     {empty, _} -> []  %nothing to return
   end.
 
 get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
-  {Res, _} = get_procedure({StdLib, ExLib, Ets}, {Functor}),
-  {Res, Db};
-get_procedure({StdLib, ExLib, Db}, {Functor}) ->
+  case get_procedure({StdLib, ExLib, Ets}, {{Functor}, external}) of
+    {external, {Res, _}} -> %return with cursor
+      {{external, Res}, Db};
+    {Res, _} ->
+      {Res, Db} %normal return
+  end;
+get_procedure({StdLib, ExLib, Db}, Param) ->
+  {Functor, Cursor} = check_param(Param),
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
@@ -127,7 +143,7 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
               {ok, ExFun} -> ExFun;
               error ->
                 case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
-                  Cs when is_list(Cs) -> {clauses, form_clauses(Cs)};
+                  Cs when is_list(Cs) -> {Cursor, {clauses, form_clauses(Cs, Cursor)}};
                   _ -> undefined
                 end
             end
@@ -208,8 +224,12 @@ check_immutable(Dict, Db, Functor) -> %TODO may be move me to erlog_memory?
   end.
 
 %% @private
-form_clauses(Loaded) when length(Loaded) =< 1 -> Loaded;
-form_clauses([First | Loaded]) ->
+form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
+form_clauses([First | Loaded], Cursor) ->
   Queue = queue:from_list(Loaded),
-  put(cursor, Queue),
+  put(Cursor, Queue),
   First.
+
+%% @private
+check_param({Functor}) -> {Functor, cursor};
+check_param({{Functor}, external}) -> {Functor, external}.

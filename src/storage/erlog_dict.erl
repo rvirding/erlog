@@ -91,12 +91,21 @@ abolish_clauses({StdLib, _, Db}, {Functor}) ->
         end,
   {ok, Udb}.
 
-findall({StdLib, ExLib, Db}, {Collection, Functor}) ->
+findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
   Dict = erlog_db_storage:get_db(dict, Collection),
-  {Res, Udict} = findall({StdLib, ExLib, Dict}, {Functor}),
-  erlog_db_storage:update_db(Collection, Udict),
-  {Res, Db};
-findall({StdLib, ExLib, Db}, {Functor}) ->
+  case dict:find(Functor, StdLib) of %search built-in first
+    {ok, StFun} -> {StFun, Db};
+    error ->
+      case dict:find(Functor, ExLib) of  %search libraryspace then
+        {ok, ExFun} -> {ExFun, Db};
+        error ->
+          case dict:find(Functor, Dict) of  %search userspace last
+            {ok, Cs} -> {{external, {clauses, form_clauses(Cs, external)}}, Db};
+            error -> {[], Db}
+          end
+      end
+  end;
+findall({StdLib, ExLib, Db}, {Functor}) ->  %for bagof
   case dict:find(Functor, StdLib) of %search built-in first
     {ok, StFun} -> {StFun, Db};
     error ->
@@ -110,24 +119,30 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
       end
   end.
 
-close(_) ->
-  put(cursor, queue:new()). %save empty queue
+close(Cursor) ->
+  put(Cursor, queue:new()). %save empty queue
 
-next(_) ->
-  Queue = get(cursor),  %get clauses
+next(Cursor) ->
+  Queue = get(Cursor),  %get clauses
   case queue:out(Queue) of  %take variant
     {{value, Val}, UQ} ->
-      put(cursor, UQ),  %save others
+      put(Cursor, UQ),  %save others
       Val;  %return it
     {empty, _} -> []  %nothing to return
   end.
 
 get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
   Dict = erlog_db_storage:get_db(dict, Collection),
-  {Res, Udict} = get_procedure({StdLib, ExLib, Dict}, {Functor}),
-  erlog_db_storage:update_db(Collection, Udict),
-  {Res, Db};
-get_procedure({StdLib, ExLib, Db}, {Functor}) ->
+  case get_procedure({StdLib, ExLib, Dict}, {{Functor}, external}) of
+    {external, {Res, Udict}} -> %return with cursor
+      erlog_db_storage:update_db(Collection, Udict),
+      {{external, Res}, Db};
+    {Res, Udict} ->
+      erlog_db_storage:update_db(Collection, Udict),
+      {Res, Db} %normal return
+  end;
+get_procedure({StdLib, ExLib, Db}, Param) ->
+  {Functor, Cursor} = check_param(Param),
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
@@ -135,7 +150,7 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
               {ok, ExFun} -> ExFun;
               error ->
                 case dict:find(Functor, Db) of  %search userspace last
-                  {ok, Cs} -> {clauses, form_clauses(Cs)};
+                  {ok, Cs} -> {Cursor, {clauses, form_clauses(Cs, Cursor)}};
                   error -> undefined
                 end
             end
@@ -212,8 +227,12 @@ check_immutable(Dict, Db, Functor) ->
   end.
 
 %% @private
-form_clauses(Loaded) when length(Loaded) =< 1 -> Loaded;
-form_clauses([First | Loaded]) ->
+form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
+form_clauses([First | Loaded], Cursor) ->
   Queue = queue:from_list(Loaded),
-  put(cursor, Queue),
+  put(Cursor, Queue),
   First.
+
+%% @private
+check_param({Functor}) -> {Functor, cursor};
+check_param({{Functor}, external}) -> {Functor, external}.
