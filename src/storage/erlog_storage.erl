@@ -13,6 +13,10 @@
 
 -callback new(Params :: list()) -> {ok, State :: term()}.
 
+-callback close(Pid :: pid()) -> ok.
+
+-callback next(Pid :: pid()) -> ok.
+
 -callback assertz_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
 
 -callback asserta_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
