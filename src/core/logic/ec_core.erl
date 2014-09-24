@@ -77,6 +77,7 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
   case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
     {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
     {code, {Mod, Func}} -> Mod:Func(Param);  %library space
+    {clauses, []} -> erlog_errors:fail(Param);
     {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
     undefined -> erlog_errors:fail(Param);
     {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
@@ -86,9 +87,18 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
-prove_goal_clauses([], Param) -> erlog_errors:fail(Param);
+prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) ->
+  %% Must be smart here and test whether we need to add a cut point.
+  %% C has the structure {Tag,Head,{Body,BodyHasCut}}.
+  case element(2, element(3, C)) of
+    true ->
+      Cut = #cut{label = Vn},
+      erlog_errors:fail(Params#param{choice = [Cut | Cps]});
+    false ->
+      erlog_errors:fail(Params)
+  end;
 prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db}) ->
-  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db}, next = Next, bs = Bs, vn = Vn},
+  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, C}, next = Next, bs = Bs, vn = Vn},
   prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
 prove_goal_clause([L], Param) -> prove_goal_clause(L, Param);

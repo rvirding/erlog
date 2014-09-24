@@ -13,7 +13,7 @@
 
 %% API
 -export([type_error/3, instantiation_error/1, permission_error/4,
-	type_error/2, instantiation_error/0, erlog_error/2, erlog_error/1, fail/1]).
+  type_error/2, instantiation_error/0, erlog_error/2, erlog_error/1, fail/1]).
 
 %% Errors
 %% To keep dialyzer quiet.
@@ -32,7 +32,7 @@ instantiation_error(Db) -> erlog_error(instantiation_error, Db).
 instantiation_error() -> erlog_error(instantiation_error).
 
 permission_error(Op, Type, Value, Db) ->
-	erlog_error({permission_error, Op, Type, Value}, Db). %TODO remove DB!!
+  erlog_error({permission_error, Op, Type, Value}, Db). %TODO remove DB!!
 
 erlog_error(E, Db) -> throw({erlog_error, E, Db}).
 erlog_error(E) -> throw({erlog_error, E}).
@@ -44,57 +44,60 @@ erlog_error(E) -> throw({erlog_error, E}).
 %%  backtracks to next choicepoint skipping cut labels cut steps
 %%  backwards over choice points until matching cut.
 fail(Param = #param{choice = [#cp{type = goal_clauses} = Cp | Cps]}) ->
-	fail_goal_clauses(Cp, Param#param{choice = Cps});
+  fail_goal_clauses(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = Type} = Cp | Cps]}) when Type == disjunction; Type == if_then_else ->
-	fail_disjunction(Cp, Param#param{choice = Cps});
+  fail_disjunction(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = clause} = Cp | Cps]}) ->
-	fail_clause(Cp, Param#param{choice = Cps});
+  fail_clause(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = findall} = Cp | Cps]}) ->
-	fail_findall(Cp, Param#param{choice = Cps});
+  fail_findall(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = retract} = Cp | Cps]}) ->
-	fail_retract(Cp, Param#param{choice = Cps});
+  fail_retract(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = db_retract} = Cp | Cps]}) ->
-	erlog_db:fail_retract(Cp, Param#param{choice = Cps});
+  erlog_db:fail_retract(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = current_predicate} = Cp | Cps]}) ->
-	fail_current_predicate(Cp, Param#param{choice = Cps});
+  fail_current_predicate(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = ecall} = Cp | Cps]}) ->
-	fail_ecall(Cp, Param#param{choice = Cps});
+  fail_ecall(Cp, Param#param{choice = Cps});
 fail(#param{choice = [#cp{type = compiled, data = F} = Cp | Cps], database = Db}) ->
-	F(Cp, Cps, Db); %TODO test this
+  F(Cp, Cps, Db); %TODO test this
 fail(Param = #param{choice = [#cut{} | Cps]}) ->
-	fail(Param#param{choice = Cps});        %Fail over cut points.
+  fail(Param#param{choice = Cps});        %Fail over cut points.
 fail(#param{choice = [], database = Db}) -> {fail, Db}.
 
 %% @private
 fail_disjunction(#cp{next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_core:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
+  ec_core:prove_body(Param#param{goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_logic:prove_ecall(Efun, Val, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+  ec_logic:prove_ecall(Efun, Val, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_clause(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_unify:unify_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+  ec_unify:unify_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_retract(#cp{data = {Ch, Cb, Cs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_logic:retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+  ec_logic:retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->
-	ec_logic:prove_predicates(Pi, Fs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+  ec_logic:prove_predicates(Pi, Fs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
-fail_goal_clauses(#cp{data = {G, Db}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  NextClause = erlog_memory:next(Db),
-	ec_core:prove_goal_clauses(NextClause, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn}).
+fail_goal_clauses(#cp{data = {G, Db, C}, next = Next, bs = Bs, vn = Vn}, Param) ->
+  NextClause = case erlog_memory:next(Db) of
+                 [] -> [C];
+                 N -> N
+               end,
+  ec_core:prove_goal_clauses(NextClause, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
-	Data = erlog_memory:raw_fetch(Db, Tag),
-	erlog_memory:raw_erase(Db, Tag),  %Clear special entry
-	{Bs1, Vn1} = lists:mapfoldl(fun(B0, V0) ->  %Create proper instances
-		{B1, _, V1} = ec_term:term_instance(ec_support:dderef(B0, Bs), V0),
-		{B1, V1}
-	end, Vn0, Data),
-	ec_body:unify_prove_body(Bag, Bs1, Param#param{next_goal = Next, var_num = Vn1}).
+  Data = erlog_memory:raw_fetch(Db, Tag),
+  erlog_memory:raw_erase(Db, Tag),  %Clear special entry
+  {Bs1, Vn1} = lists:mapfoldl(fun(B0, V0) ->  %Create proper instances
+    {B1, _, V1} = ec_term:term_instance(ec_support:dderef(B0, Bs), V0),
+    {B1, V1}
+  end, Vn0, Data),
+  ec_body:unify_prove_body(Bag, Bs1, Param#param{next_goal = Next, var_num = Vn1}).
