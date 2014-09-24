@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([prove_body/1, prove_goal/1, prove_goal/5, prove_goal_clauses/2]).
+-export([prove_body/1, prove_goal/1, prove_goal/5, prove_goal_clauses/2, prove_goal_clause/2]).
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
@@ -82,7 +82,6 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
     undefined -> erlog_errors:fail(Param);
     {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
   end.
-
 
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.

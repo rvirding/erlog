@@ -119,9 +119,10 @@ findall({StdLib, ExLib, Db}, {Functor}) ->  %for bagof
       end
   end.
 
-close(Cursor) ->
-  put(Cursor, queue:new()). %save empty queue
+close(undefined) -> ok;
+close(Cursor) -> put(Cursor, queue:new()). %save empty queue
 
+next(undefined) -> [];
 next(Cursor) ->
   Queue = get(Cursor),  %get clauses
   case queue:out(Queue) of  %take variant
