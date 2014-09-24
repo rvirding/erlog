@@ -18,46 +18,51 @@
 
 -module(erlog_file).
 
+-include("erlog_int.hrl").
+
+%% Main interface functions.
 -export([consult/2,reconsult/2]).
 
+%% consult(File, DatabaseState) ->
+%%     {ok,NewState} | {error,Error} | {erlog_error,Error}.
+%% reconsult(File, State) ->
+%%     {ok,NewState} | {error,Error} | {erlog_error,Error}.
+%%  Load/reload an Erlog file into the interpreter. Reloading will
+%%  abolish old definitons of clauses.
 
-%% consult(File, Database) ->
-%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
-%% reconsult(File, Database) ->
-%%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
-%% Load/reload an Erlog file into the interpreter. Reloading will
-%% abolish old definitons of clauses.
-
-consult(File, Db0) ->
+consult(File, St) ->
     case erlog_io:read_file(File) of
 	{ok,Terms} ->
-	    consult_terms(fun consult_assert/2, Db0, Terms);
+	    consult_terms(fun consult_assert/2, St, Terms);
 	Error -> Error
     end.
 
-consult_assert(Term0, Db) ->
+consult_assert(Term0, #est{db=Db0}=St) ->
     Term1 = erlog_lib_dcg:expand_term(Term0),
-    {ok,erlog_int:assertz_clause(Term1, Db)}.
+    Db1 = erlog_int:assertz_clause(Term1, Db0),
+    {ok,St#est{db=Db1}}.
 
-reconsult(File, Db0) ->
+reconsult(File, St0) ->
     case erlog_io:read_file(File) of
 	{ok,Terms} ->
-	    case consult_terms(fun reconsult_assert/2, {Db0,[]}, Terms) of
-		{ok,{Db1,_Seen1}} -> {ok,Db1};
+	    case consult_terms(fun reconsult_assert/2, {St0,[]}, Terms) of
+		{ok,{St1,_Seen1}} -> {ok,St1};
 		Error -> Error
 	    end;
 	Error -> Error
     end.
 
-reconsult_assert(Term0, {Db0,Seen}) ->
+reconsult_assert(Term0, {#est{db=Db0}=St,Seen}) ->
     Term1 = erlog_lib_dcg:expand_term(Term0),
     Func = functor(Term1),
     case lists:member(Func, Seen) of
 	true ->
-	    {ok,{erlog_int:assertz_clause(Term1, Db0), Seen}};
+	    Db1 = erlog_int:assertz_clause(Term1, Db0),
+	    {ok,{St#est{db=Db1}, Seen}};
 	false ->
 	    Db1 = erlog_int:abolish_clauses(Func, Db0),
-	    {ok,{erlog_int:assertz_clause(Term1, Db1), [Func|Seen]}}
+	    Db2 = erlog_int:assertz_clause(Term1, Db1),
+	    {ok,{St#est{db=Db2},[Func|Seen]}}
     end.
 
 %% consult_terms(InsertFun, Database, Terms) ->
