@@ -175,9 +175,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %% @private
 process_reply(Dict) ->
-  case dict:is_empty(Dict) of
-    true -> [];
-    false -> process_vars(Dict)
+  case dict:size(Dict) of
+    0 -> [];
+    _ -> process_vars(Dict)
   end.
 
 %% @private
