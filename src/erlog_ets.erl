@@ -22,11 +22,11 @@
 
 -compile(export_all).
 
--export([load/1,all_1/6,keys_2/6,match_2/6]).
+-export([load/1,all_1/3,keys_2/3,match_2/3]).
 
 -import(lists, [foldl/3]).
 -import(erlog_int, [add_compiled_proc/4,dderef/2,unify/3,
-		    prove_body/5,unify_prove_body/7,fail/2]).
+		    prove_body/2,unify_prove_body/4,fail/1]).
 
 %% load(Database) -> Database.
 %%  Assert predicates into the database.
@@ -41,63 +41,63 @@ load(Db0) ->
 		]),
     Db1.
 
-%% all_1(Head, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void().
+%% all_1(Head, NextGoal, State) -> void().
 %%      Goal = {ets_all,Tables}.
 %% Return all the ETS databases.
 
-all_1({ets_all,Var}, Next, Cps, Bs, Vn, Db) ->
+all_1({ets_all,Var}, Next, St) ->
     Tabs = ets:all(),
-    unify_prove_body(Var, Tabs, Next, Cps, Bs, Vn, Db).
+    unify_prove_body(Var, Tabs, Next, St).
 
-%% keys_2(Head, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void().
+%% keys_2(Head, NextGoal, State) -> void().
 %%      Goal = {ets_keys,Table,Key}.
 %% Return the keys in an ETS database one at a time over backtracking.
 
-keys_2({ets_keys,Tab0,KeyVar}, Next, Cps, Bs, Vn, Db) ->
+keys_2({ets_keys,Tab0,KeyVar}, Next, #est{bs=Bs}=St) ->
     Tab1 = dderef(Tab0, Bs),
     case ets:first(Tab1) of
-	'$end_of_table' -> fail(Cps, Db);
-	Key -> keys_loop(Tab1, Key, KeyVar, Next, Cps, Bs, Vn, Db)
+	'$end_of_table' -> fail(St);
+	Key -> keys_loop(Tab1, Key, KeyVar, Next, St)
     end.
 
-keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db) ->
-    FailFun = fun(LCp, LCps, LDb) ->
-		      keys_fail(LCp, LCps, LDb, Tab, Key, KeyVar)
+keys_loop(Tab, Key, KeyVar, Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
+    FailFun = fun(LCp, LCps, Lst) ->
+		      keys_fail(LCp, LCps, Lst, Tab, Key, KeyVar)
 	      end,
     Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs,vn=Vn},
-    unify_prove_body(KeyVar, Key, Next, [Cp|Cps], Bs, Vn, Db).
+    unify_prove_body(KeyVar, Key, Next, St#est{cps=[Cp|Cps]}).
 
-keys_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, Tab, PrevKey, KeyVar) ->
+keys_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, St, Tab, PrevKey, KeyVar) ->
     case ets:next(Tab, PrevKey) of
-	'$end_of_table' -> fail(Cps, Db);	    
-	Key -> keys_loop(Tab, Key, KeyVar, Next, Cps, Bs, Vn, Db)
+	'$end_of_table' -> fail(St);
+	Key -> keys_loop(Tab, Key, KeyVar, Next, St#est{cps=Cps,bs=Bs,vn=Vn})
     end.
 
-%% match_2(Head, Next, ChoicePoints, Bindings, VarNum, Database) -> void().
+%% match_2(Head, Next, State) -> void().
 %%      Head = {ets_match,Table,Pattern}.
 %% Match objects in an ETS database one at a time over backtracking
 %% using Pattern in goal. Variables in Pattern are bound for each
 %% object matched.
 
-match_2({ets_match,Tab0,Pat0}, Next, Cps, Bs, Vn, Db) ->
+match_2({ets_match,Tab0,Pat0}, Next, #est{bs=Bs}=St) ->
     Tab1 = dderef(Tab0, Bs),
     Pat1 = dderef(Pat0, Bs),
     {Epat,Vs} = ets_pat(Pat1),
-    match_2_loop(ets:match(Tab1, Epat, 10), Next, Cps, Bs, Vn, Db, Epat, Vs).
+    match_2_loop(ets:match(Tab1, Epat, 10), Next, St, Epat, Vs).
 
-match_2_loop({[M|Ms],Cont}, Next, Cps, Bs, Vn, Db, Epat, Vs) ->
-    FailFun = fun (LCp, LCps, LDb) ->
-		      match_2_fail(LCp, LCps, LDb, Epat, Vs, {Ms,Cont})
+match_2_loop({[M|Ms],Cont}, Next, #est{cps=Cps,bs=Bs,vn=Vn}=St, Epat, Vs) ->
+    FailFun = fun (LCp, LCps, Lst) ->
+		      match_2_fail(LCp, LCps, Lst, Epat, Vs, {Ms,Cont})
 	      end,
     Cp = #cp{type=compiled,data=FailFun,next=Next,bs=Bs,vn=Vn},
-    unify_prove_body(Vs, M, Next, [Cp|Cps], Bs, Vn, Db);
-match_2_loop({[],Cont}, Next, Cps, Bs, Vn, Db, Epat, Vs) ->
-    match_2_loop(ets:match(Cont), Next, Cps, Bs, Vn, Db, Epat, Vs);
-match_2_loop('$end_of_table', _Next, Cps, _Bs, _Vn, Db, _Epat, _Vs) ->
-    fail(Cps, Db).
+    unify_prove_body(Vs, M, Next, St#est{cps=[Cp|Cps]});
+match_2_loop({[],Cont}, Next, St, Epat, Vs) ->
+    match_2_loop(ets:match(Cont), Next, St, Epat, Vs);
+match_2_loop('$end_of_table', _Next, St, _Epat, _Vs) ->
+    fail(St).
 
-match_2_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, Db, Epat, Vs, Ms) ->
-    match_2_loop(Ms, Next, Cps, Bs, Vn, Db, Epat, Vs).
+match_2_fail(#cp{next=Next,bs=Bs,vn=Vn}, Cps, St, Epat, Vs, Ms) ->
+    match_2_loop(Ms, Next, St#est{cps=Cps,bs=Bs,vn=Vn}, Epat, Vs).
 
 %% ets_pat(Term) -> {EtsPattern,VarList}.
 %% Convert a term into an ETS pattern replacing variables with the ETS

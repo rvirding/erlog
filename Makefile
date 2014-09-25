@@ -37,7 +37,7 @@ $(EBINDIR)/%.beam: $(SRCDIR)/%.erl
 %.erl: %.xrl
 	$(ERLC) -o $(SRCDIR) $<
 
-DEPS_PLT=$(CURDIR)/.deps_plt
+DEPS_PLT=$(CURDIR)/.dialyzer_plt
 DEPS=erts kernel stdlib
 
 # =============================================================================
@@ -111,7 +111,7 @@ $(DEPS_PLT):
 	   --apps $(DEPS)
 
 dialyzer: $(DEPS_PLT)
-	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -Wno_improper_lists -Wno_match -r ./ebin
+	dialyzer --fullpath --plt $(DEPS_PLT) -Wrace_conditions -Wno_improper_lists -Wno_match --src -r ./src
 
 typer:
 	typer --plt $(DEPS_PLT) -r ./src
@@ -134,7 +134,9 @@ clean:
 	- rm -rf $(CURDIR)/ebin
 	- rm -rf $(CURDIR)/.eunit
 	- rm -rf $(CURDIR)/.qc
-	$(REBAR) skip_deps=true clean
+	if [ -n "$(REBAR)" ] ; then \
+	$(REBAR) skip_deps=true clean ; \
+	fi
 
 distclean: clean
 	- rm -rf $(DEPS_PLT)
