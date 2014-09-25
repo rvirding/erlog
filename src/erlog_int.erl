@@ -147,7 +147,8 @@
 
 %% Error types.
 -export([erlog_error/1,erlog_error/2,type_error/2,type_error/3,
-	 instantiation_error/0,instantiation_error/1,permission_error/4]).
+	 instantiation_error/0,instantiation_error/1,
+	 permission_error/3,permission_error/4]).
 
 %%-compile(export_all).
 
@@ -330,12 +331,14 @@ prove_goal({current_predicate,Pi0}, Next, #est{bs=Bs}=St) ->
     prove_current_predicate(Pi, Next, St);
 prove_goal({predicate_property,H0,P}, Next, #est{bs=Bs,db=Db}=St) ->
     H = dderef(H0, Bs),
-    case catch get_procedure_type(functor(H), Db) of
+    try get_procedure_type(functor(H), Db) of
 	built_in -> unify_prove_body(P, built_in, Next, St);
 	compiled -> unify_prove_body(P, compiled, Next, St);
 	interpreted -> unify_prove_body(P, interpreted, Next, St);
-	undefined -> ?FAIL(St);
-	{erlog_error,E} -> erlog_error(E, St)
+	undefined -> ?FAIL(St)
+    catch
+	throw:{erlog_error,E} ->
+	    erlog_error(E, St)	                %Add state to error
     end;
 %% All solutions.
 prove_goal({findall,T,G,L}, Next, St) ->
@@ -372,13 +375,14 @@ prove_goal({display,T}, Next, #est{bs=Bs}=St) ->
 prove_goal(G0, Next, #est{bs=Bs,db=Db}=St) ->
     G = dderef(G0, Bs),
     %%io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
-    case catch get_procedure(functor(G), Db) of
+    try get_procedure(functor(G), Db) of
 	built_in -> erlog_bips:prove_goal(G, Next, St);
 	{code,{Mod,Func}} -> Mod:Func(G, Next, St);
 	{clauses,Cs} -> prove_goal_clauses(G, Cs, Next, St);
-	undefined -> ?FAIL(St);
-	%% Getting built_in here is an error!
-	{erlog_error,E} -> erlog_error(E, Db)	%Fill in more error data
+	undefined -> ?FAIL(St)
+    catch
+	throw:{erlog_error,E} ->
+	    erlog_error(E, St)	                %Add state to error
     end.
 
 fail_disjunction(#cp{next=Next,bs=Bs,vn=Vn}, Cps, St) ->
@@ -462,9 +466,11 @@ check_goal(G0, Next, #est{bs=Bs}=St, Cut, Label) ->
     case dderef(G0, Bs) of
 	{_} -> instantiation_error(St);		%Must have something to call
 	G1 ->
-	    case catch {ok,well_form_goal(G1, Next, Cut, Label)} of
-		{erlog_error,E} -> erlog_error(E, St);
-		{ok,GC} -> GC			%Body and cut
+	    try
+		well_form_goal(G1, Next, Cut, Label)
+	    catch
+		throw:{erlog_error,E} ->
+		    erlog_error(E, St)	        %Add state to error
 	    end
     end.
 
@@ -756,21 +762,25 @@ make_var_list(I, Vn) ->
 -spec type_error(_, _, _) -> no_return().
 -spec instantiation_error() -> no_return().
 -spec instantiation_error(_) -> no_return().
+-spec permission_error(_, _, _) -> no_return().
 -spec permission_error(_, _, _, _) -> no_return().
 -spec erlog_error(_) -> no_return().
 -spec erlog_error(_, _) -> no_return().
 
-type_error(Type, Value, St) -> erlog_error({type_error,Type,Value}, St).
 type_error(Type, Value) -> erlog_error({type_error,Type,Value}).
+type_error(Type, Value, St) -> erlog_error({type_error,Type,Value}, St).
 
-instantiation_error(Db) -> erlog_error(instantiation_error, Db).
 instantiation_error() -> erlog_error(instantiation_error).
+instantiation_error(St) -> erlog_error(instantiation_error, St).
 
-permission_error(Op, Type, Value, Db) ->
-    erlog_error({permission_error,Op,Type,Value}, Db).
+permission_error(Op, Type, Value) ->
+    erlog_error({permission_error,Op,Type,Value}).
 
-erlog_error(E, Db) -> throw({erlog_error,E,Db}).
+permission_error(Op, Type, Value, St) ->
+    erlog_error({permission_error,Op,Type,Value}, St).
+
 erlog_error(E) -> throw({erlog_error,E}).
+erlog_error(E, St) -> throw({erlog_error,E,St}).
 
 %% Database
 %% The database is a dict where the key is the functor pair {Name,Arity}.
@@ -798,7 +808,7 @@ add_compiled_proc(Functor, M, F, #db{mod=Dm,ref=Dr0}=Db) ->
     case Dm:add_compiled_proc(Dr0, Functor, M, F) of
 	{ok,Dr1} -> Db#db{ref=Dr1};
 	error ->
-	    permission_error(modify, static_procedure, pred_ind(Functor), Db)
+	    permission_error(modify, static_procedure, pred_ind(Functor))
     end.
 
 %% asserta_clause(Clause, Database) -> NewDatabase.
@@ -814,7 +824,7 @@ asserta_clause(Head, B, #db{mod=Dm,ref=Dr0}=Db) ->
     case Dm:asserta_clause(Dr0, Functor, Head, Body) of
 	{ok,Dr1} -> Db#db{ref=Dr1};
 	error ->
-	    permission_error(modify, static_procedure, pred_ind(Functor), Db)
+	    permission_error(modify, static_procedure, pred_ind(Functor))
     end.
 
 assertz_clause({':-',H,B}, Db) -> assertz_clause(H, B, Db);
@@ -825,15 +835,12 @@ assertz_clause(Head, B, #db{mod=Dm,ref=Dr0}=Db) ->
     case Dm:assertz_clause(Dr0, Functor, Head, Body) of
 	{ok,Dr1} -> Db#db{ref=Dr1};
 	error ->
-	    permission_error(modify, static_procedure, pred_ind(Functor), Db)
+	    permission_error(modify, static_procedure, pred_ind(Functor))
     end.
 
-well_formed_clause(Head, Body, Db) ->
-    try
-	{functor(Head),well_form_body(Body, false, sture)}
-    catch
-	throw:{erlog_error,E} -> erlog_error(E, Db)
-    end.
+well_formed_clause(Head, Body, _Db) ->
+    %% No need to catch error  as we can't add state to it.
+    {functor(Head),well_form_body(Body, false, sture)}.
 
 %% retract_clause(Functor, ClauseTag, Database) -> NewDatabase.
 %%  Retract (remove) the clause with tag ClauseTag from the list of
@@ -843,7 +850,7 @@ retract_clause(Functor, Ct, #db{mod=Dm,ref=Dr0}=Db) ->
     case Dm:retract_clause(Dr0, Functor, Ct) of
 	{ok,Dr1} -> Db#db{ref=Dr1};
 	error ->
-	    permission_error(modify, static_procedure, pred_ind(Functor), Db)
+	    permission_error(modify, static_procedure, pred_ind(Functor))
     end.
 
 %% abolish_clauses(Functor, Database) -> NewDatabase.
@@ -852,7 +859,7 @@ abolish_clauses(Functor, #db{mod=Dm,ref=Dr0}=Db) ->
     case Dm:abolish_clauses(Dr0, Functor) of
 	{ok,Dr1} -> Db#db{ref=Dr1};
 	error ->
-	    permission_error(modify, static_procedure, pred_ind(Functor), Db)
+	    permission_error(modify, static_procedure, pred_ind(Functor))
     end.
 
 %% get_procedure(Functor, Database) ->
