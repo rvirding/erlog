@@ -65,8 +65,8 @@ retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
   {Res, _} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
   {Res, Db};
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
-  ok = check_immutable(StdLib, Db, Functor),
-  ok = check_immutable(ExLib, Db, Functor),
+  ok = check_immutable(StdLib, Functor),
+  ok = check_immutable(ExLib, Functor),
   case catch ets:lookup_element(Db, Functor, 2) of
     Cs when is_list(Cs) ->
       Object = lists:keyfind(Ct, 1, Cs),
@@ -80,7 +80,7 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
   {Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
   {Res, Db};
 abolish_clauses({StdLib, _, Db}, {Functor}) ->
-  ok = check_immutable(StdLib, Db, Functor),
+  ok = check_immutable(StdLib, Functor),
   ets:delete(Db, Functor),
   {ok, Db}.
 
@@ -202,8 +202,8 @@ clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
                       {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
                       {ok, F, B} -> {F, B}
                     end,
-  ok = check_immutable(StdLib, Db, Functor),  %check built-in functions (read only) for clause
-  ok = check_immutable(ExLib, Db, Functor),   %check library functions (read only) for clauses
+  ok = check_immutable(StdLib, Functor),  %check built-in functions (read only) for clause
+  ok = check_immutable(ExLib, Functor),   %check library functions (read only) for clauses
   case ets:lookup(Db, Functor) of
     [] -> ets:insert(Db, {Functor, {0, Head, Body}});
     Cs -> ClauseFun(Functor, Cs, Body)
@@ -218,10 +218,10 @@ check_duplicates(Cs, Head, Body) ->
     end, true, Cs).
 
 %% @private
-check_immutable(Dict, Db, Functor) -> %TODO may be move me to erlog_memory?
+check_immutable(Dict, Functor) -> %TODO may be move me to erlog_memory?
   case dict:is_key(Functor, Dict) of
     false -> ok;
-    true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db)
+    true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor))
   end.
 
 %% @private

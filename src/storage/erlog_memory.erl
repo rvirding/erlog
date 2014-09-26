@@ -185,14 +185,13 @@ init([Database, Params]) when is_atom(Database) ->
 handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib = StdLib}) ->  %load kernel space into memory
   UStdlib = dict:store(Functor, {built_in, Module}, StdLib),
   {reply, ok, State#state{stdlib = UStdlib}};
-handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{database = Db, stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
-  UExlib = case dict:is_key(Functor, StdLib) of
-             true ->
-               erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
-             false ->
-               dict:store(Functor, {code, {M, F}}, ExLib)
-           end,
-  {reply, ok, State#state{exlib = UExlib}};
+handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+  case dict:is_key(Functor, StdLib) of
+    true ->
+      {reply, {erlog_error, {modify, static_procedure, ec_support:pred_ind(Functor)}}, State};
+    false ->
+      {reply, ok, State#state{exlib = dict:store(Functor, {code, {M, F}}, ExLib)}}
+  end;
 handle_call({raw_store, {Key, Value}}, _From, State = #state{in_mem = InMem}) ->  %findall store
   Umem = store(Key, Value, InMem),
   {reply, ok, State#state{in_mem = Umem}};
@@ -207,11 +206,19 @@ handle_call({raw_erase, {Key}}, _From, State = #state{in_mem = InMem}) ->  %find
   Umem = dict:erase(Key, InMem),
   {reply, ok, State#state{in_mem = Umem}};
 handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, {Func}),
-  {reply, Res, State#state{state = NewState, exlib = UpdExlib}};
+  try
+    {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, {Func}),
+    {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
+  catch
+    throw:E -> {reply, E, State}
+  end;
 handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
-  {reply, Res, State#state{state = NewState, exlib = UpdExlib}};
+  try
+    {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
+    {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
+  catch
+    throw:E -> {reply, E, State}
+  end;
 handle_call({findall, {Collection, Fun}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib,
   exlib = ExLib, external_cursor = External}) ->
   Db:close(External), %close old cursor
@@ -246,11 +253,19 @@ handle_call(db_next, _From, State = #state{database = Db, external_cursor = Exte
   Res = Db:next(External),
   {reply, Res, State};
 handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  {Res, NewState} = Db:Fun({StdLib, ExLib, DbState}, Params),
-  {reply, Res, State#state{state = NewState}};
+  try
+    {Res, NewState} = Db:Fun({StdLib, ExLib, DbState}, Params),
+    {reply, Res, State#state{state = NewState}}
+  catch
+    throw:E -> {reply, E, State}
+  end;
 handle_call(Fun, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  {Res, NewState} = Db:Fun({StdLib, ExLib, DbState}),
-  {reply, Res, State#state{state = NewState}};
+  try
+    {Res, NewState} = Db:Fun({StdLib, ExLib, DbState}),
+    {reply, Res, State#state{state = NewState}}
+  catch
+    throw:E -> {reply, E, State}
+  end;
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 

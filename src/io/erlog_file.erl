@@ -29,43 +29,43 @@
 %% abolish old definitons of clauses.
 -spec consult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
 consult(Fun, File, Db) ->
-	case Fun(File) of %default is erlog_io:read_file/1
-		{ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
-		Error -> Error
-	end.
+  case Fun(File) of %default is erlog_io:read_file/1
+    {ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
+    Error -> Error
+  end.
 
 -spec reconsult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
 reconsult(Fun, File, Db) ->
-	case Fun(File) of %default is erlog_io:read_file/1
-		{ok, Terms} ->
-			case consult_terms(fun reconsult_assert/2, {Db, []}, Terms) of
-				ok -> ok;
-				Error -> Error
-			end;
-		Error -> Error
-	end.
+  case Fun(File) of %default is erlog_io:read_file/1
+    {ok, Terms} ->
+      case consult_terms(fun reconsult_assert/2, {Db, []}, Terms) of
+        ok -> ok;
+        Error -> Error
+      end;
+    Error -> Error
+  end.
 
 %% @private
 -spec consult_assert(Term0 :: term(), Db :: pid()) -> {ok, Db :: pid()}.
 consult_assert(Term0, Db) ->
-	Term1 = ed_logic:expand_term(Term0),
-	erlog_memory:assertz_clause(Db, Term1),
-	{ok, Db}.  %TODO refactor consult_terms not to pass DB everywhere!
+  Term1 = ed_logic:expand_term(Term0),
+  check_assert(Db, Term1),
+  {ok, Db}.  %TODO refactor consult_terms not to pass DB everywhere!
 
 %% @private
 -spec reconsult_assert(Term0 :: term(), {Db :: pid(), Seen :: list()}) -> {ok, {Db :: pid(), list()}}.
 reconsult_assert(Term0, {Db, Seen}) ->
-	Term1 = ed_logic:expand_term(Term0),
-	Func = functor(Term1),
-	case lists:member(Func, Seen) of
-		true ->
-			erlog_memory:assertz_clause(Db, Term1),
-			{ok, {Db, Seen}};  %TODO refactor consult_terms not to pass DB everywhere!
-		false ->
-			erlog_memory:abolish_clauses(Db, Func),
-			erlog_memory:assertz_clause(Db, Term1),
-			{ok, {Db, [Func | Seen]}}
-	end.
+  Term1 = ed_logic:expand_term(Term0),
+  Func = functor(Term1),
+  case lists:member(Func, Seen) of
+    true ->
+      check_assert(Db, Term1),
+      {ok, {Db, Seen}};  %TODO refactor consult_terms not to pass DB everywhere!
+    false ->
+      check_abolish(Db, Func),
+      check_assert(Db, Term1),
+      {ok, {Db, [Func | Seen]}}
+  end.
 
 %% @private
 %% consult_terms(InsertFun, Database, Terms) ->
@@ -74,17 +74,31 @@ reconsult_assert(Term0, {Db, Seen}) ->
 %% queries.
 -spec consult_terms(fun(), any(), list()) -> ok | tuple().
 consult_terms(Ifun, Params, [{':-', _} | Ts]) ->  %TODO refactor me to make interface for Params unifyed! (or may be lists:foreach will be better this hand made recursion)
-	consult_terms(Ifun, Params, Ts);
+  consult_terms(Ifun, Params, Ts);
 consult_terms(Ifun, Params, [{'?-', _} | Ts]) ->
-	consult_terms(Ifun, Params, Ts);
+  consult_terms(Ifun, Params, Ts);
 consult_terms(Ifun, Params, [Term | Ts]) ->
-	case catch Ifun(Term, Params) of
-		{ok, UpdParams} -> consult_terms(Ifun, UpdParams, Ts);
-		{erlog_error, E, _} -> {erlog_error, E};
-		{erlog_error, E} -> {erlog_error, E}
-	end;
+  case catch Ifun(Term, Params) of
+    {ok, UpdParams} -> consult_terms(Ifun, UpdParams, Ts);
+    {erlog_error, E, _} -> {erlog_error, E};
+    {erlog_error, E} -> {erlog_error, E}
+  end;
 consult_terms(_, _, []) -> ok.
 
 %% @private
 functor({':-', H, _B}) -> ec_support:functor(H);
 functor(T) -> ec_support:functor(T).
+
+%% @private
+check_assert(Db, Term) ->
+  case erlog_memory:assertz_clause(Db, Term) of
+    {erlog_error, E} -> erlog_errors:erlog_error(E);
+    _ -> ok
+  end.
+
+%% @private
+check_abolish(Db, Term) ->
+  case erlog_memory:abolish_clauses(Db, Term) of
+    {erlog_error, E} -> erlog_errors:erlog_error(E);
+    _ -> ok
+  end.

@@ -69,8 +69,8 @@ retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db};
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
-  ok = check_immutable(StdLib, Db, Functor),
-  ok = check_immutable(ExLib, Db, Functor),
+  ok = check_immutable(StdLib, Functor),
+  ok = check_immutable(ExLib, Functor),
   Udb = case dict:is_key(Functor, Db) of
           true ->
             dict:update(Functor, fun(Old) -> lists:keydelete(Ct, 1, Old) end, [], Db);
@@ -84,7 +84,7 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db};
 abolish_clauses({StdLib, _, Db}, {Functor}) ->
-  ok = check_immutable(StdLib, Db, Functor),
+  ok = check_immutable(StdLib, Functor),
   Udb = case dict:is_key(Functor, Db) of
           true -> dict:erase(Functor, Db);
           false -> Db        %Do nothing
@@ -204,8 +204,8 @@ clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
                       {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
                       {ok, F, B} -> {F, B}
                     end,
-  ok = check_immutable(StdLib, Db, Functor),  %check built-in functions (read only) for clause
-  ok = check_immutable(ExLib, Db, Functor),   %check library functions (read only) for clauses
+  ok = check_immutable(StdLib, Functor),  %check built-in functions (read only) for clause
+  ok = check_immutable(ExLib, Functor),   %check library functions (read only) for clauses
   case dict:find(Functor, Db) of
     {ok, Cs} -> ClauseFun(Functor, Cs, Body);
     error -> dict:append(Functor, {0, Head, Body}, Db)
@@ -221,10 +221,10 @@ check_duplicates(Cs, Head, Body) ->
     end, false, Cs)).
 
 %% @private
-check_immutable(Dict, Db, Functor) ->
+check_immutable(Dict, Functor) ->
   case dict:is_key(Functor, Dict) of
     false -> ok;
-    true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db)
+    true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor))
   end.
 
 %% @private

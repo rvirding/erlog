@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([type_error/3, instantiation_error/1, permission_error/4,
+-export([type_error/3, instantiation_error/1, permission_error/3,
   type_error/2, instantiation_error/0, erlog_error/2, erlog_error/1, fail/1]).
 
 %% Errors
@@ -21,7 +21,7 @@
 -spec type_error(_, _, _) -> no_return().
 -spec instantiation_error() -> no_return().
 -spec instantiation_error(_) -> no_return().
--spec permission_error(_, _, _, _) -> no_return().
+-spec permission_error(_, _, _) -> no_return().
 -spec erlog_error(_) -> no_return().
 -spec erlog_error(_, _) -> no_return().
 
@@ -31,10 +31,10 @@ type_error(Type, Value) -> erlog_error({type_error, Type, Value}).
 instantiation_error(Db) -> erlog_error(instantiation_error, Db).
 instantiation_error() -> erlog_error(instantiation_error).
 
-permission_error(Op, Type, Value, Db) ->
-  erlog_error({permission_error, Op, Type, Value}, Db). %TODO remove DB!!
+permission_error(Op, Type, Value) ->
+  erlog_error({permission_error, Op, Type, Value}).
 
-erlog_error(E, Db) -> throw({erlog_error, E, Db}).
+erlog_error(E, Db) -> throw({erlog_error, E, Db}).  %TODO remove DB!!
 erlog_error(E) -> throw({erlog_error, E}).
 
 %% fail(ChoicePoints, Database) -> {fail,Database}.

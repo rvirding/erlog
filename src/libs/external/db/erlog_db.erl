@@ -127,9 +127,9 @@ prove_retractall(H, B, Table, Params = #param{next_goal = Next, bindings = Bs0, 
         end, Cs),
       ec_core:prove_body(Params#param{goal = Next});
     {code, _} ->
-      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
     built_in ->
-      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
     undefined -> ec_core:prove_body(Params#param{goal = Next})
   end.
 

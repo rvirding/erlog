@@ -68,9 +68,9 @@ prove_clause(H, B, Param = #param{database = Db}) ->
 	case erlog_memory:get_procedure(Db, Functor) of
 		{clauses, Cs} -> ec_unify:unify_clauses(H, B, Cs, Param);
 		{code, _} ->
-			erlog_errors:permission_error(access, private_procedure, ec_support:pred_ind(Functor), Db);
+			erlog_errors:permission_error(access, private_procedure, ec_support:pred_ind(Functor));
 		built_in ->
-			erlog_errors:permission_error(access, private_procedure, ec_support:pred_ind(Functor), Db);
+			erlog_errors:permission_error(access, private_procedure, ec_support:pred_ind(Functor));
 		undefined -> erlog_errors:fail(Param)
 	end.
 
@@ -225,9 +225,9 @@ prove_retract(H, B, Params = #param{database = Db}) ->
 	case erlog_memory:get_procedure(Db, Functor) of
 		{clauses, Cs} -> retract_clauses(H, B, Cs, Params);
 		{code, _} ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
 		built_in ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
 		undefined -> erlog_errors:fail(Params)
 	end.
 
@@ -246,8 +246,8 @@ prove_retractall(H, B, Params = #param{next_goal = Next, bindings = Bs0, var_num
 				end, Cs),
 			ec_core:prove_body(Params#param{goal = Next});
 		{code, _} ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
 		built_in ->
-			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor), Db);
+			erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
 		undefined -> ec_core:prove_body(Params#param{goal = Next})
 	end.
