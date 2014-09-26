@@ -61,22 +61,22 @@ all: deps compile test
 # =============================================================================
 
 deps:
-	if [ -n "$(REBAR)" ] ; then \
+	@if [ -n "$(REBAR)" ] ; then \
 	$(REBAR) get-deps ; $(REBAR) compile ; \
 	fi
 
 update-deps:
-	if [ -n "$(REBAR)" ] ; then \
+	@if [ -n "$(REBAR)" ] ; then \
 	$(REBAR) update-deps; $(REBAR) compile ; \
 	fi
 
 eunit: compile
-	if [ -n "$(REBAR)" ] ; then \
+	@if [ -n "$(REBAR)" ] ; then \
 	$(REBAR) eunit skip_deps=true ; \
 	fi
 
 qc: compile
-	if [ -n "$(REBAR)" ] ; then \
+	@if [ -n "$(REBAR)" ] ; then \
 	$(REBAR) qc ; \
 	fi
 

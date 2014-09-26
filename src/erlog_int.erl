@@ -681,7 +681,8 @@ fail_findall(#cp{next=Next,data=List,bs=Bs,vn=Vn0}, Cps, #est{db=Db0}=St) ->
     [Loc0|Locs] = Db0#db.loc,
     Db1 = Db0#db{loc=Locs},
     {Loc1,Vn1} = findall_list(Loc0, Vn0, Bs, []),
-    unify_prove_body(List, Loc1, Next, St#est{cps=Cps,vn=Vn1,db=Db1}).
+    %% Make sure to drop all new bindings and revert to old bindings.
+    unify_prove_body(List, Loc1, Next, St#est{cps=Cps,bs=Bs,vn=Vn1,db=Db1}).
 
 findall_list([X0|Xs], Vn0, Bs, Acc) ->
     {X1,_,Vn1} = term_instance(dderef(X0, Bs), Vn0),
