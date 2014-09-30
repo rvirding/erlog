@@ -90,10 +90,9 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
 %% @private
 fail_goal_clauses(#cp{data = {G, Db, C}, next = Next, bs = Bs, vn = Vn}, Param) ->
   NextClause = case erlog_memory:next(Db) of
-                 [] -> io:format("empty next!~n"),[{next, C}];
+                 [] -> [{next, C}];
                  N -> N
                end,
-  io:format("fail_goal_clauses next ~p~n", [NextClause]),
   ec_core:prove_goal_clauses(NextClause, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private

@@ -103,12 +103,8 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
         error ->
           case dict:find(Functor, Dict) of  %search userspace last
             {ok, Cs} ->
-              {
-                {#cursor{type = external, function = findall, functor = Functor},
-                  {clauses, form_clauses(Cs, external)}
-                },
-                Db
-              };
+              Cursor = #cursor{type = external, function = findall, functor = Functor, data = stub},
+              {{Cursor, {clauses, form_clauses(Cs, Cursor)}}, Db};
             error -> {[], Db}
           end
       end
@@ -127,18 +123,16 @@ findall({StdLib, ExLib, Db}, {Functor}) ->  %for bagof
       end
   end.
 
-close(undefined) -> ok;
-close(Cursor) ->
-  io:format("close queue~n"),
-  put(Cursor, queue:new()). %save empty queue
+close(#cursor{data = undefined}) -> ok;
+close(#cursor{functor = Functor}) ->
+  put(Functor, queue:new()). %save empty queue
 
 next(undefined) -> [];
-next(Cursor) ->
-  Queue = get(Cursor),  %get clauses
-  io:format("get queue ~p~n", [Queue]),
+next(#cursor{functor = Functor}) ->
+  Queue = get(Functor),  %get clauses
   case queue:out(Queue) of  %take variant
     {{value, Val}, UQ} ->
-      put(Cursor, UQ),  %save others
+      put(Functor, UQ),  %save others
       Val;  %return it
     {empty, _} -> []  %nothing to return
   end.
@@ -154,7 +148,7 @@ get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
       {Res, Db} %normal return
   end;
 get_procedure({StdLib, ExLib, Db}, Param) ->
-  {Functor, Cursor} = check_param(Param),
+  {Functor, Type} = check_param(Param),
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
@@ -162,11 +156,9 @@ get_procedure({StdLib, ExLib, Db}, Param) ->
               {ok, ExFun} -> ExFun;
               error ->
                 case dict:find(Functor, Db) of  %search userspace last
-                  {ok, Cs} -> io:format("db search ~p~n", [Param]),
-                    {
-                      #cursor{type = Cursor, function = get_procedure, functor = Functor, data = Cursor},
-                      {clauses, form_clauses(Cs, Cursor)}
-                    };
+                  {ok, Cs} ->
+                    Cursor = #cursor{type = Type, function = get_procedure, functor = Functor, data = stub},
+                    {Cursor, {clauses, form_clauses(Cs, Cursor)}};
                   error -> undefined
                 end
             end
@@ -244,10 +236,9 @@ check_immutable(Dict, Functor) ->
 
 %% @private
 form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
-form_clauses([First | Loaded], Cursor) ->
+form_clauses([First | Loaded], #cursor{functor = Functor}) ->
   Queue = queue:from_list(Loaded),
-  io:format("put queue ~p~n", [Queue]),
-  put(Cursor, Queue),
+  put(Functor, Queue),
   First.
 
 %% @private

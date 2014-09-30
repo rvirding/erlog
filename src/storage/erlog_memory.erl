@@ -85,7 +85,7 @@ assertz_clause(Database, Head, Body) -> gen_server:call(Database, {assertz_claus
 db_assertz_clause(Database, Collection, {':-', Head, Body}) -> db_assertz_clause(Database, Collection, Head, Body);
 db_assertz_clause(Database, Collection, Head) -> db_assertz_clause(Database, Collection, Head, true).
 db_assertz_clause(Database, Collection, Head, Body) ->
-  gen_server:call(Database, {db, {assertz_clause, {Collection, Head, Body}}}).
+  gen_server:call(Database, {assertz_clause, {Collection, Head, Body}}).
 
 asserta_clause(Database, {':-', H, B}) -> asserta_clause(Database, H, B);
 asserta_clause(Database, H) -> asserta_clause(Database, H, true).
@@ -94,9 +94,9 @@ asserta_clause(Database, Head, Body) -> gen_server:call(Database, {asserta_claus
 db_asserta_clause(Database, Collection, {':-', H, B}) -> db_asserta_clause(Database, Collection, H, B);
 db_asserta_clause(Database, Collection, H) -> db_asserta_clause(Database, Collection, H, true).
 db_asserta_clause(Database, Collection, Head, Body) ->
-  gen_server:call(Database, {db, {asserta_clause, {Collection, Head, Body}}}).
+  gen_server:call(Database, {asserta_clause, {Collection, Head, Body}}).
 
-db_findall(Database, Collection, Fun) -> gen_server:call(Database, {db, {findall, {Collection, Fun}}}).
+db_findall(Database, Collection, Fun) -> gen_server:call(Database, {findall, {Collection, Fun}}).
 finadll(Database, Fun) -> gen_server:call(Database, {findall, {Fun}}).
 
 db_next(Database) -> gen_server:call(Database, db_next).
@@ -104,14 +104,14 @@ next(Database) -> gen_server:call(Database, next).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
 db_retract_clause(Database, Collection, F, Ct) ->
-  gen_server:call(Database, {db, {retract_clause, {Collection, F, Ct}}}).
+  gen_server:call(Database, {retract_clause, {Collection, F, Ct}}).
 
 abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, {Func}}).
 db_abolish_clauses(Database, Collection, Func) ->
-  gen_server:call(Database, {db, {abolish_clauses, {Collection, Func}}}).
+  gen_server:call(Database, {abolish_clauses, {Collection, Func}}).
 
 get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, {Func}}).
-get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {db, {get_procedure, {Collection, Func}}}).
+get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {get_procedure, {Collection, Func}}).
 
 get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, {Func}}).
 
@@ -127,7 +127,7 @@ raw_erase(Database, Key) -> gen_server:call(Database, {raw_erase, {Key}}).
 
 listing(Database, Args) -> gen_server:call(Database, {listing, {Args}}).
 
-db_listing(Database, Collection, Args) -> gen_server:call(Database, {db, {listing, {Collection, Args}}}).
+db_listing(Database, Collection, Args) -> gen_server:call(Database, {listing, {Collection, Args}}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -216,7 +216,7 @@ handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, da
   catch
     throw:E -> {reply, E, State}
   end;
-handle_call({db, {abolish_clauses, {_, Func} = Params}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
   try
     {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
     {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
@@ -224,20 +224,14 @@ handle_call({db, {abolish_clauses, {_, Func} = Params}}, _From, State = #state{s
     throw:E -> {reply, E, State}
   end;
 handle_call(next, _From, State = #state{database = Db, core_cursor = Core}) ->  %get next result by cursor
-  Res = Db:next(Core#cursor.data),
+  Res = Db:next(Core),
   {reply, Res, State};
 handle_call(db_next, _From, State = #state{database = Db, external_cursor = External}) ->  %get next result by cursor
-  Res = Db:next(External#cursor.data),
+  Res = Db:next(External),
   {reply, Res, State};
-handle_call({Fun, Params}, _From, State = #state{core_cursor = Core}) ->  %call third-party db module
+handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
   try
-    check_cursor(Core, Fun, Params, State)
-  catch
-    throw:E -> {reply, E, State}
-  end;
-handle_call({db, {Fun, Params}}, _From, State = #state{external_cursor = External}) ->  %call third-party db module
-  try
-    check_cursor(External, Fun, Params, State)
+    check_result(Db:Fun({StdLib, ExLib, DbState}, Params), State)
   catch
     throw:E -> {reply, E, State}
   end;
@@ -262,7 +256,9 @@ handle_call(_Request, _From, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast(halt, State) ->
+handle_cast(halt, State = #state{core_cursor = Core, external_cursor = External, database = Db}) ->
+  Db:close(Core),
+  Db:close(External),
   {stop, normal, State};
 handle_cast(_Request, State) ->
   {noreply, State}.
@@ -345,24 +341,16 @@ check_abolish(Func, StdLib, ExLib, Db, DbState, Params) ->
       {UExlib, DbState, ok}
   end.
 
-check_cursor(#cursor{type = external, function = Fun, functor = Functor, data = Data}, Fun, {_, Functor}, State = #state{database = Db}) ->  %request to same cursor
-  Res = Db:next(Data),
-  io:format("next for functor ~p~n", [Functor]),
-  {reply, Res, State};
-check_cursor(#cursor{type = core, function = Fun, functor = Functor, data = Data}, Fun,{Functor},  State = #state{database = Db}) ->  %request to same cursor
-  Res = Db:next(Data),
-  io:format("next for functor ~p~n", [Functor]),
-  {reply, Res, State};
-check_cursor(#cursor{function = F, functor = F1, data = Data}, Fun, Params, State = #state{database = Db, stdlib = StdLib, exlib = ExLib, state = DbState}) ->  %no match
-  Db:close(Data),
-  io:format("cursor mismatch - ext ~p ~p ~p ~p~n", [F, F1, Fun, Params]),
-  check_result(Db:Fun({StdLib, ExLib, DbState}, Params), State).
-
 %% @private
 %% Update cursor, if we got it
-check_result({{Cursor = #cursor{type = external}, Res}, UState}, State) ->
+check_result({{Cursor = #cursor{type = external}, Res}, UState}, State = #state{external_cursor = Old, database = Db}) ->
+  close_cursor(Cursor, Old, Db),
   {reply, Res, State#state{state = UState, external_cursor = Cursor}};
-check_result({{Cursor = #cursor{type = core}, Res}, UState}, State) ->
+check_result({{Cursor = #cursor{type = core}, Res}, UState}, State = #state{core_cursor = Old, database = Db}) ->
+  close_cursor(Cursor, Old, Db),
   {reply, Res, State#state{state = UState, core_cursor = Cursor}};
 check_result({Res, UState}, State) ->
   {reply, Res, State#state{state = UState}}.
+
+close_cursor(Same, Same, _) -> ok;
+close_cursor(_, Cursor, Db) -> Db:close(Cursor).
