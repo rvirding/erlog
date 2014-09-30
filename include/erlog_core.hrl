@@ -90,3 +90,11 @@
 		{to_string, 2}
 	]
 ).
+
+-record(cursor,
+{
+  type :: core | external,  %type of cursor. Ordinary cursor, or external cursor for db_library
+  function :: atom(), %function, which used cursor last
+  functor :: tuple(), %functor, which was searched through cursor last
+  data :: atom() | pid()  %cursor initial data, pid of database cursor's connection or smth else
+}).

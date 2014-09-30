@@ -74,11 +74,12 @@ prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bi
   prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
+  io:format("prove goal ~p~n", [ec_support:functor(G)]),
   case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
     {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
     {code, {Mod, Func}} -> Mod:Func(Param);  %library space
-    {clauses, []} -> erlog_errors:fail(Param);
-    {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
+    {clauses, []} -> io:format("empty~n"), erlog_errors:fail(Param);
+    {clauses, Cs} -> io:format("found ~p~n", [Cs]), prove_goal_clauses(Cs, Param);  %user space
     undefined -> erlog_errors:fail(Param);
     {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
   end.
@@ -87,27 +88,34 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
 prove_goal_clauses([{next, _}], Params) ->  %end of checking clauses
+  io:format("just end~n"),
   erlog_errors:fail(Params);
 prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) -> %for clauses with body
   %% Must be smart here and test whether we need to add a cut point.
   %% C has the structure {Tag,Head,{Body,BodyHasCut}}.
+  io:format("prove last~n"),
   case element(2, element(3, C)) of
     true ->
       Cut = #cut{label = Vn},
+      io:format("add cut point~n"),
       prove_goal_clause(C, Params#param{choice = [Cut | Cps]});
     false ->
+      io:format("just prove~n"),
       prove_goal_clause(C, Params)
   end;
 prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db}) ->
   Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, C}, next = Next, bs = Bs, vn = Vn},
+  io:format("ordinary prove~n"),
   prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
 prove_goal_clause([L], Param) -> prove_goal_clause(L, Param);
 prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
   Label = Vn0,
+  io:format("prove goal clause ~p ~p~n", [H0, B0]),
   case ec_unify:unify_head(G, H0, Bs0, Vn0 + 1) of
     {succeed, Rs0, Bs1, Vn1} ->
       {B1, _Rs2, Vn2} = ec_body:body_instance(B0, Next, Rs0, Vn1, Label),
+      io:format("succeed, prove ~p~n", [B1]),
       ec_core:prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
-    fail -> erlog_errors:fail(Param)
+    fail -> io:format("failed~n"), erlog_errors:fail(Param)
   end.

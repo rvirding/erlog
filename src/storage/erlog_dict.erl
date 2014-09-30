@@ -9,6 +9,8 @@
 
 -module(erlog_dict).
 
+-include("erlog_core.hrl").
+
 -behaviour(erlog_storage).
 
 %% erlog callbacks
@@ -100,7 +102,13 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
         {ok, ExFun} -> {ExFun, Db};
         error ->
           case dict:find(Functor, Dict) of  %search userspace last
-            {ok, Cs} -> {{external, {clauses, form_clauses(Cs, external)}}, Db};
+            {ok, Cs} ->
+              {
+                {#cursor{type = external, function = findall, functor = Functor},
+                  {clauses, form_clauses(Cs, external)}
+                },
+                Db
+              };
             error -> {[], Db}
           end
       end
@@ -120,11 +128,14 @@ findall({StdLib, ExLib, Db}, {Functor}) ->  %for bagof
   end.
 
 close(undefined) -> ok;
-close(Cursor) -> put(Cursor, queue:new()). %save empty queue
+close(Cursor) ->
+  io:format("close queue~n"),
+  put(Cursor, queue:new()). %save empty queue
 
 next(undefined) -> [];
 next(Cursor) ->
   Queue = get(Cursor),  %get clauses
+  io:format("get queue ~p~n", [Queue]),
   case queue:out(Queue) of  %take variant
     {{value, Val}, UQ} ->
       put(Cursor, UQ),  %save others
@@ -134,10 +145,10 @@ next(Cursor) ->
 
 get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
   Dict = erlog_db_storage:get_db(dict, Collection),
-  case get_procedure({StdLib, ExLib, Dict}, {{Functor}, external}) of
-    {external, {Res, Udict}} -> %return with cursor
+  case get_procedure({StdLib, ExLib, Dict}, {Functor, external}) of
+    {Cursor, {Res, Udict}} when is_record(Cursor, cursor) -> %return with cursor
       erlog_db_storage:update_db(Collection, Udict),
-      {{external, Res}, Db};
+      {{Cursor, Res}, Db};
     {Res, Udict} ->
       erlog_db_storage:update_db(Collection, Udict),
       {Res, Db} %normal return
@@ -151,7 +162,11 @@ get_procedure({StdLib, ExLib, Db}, Param) ->
               {ok, ExFun} -> ExFun;
               error ->
                 case dict:find(Functor, Db) of  %search userspace last
-                  {ok, Cs} -> {Cursor, {clauses, form_clauses(Cs, Cursor)}};
+                  {ok, Cs} -> io:format("db search ~p~n", [Param]),
+                    {
+                      #cursor{type = Cursor, function = get_procedure, functor = Functor, data = Cursor},
+                      {clauses, form_clauses(Cs, Cursor)}
+                    };
                   error -> undefined
                 end
             end
@@ -231,9 +246,11 @@ check_immutable(Dict, Functor) ->
 form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
 form_clauses([First | Loaded], Cursor) ->
   Queue = queue:from_list(Loaded),
+  io:format("put queue ~p~n", [Queue]),
   put(Cursor, Queue),
   First.
 
 %% @private
-check_param({Functor}) -> {Functor, cursor};
+%% Spike for imitation normal cursors, as separate processes
+check_param({Functor}) -> {Functor, core};
 check_param({{Functor}, external}) -> {Functor, external}.
