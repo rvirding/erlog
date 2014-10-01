@@ -33,10 +33,9 @@ load(Db) ->
 db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindings = Bs, database = Db}) ->
   {db_call, Table, G} = ec_support:dderef(Goal, Bs),
   case erlog_memory:db_findall(Db, Table, ec_support:functor(G)) of
-    [] -> erlog_errors:fail(Param);
-    {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
-    {clauses, Cs} -> prove_call(G, Cs, Next0, Param);
-    Cs -> prove_call(G, Cs, Next0, Param)
+    {cursor, Cursor, result, Result} ->
+      run_n_close(Result, Param#param{cursor = Cursor}, G, Next0);
+    Result -> check_result(Result, Param, G, Next0)
   end.
 
 db_assert_2(Params = #param{goal = {db_assert, _, _} = Goal, next_goal = Next, bindings = Bs, database = Db}) ->
@@ -100,8 +99,8 @@ prove_call(G, Cs, Next0, Param = #param{bindings = Bs, choice = Cps, database = 
     {[Next1 | _], true} ->
       %% Must increment Vn to avoid clashes!!!
       Cut = #cut{label = Vn},
-      prove_goal_clauses(Cs, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
-    {[Next1 | _], false} -> prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
+      ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
+    {[Next1 | _], false} -> ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
   end.
 
 %% @private
@@ -155,19 +154,20 @@ retract_clauses(Ch, Cb, [C | Cs], Param = #param{bindings = Bs0, var_num = Vn0},
 fail_retract(#cp{data = {Ch, Cb, Cs, Table}, next = Next, bs = Bs, vn = Vn}, Param) ->
   retract_clauses(Ch, Cb, Cs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}, Table).
 
-%% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
-%%      void.
-%% Try to prove Goal using Clauses which all have the same functor.
-prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) ->
-  %% Must be smart here and test whether we need to add a cut point.
-  %% C has the structure {Tag,Head,{Body,BodyHasCut}}.
-  case element(2, element(3, C)) of
-    true ->
-      Cut = #cut{label = Vn},
-      erlog_errors:fail(Params#param{choice = [Cut | Cps]});
-    false ->
-      erlog_errors:fail(Params)
-  end;
-prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db}) ->
-  Cp = #cp{type = db_goal_clauses, label = Vn, data = {G, Db, C}, next = Next, bs = Bs, vn = Vn},
-  ec_core:prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
+%% @private
+run_n_close(Result, Param = #param{database = Db, cursor = Cursor}, G, Next0) ->
+  try
+    Res = check_result(Result, Param#param{cursor = Cursor}, G, Next0),
+    erlog_memory:close(Db, Cursor),
+    Res
+  catch
+    throw:E ->
+      erlog_memory:close(Db, Cursor),
+      throw(E)
+  end.
+
+%% @private
+check_result([], Param, _, _) -> erlog_errors:fail(Param);
+check_result({clauses, Cs}, Param, G, Next) -> prove_call(G, Cs, Next, Param);
+check_result({erlog_error, E}, #param{database = Db}, _, _) -> erlog_errors:erlog_error(E, Db);
+check_result(Cs, Param, G, Next) -> prove_call(G, Cs, Next, Param).

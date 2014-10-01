@@ -75,12 +75,9 @@ prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bi
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
   case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
-    {built_in, Mod} -> Mod:prove_goal(Param); %kernel space
-    {code, {Mod, Func}} -> Mod:Func(Param);  %library space
-    {clauses, []} -> erlog_errors:fail(Param);
-    {clauses, Cs} -> prove_goal_clauses(Cs, Param);  %user space
-    undefined -> erlog_errors:fail(Param);
-    {erlog_error, E} -> erlog_errors:erlog_error(E, Db)  %Fill in more error data
+    {cursor, Cursor, result, Result} ->
+      run_n_close(Result, Param#param{cursor = Cursor});
+    Result -> check_result(Result, Param)
   end.
 
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
@@ -98,8 +95,8 @@ prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) -> %for cla
     false ->
       prove_goal_clause(C, Params)
   end;
-prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db}) ->
-  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, C}, next = Next, bs = Bs, vn = Vn},
+prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db, cursor = Cursor}) ->
+  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, C, Cursor}, next = Next, bs = Bs, vn = Vn},
   prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
 prove_goal_clause([L], Param) -> prove_goal_clause(L, Param);
@@ -111,3 +108,21 @@ prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next
       ec_core:prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
     fail -> erlog_errors:fail(Param)
   end.
+
+run_n_close(Result, Param = #param{database = Db, cursor = Cursor}) ->
+  try
+    Res = check_result(Result, Param),
+    erlog_memory:close(Db, Cursor),
+    Res
+  catch
+    throw:E ->
+      erlog_memory:close(Db, Cursor),
+      throw(E)
+  end.
+
+check_result({built_in, Mod}, Param) -> Mod:prove_goal(Param);
+check_result({code, {Mod, Func}}, Param) -> Mod:Func(Param);
+check_result({clauses, []}, Param) -> erlog_errors:fail(Param);
+check_result({clauses, Cs}, Param) -> prove_goal_clauses(Cs, Param);
+check_result(undefined, Param) -> erlog_errors:fail(Param);
+check_result({erlog_error, E}, #param{database = Db}) -> erlog_errors:erlog_error(E, Db).

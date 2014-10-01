@@ -98,8 +98,8 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
                  Cs when is_list(Cs) -> Cs;
                  _ -> []
                end,
-          Cursor = #cursor{type = external, function = findall, functor = Functor, data = stub},
-          {{Cursor, {clauses, form_clauses(CS, Cursor)}}, Db}
+          Cursor = form_cursor(),
+          {{cursor, Cursor, result, {clauses, form_clauses(CS, Cursor)}}, Db}
       end
   end;
 findall({StdLib, ExLib, Db}, {Functor}) ->
@@ -117,30 +117,24 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
       end
   end.
 
-close(#cursor{data = undefined}) -> ok;
-close(#cursor{functor = Functor}) ->
-  put(Functor, queue:new()). %save empty queue
+close(undefined) -> ok;
+close(Cursor) ->
+  put(Cursor, queue:new()). %save empty queue
 
 next(undefined) -> [];
-next(#cursor{functor = Functor}) ->
-  Queue = get(Functor),  %get clauses
+next(Cursor) ->
+  Queue = get(Cursor),  %get clauses
   case queue:out(Queue) of  %take variant
     {{value, Val}, UQ} ->
-      put(Functor, UQ),  %save others
+      put(Cursor, UQ),  %save others
       Val;  %return it
     {empty, _} -> []  %nothing to return
   end.
 
-get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
+get_procedure({StdLib, ExLib, _}, {Collection, Functor}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
-  case get_procedure({StdLib, ExLib, Ets}, {{Functor}, external}) of
-    {external, {Res, _}} -> %return with cursor
-      {{external, Res}, Db};
-    {Res, _} ->
-      {Res, Db} %normal return
-  end;
-get_procedure({StdLib, ExLib, Db}, Param) ->
-  {Functor, Type} = check_param(Param),
+  get_procedure({StdLib, ExLib, Ets}, {Functor});
+get_procedure({StdLib, ExLib, Db}, {Functor}) ->
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
@@ -149,8 +143,8 @@ get_procedure({StdLib, ExLib, Db}, Param) ->
               error ->
                 case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
                   Cs when is_list(Cs) ->
-                    Cursor = #cursor{type = Type, function = get_procedure, functor = Functor, data = stub},
-                    {Cursor, {clauses, form_clauses(Cs, Cursor)}};
+                    Cursor = form_cursor(),
+                    {cursor, Cursor, result, {clauses, form_clauses(Cs, Cursor)}};
                   _ -> undefined
                 end
             end
@@ -232,11 +226,10 @@ check_immutable(Dict, Functor) -> %TODO may be move me to erlog_memory?
 
 %% @private
 form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
-form_clauses([First | Loaded], #cursor{functor = Functor}) ->
+form_clauses([First | Loaded], Cursor) ->
   Queue = queue:from_list(Loaded),
-  put(Functor, Queue),
+  put(Cursor, Queue),
   First.
 
-%% @private
-check_param({Functor}) -> {Functor, core};
-check_param({{Functor}, external}) -> {Functor, external}.
+form_cursor() ->
+  [random:uniform(X) || X <- lists:seq(1, 20)].

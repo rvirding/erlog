@@ -32,7 +32,8 @@
   raw_append/3,
   raw_erase/2,
   listing/2,
-  next/1]).
+  next/2,
+  close/2]).
 
 -export([db_assertz_clause/3,
   db_assertz_clause/4,
@@ -42,8 +43,7 @@
   db_abolish_clauses/3,
   get_db_procedure/3,
   db_findall/3,
-  db_listing/3,
-  db_next/1]).
+  db_listing/3]).
 
 -export([load_kernel_space/3]).
 
@@ -63,9 +63,7 @@
   exlib :: dict, %library-space memory
   database :: atom(), % callback module for user-space memory
   in_mem :: dict, %integrated memory for findall operations
-  state :: term(), % callback state
-  core_cursor = #cursor{} :: #cursor{}, %cursors for db and normal operations
-  external_cursor = #cursor{} :: #cursor{}
+  state :: term() % callback state
 }).
 
 %%%===================================================================
@@ -99,8 +97,7 @@ db_asserta_clause(Database, Collection, Head, Body) ->
 db_findall(Database, Collection, Fun) -> gen_server:call(Database, {findall, {Collection, Fun}}).
 finadll(Database, Fun) -> gen_server:call(Database, {findall, {Fun}}).
 
-db_next(Database) -> gen_server:call(Database, db_next).
-next(Database) -> gen_server:call(Database, next).
+next(Database, Cursor) -> gen_server:call(Database, {next, Cursor}).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
 db_retract_clause(Database, Collection, F, Ct) ->
@@ -128,6 +125,8 @@ raw_erase(Database, Key) -> gen_server:call(Database, {raw_erase, {Key}}).
 listing(Database, Args) -> gen_server:call(Database, {listing, {Args}}).
 
 db_listing(Database, Collection, Args) -> gen_server:call(Database, {listing, {Collection, Args}}).
+
+close(Database, Cursor) -> gen_server:call(Database, {close, Cursor}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -223,15 +222,16 @@ handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state =
   catch
     throw:E -> {reply, E, State}
   end;
-handle_call(next, _From, State = #state{database = Db, core_cursor = Core}) ->  %get next result by cursor
-  Res = Db:next(Core),
+handle_call({next, Cursor}, _From, State = #state{database = Db}) ->  %get next result by cursor
+  Res = Db:next(Cursor),
   {reply, Res, State};
-handle_call(db_next, _From, State = #state{database = Db, external_cursor = External}) ->  %get next result by cursor
-  Res = Db:next(External),
+handle_call({close, Cursor}, _From, State = #state{database = Db}) ->  %get next result by cursor
+  Res = Db:close(Cursor),
   {reply, Res, State};
 handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
   try
-    check_result(Db:Fun({StdLib, ExLib, DbState}, Params), State)
+    {Res, UState} = Db:Fun({StdLib, ExLib, DbState}, Params),
+    {reply, Res, State#state{state = UState}}
   catch
     throw:E -> {reply, E, State}
   end;
@@ -256,9 +256,7 @@ handle_call(_Request, _From, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast(halt, State = #state{core_cursor = Core, external_cursor = External, database = Db}) ->
-  Db:close(Core),
-  Db:close(External),
+handle_cast(halt, State) ->
   {stop, normal, State};
 handle_cast(_Request, State) ->
   {noreply, State}.
@@ -340,17 +338,3 @@ check_abolish(Func, StdLib, ExLib, Db, DbState, Params) ->
     UExlib -> %dict changed -> was deleted
       {UExlib, DbState, ok}
   end.
-
-%% @private
-%% Update cursor, if we got it
-check_result({{Cursor = #cursor{type = external}, Res}, UState}, State = #state{external_cursor = Old, database = Db}) ->
-  close_cursor(Cursor, Old, Db),
-  {reply, Res, State#state{state = UState, external_cursor = Cursor}};
-check_result({{Cursor = #cursor{type = core}, Res}, UState}, State = #state{core_cursor = Old, database = Db}) ->
-  close_cursor(Cursor, Old, Db),
-  {reply, Res, State#state{state = UState, core_cursor = Cursor}};
-check_result({Res, UState}, State) ->
-  {reply, Res, State#state{state = UState}}.
-
-close_cursor(Same, Same, _) -> ok;
-close_cursor(_, Cursor, Db) -> Db:close(Cursor).
