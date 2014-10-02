@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([prove_body/1, prove_goal/1, prove_goal/5, prove_goal_clauses/2, prove_goal_clause/2]).
+-export([prove_body/1, prove_goal/1, prove_goal/5, prove_goal_clauses/2, run_n_close/2]).
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
@@ -76,7 +76,8 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
   case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
     {cursor, Cursor, result, Result} ->
-      run_n_close(Result, Param#param{cursor = Cursor});
+      Fun = fun() -> check_result(Result, Param) end,
+      run_n_close(Fun, Param#param{cursor = Cursor});
     Result -> check_result(Result, Param)
   end.
 
@@ -99,6 +100,21 @@ prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, 
   Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, C, Cursor}, next = Next, bs = Bs, vn = Vn},
   prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
+%% Run function and close cursor after that.
+-spec run_n_close(Fun :: fun(), #param{}) -> any().
+run_n_close(Fun, #param{database = Db, cursor = Cursor}) ->
+  try
+    Res = Fun(),
+    erlog_memory:close(Db, Cursor),
+    Res
+  catch
+    throw:E ->
+      erlog_memory:close(Db, Cursor),
+      throw(E)
+  end.
+
+%% @private
+prove_goal_clause([], Param) -> erlog_errors:fail(Param);
 prove_goal_clause([L], Param) -> prove_goal_clause(L, Param);
 prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
   Label = Vn0,
@@ -109,17 +125,7 @@ prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next
     fail -> erlog_errors:fail(Param)
   end.
 
-run_n_close(Result, Param = #param{database = Db, cursor = Cursor}) ->
-  try
-    Res = check_result(Result, Param),
-    erlog_memory:close(Db, Cursor),
-    Res
-  catch
-    throw:E ->
-      erlog_memory:close(Db, Cursor),
-      throw(E)
-  end.
-
+%% @private
 check_result({built_in, Mod}, Param) -> Mod:prove_goal(Param);
 check_result({code, {Mod, Func}}, Param) -> Mod:Func(Param);
 check_result({clauses, []}, Param) -> erlog_errors:fail(Param);
