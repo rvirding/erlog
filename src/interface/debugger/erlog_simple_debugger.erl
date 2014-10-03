@@ -28,7 +28,11 @@
 {
   policy = listing %default policy of debugger is listing.
 }).
-%% policy can be step - make N commands and
+%% policy can be:
+%% next N - make N commands and stop
+%% stop Pred - stop when predicate Pred will be executing
+%% listing - do not stop - just print every function result
+%% spy Pred - do not stop, pring only predicate Pred result
 
 %%%===================================================================
 %%% API
@@ -100,6 +104,12 @@ handle_call({_, Functor, Vars}, _From, State = #state{policy = {next, N}}) when 
   io:fwrite("Erlog debugger stopped execution on command ~p with memory: ~p.~n", [Functor, process_reply(Vars)]),
   Policy = process_action(),
   {reply, ok, State#state{policy = Policy}};
+handle_call({_, Functor, Vars}, _From, State = #state{policy = {spy, Pred}}) ->  %spying for predicate
+  case lists:flatten(io_lib:format("~p", [Functor])) of
+    Pred -> io:format("Execute ~p, memory: ~p~n", [Functor, process_reply(Vars)]);
+    _ -> ok
+  end,
+  {reply, ok, State};
 handle_call({_, Functor, _}, _From, State = #state{policy = {next, N}}) ->  %counting steps
   io:fwrite("Skip ~p~n", [Functor]),
   {reply, ok, State#state{policy = {next, N - 1}}};
@@ -207,10 +217,12 @@ process_action() ->
   Listing = lists:prefix("listing", Order),
   Next = lists:prefix("next", Order),
   Stop = lists:prefix("stop", Order),
+  Spy = lists:prefix("spy", Order),
   if
     Listing -> listing;
     Next -> process_next(Order);
     Stop -> process_stop(Order);
+    Spy -> process_spy(Order);
     true ->
       io:format("Wrong action!~n"),
       process_action()
@@ -225,3 +237,7 @@ process_next(Next) ->
 %% @private
 process_stop(Stop) ->
   {stop, Stop -- "stop \n"}.
+
+%% @private
+process_spy(Spy) ->
+  {spy, Spy -- "spy \n"}.
