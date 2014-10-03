@@ -123,12 +123,14 @@ close(Cursor) ->
 
 next(undefined) -> [];
 next(Cursor) ->
-  Queue = get(Cursor),  %get clauses
-  case queue:out(Queue) of  %take variant
-    {{value, Val}, UQ} ->
-      put(Cursor, UQ),  %save others
-      Val;  %return it
-    {empty, _} -> []  %nothing to return
+  case get(Cursor) of   %get clauses
+    undefined -> [];  %empty cursor
+    Queue -> case queue:out(Queue) of  %take variant
+               {{value, Val}, UQ} ->
+                 put(Cursor, UQ),  %save others
+                 Val;  %return it
+               {empty, _} -> []  %nothing to return
+             end
   end.
 
 get_procedure({StdLib, ExLib, _}, {Collection, Functor}) ->
