@@ -91,7 +91,7 @@ fail_goal_clauses(#cp{data = {G, Db, C, Cursor}, next = Next, bs = Bs, vn = Vn},
                  [] -> [{next, C}];
                  N -> N
                end,
-  ec_core:prove_goal_clauses(NextClause, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn}).
+  ec_core:prove_goal_clauses(NextClause, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = Cursor}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
   Data = erlog_memory:raw_fetch(Db, Tag),
