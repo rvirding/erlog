@@ -256,7 +256,7 @@ check_result({built_in, _}, _, _, Functor, _) ->
 check_result({code, _}, _, _, Functor, _) ->
   erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
 check_result({clauses, Cs}, H, B, _, Params = #param{cursor = Cursor}) ->
-  Fun = fun() -> retractall_clauses(Cs, H, B, Params) end,
+  Fun = fun(Param) -> retractall_clauses(Cs, H, B, Param) end,
   ec_core:run_n_close(Fun, Params#param{cursor = Cursor});
 check_result(undefined, _, _, _, Params = #param{next_goal = Next}) -> ec_core:prove_body(Params#param{goal = Next});
 check_result({erlog_error, E}, _, _, _, #param{database = Db}) -> erlog_errors:erlog_error(E, Db).

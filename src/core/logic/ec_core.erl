@@ -76,7 +76,7 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
   case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
     {cursor, Cursor, result, Result} ->
-      Fun = fun() -> check_result(Result, Param) end,
+      Fun = fun(Params) -> check_result(Result, Params) end,
       run_n_close(Fun, Param#param{cursor = Cursor});
     Result -> check_result(Result, Param)
   end.
@@ -102,9 +102,9 @@ prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, 
 
 %% Run function and close cursor after that.
 -spec run_n_close(Fun :: fun(), #param{}) -> any().
-run_n_close(Fun, #param{database = Db, cursor = Cursor}) ->
+run_n_close(Fun, Params = #param{database = Db, cursor = Cursor}) ->
   try
-    Res = Fun(),
+    Res = Fun(Params),
     erlog_memory:close(Db, Cursor),
     Res
   catch

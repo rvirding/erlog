@@ -34,7 +34,7 @@ db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindi
   {db_call, Table, G} = ec_support:dderef(Goal, Bs),
   case erlog_memory:db_findall(Db, Table, ec_support:functor(G)) of
     {cursor, Cursor, result, Result} ->
-      Fun = fun() -> check_call_result(Result, Param#param{cursor = Cursor}, G, Next0) end,
+      Fun = fun(Params) -> check_call_result(Result, Params, G, Next0) end,
       ec_core:run_n_close(Fun, Param#param{cursor = Cursor});
     Result -> check_call_result(Result, Param, G, Next0)
   end.
@@ -165,7 +165,7 @@ check_retractall_result({built_in, _}, _, _, Functor, _, _) ->
 check_retractall_result({code, _}, _, _, Functor, _, _) ->
   erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
 check_retractall_result({clauses, Cs}, H, B, _, Table, Params = #param{cursor = Cursor}) ->
-  Fun = fun() -> retractall_clauses(Table, Cs, H, B, Params) end,
+  Fun = fun(Param) -> retractall_clauses(Table, Cs, H, B, Param) end,
   ec_core:run_n_close(Fun, Params#param{cursor = Cursor});
 check_retractall_result(undefined, _, _, _, _, Params = #param{next_goal = Next}) ->
   ec_core:prove_body(Params#param{goal = Next});
