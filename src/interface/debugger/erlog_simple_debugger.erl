@@ -90,30 +90,37 @@ init([]) ->
 handle_call(conf, _From, State) ->
   Policy = process_action(),
   {reply, ok, State#state{policy = Policy}};
-handle_call({_, Functor, Vars}, _From, State = #state{policy = {stop, Pred}}) ->  %stopping
-  Polisy = case lists:flatten(io_lib:format("~p", [Functor])) of
-             Pred ->
-               io:fwrite("Erlog debugger stopped execution on command ~s with memory: ~p.~n", [Pred, process_reply(Vars)]),
-               process_action();
-             Other ->
-               io:format("Skip ~s~n", [Other]),
-               {stop, Pred}
+handle_call({_, Functor, Vars}, _From, State = #state{policy = {stop, Rule} = Old}) ->  %stopping
+  Fun =
+    fun() ->
+      io:fwrite("Erlog debugger stopped execution on command ~p with memory: ~p.~n", [Functor, process_reply(Vars)]),
+      process_action()
+    end,
+  Polisy = case process_match(Functor, Fun, Rule) of
+             false ->
+               io:format("Skip ~p~n", [Functor]),
+               Old;  %use old policy
+             NewPolicy -> NewPolicy  %update policy
            end,
   {reply, ok, State#state{policy = Polisy}};
-handle_call({_, Functor, Vars}, _From, State = #state{policy = {next, N}}) when N =< 1 -> %counting steps ending
+handle_call({_, Functor, Vars}, _From, State = #state{policy = {next, N, M}}) when N =< 1 -> %counting steps ending
   io:fwrite("Erlog debugger stopped execution on command ~p with memory: ~p.~n", [Functor, process_reply(Vars)]),
-  Policy = process_action(),
+  Policy = case select_next() of
+             skip -> {next, M, M};  %use old policy - update steps num
+             NewPolicy -> NewPolicy %update policy
+           end,
   {reply, ok, State#state{policy = Policy}};
-handle_call({_, Functor, Vars}, _From, State = #state{policy = {spy, Pred}}) ->  %spying for predicate
-  case lists:flatten(io_lib:format("~p", [Functor])) of
-    Pred -> io:format("Execute ~p, memory: ~p~n", [Functor, process_reply(Vars)]);
-    _ -> ok
-  end,
+handle_call({_, Functor, Vars}, _From, State = #state{policy = {spy, Rule}}) ->  %spying for predicate
+  Fun =
+    fun() ->
+      io:format("Execute ~p, memory: ~p~n", [Functor, process_reply(Vars)])
+    end,
+  process_match(Functor, Fun, Rule),
   {reply, ok, State};
-handle_call({_, Functor, _}, _From, State = #state{policy = {next, N}}) ->  %counting steps
-  io:fwrite("Skip ~p~n", [Functor]),
-  {reply, ok, State#state{policy = {next, N - 1}}};
-handle_call({_Res, Functor, Vars}, _From, State) -> %listing
+handle_call({_, Functor, _}, _From, State = #state{policy = {next, N, M}}) ->  %next = counting steps
+  io:format("Skip ~p~n", [Functor]),
+  {reply, ok, State#state{policy = {next, N - 1, M}}};
+handle_call({_Res, Functor, Vars}, _From, State = #state{policy = listing}) -> %listing
   io:format("Execute ~p, memory: ~p~n", [Functor, process_reply(Vars)]),
   {reply, ok, State};
 handle_call(_Request, _From, State) ->
@@ -183,6 +190,16 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+process_match(Functor, Execute, {detailed, Functor}) ->
+  Execute();
+process_match(_, _, {detailed, _}) ->
+  false;
+process_match(Functor, Execute, {arity, Pred}) ->
+  case ec_support:functor(Functor) of
+    Pred -> Execute();
+    _ -> false
+  end.
+
 %% @private
 process_reply(Dict) ->
   case dict:size(Dict) of
@@ -228,16 +245,44 @@ process_action() ->
       process_action()
   end.
 
+select_next() ->
+  case io:get_line('[C\_]:') of
+    "C\n" -> process_action();
+    _ -> skip
+  end.
+
 %% @private
 process_next(Next) ->
   N = Next -- "next ",
   {Num, _Rest} = string:to_integer(N),
-  {next, Num}.
+  {next, Num, Num}.
+
+%% @private
+process_pred(Pred) ->
+  case string:str(Pred, "/") of
+    0 -> {detailed, get_detailed(Pred)};  %process detailed predicate
+    N -> {arity, get_arity(Pred, N)}    %process pred/arity predicate
+  end.
+
+%% @private
+%% Get prolog predicate from string functor(...)
+-spec get_detailed(Pred :: string()) -> tuple().
+get_detailed(Pred) ->
+  {done, Res, _} = erlog_scan:tokens([], Pred ++ ".\n", 1),
+  {ok, Predicate} = erlog_parse:parse_prolog_term(Res),
+  Predicate.
+
+%% @private
+%% Get tuple {Functor, Arity} from functor(...)
+-spec get_arity(Pred :: string(), N :: integer()) -> tuple().
+get_arity(Pred, N) ->
+  {Fun, Arity} = lists:split(N, Pred),
+  {list_to_atom(Fun -- "/"), list_to_integer(Arity)}.
 
 %% @private
 process_stop(Stop) ->
-  {stop, Stop -- "stop \n"}.
+  {stop, process_pred(Stop -- "stop \n")}.
 
 %% @private
 process_spy(Spy) ->
-  {spy, Spy -- "spy \n"}.
+  {spy, process_pred(Spy -- "spy \n")}.
