@@ -190,6 +190,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+process_match({{_},_,_}, _, _) -> false;  %skip support functors
 process_match(Functor, Execute, {detailed, Functor}) ->
   Execute();
 process_match(_, _, {detailed, _}) ->
