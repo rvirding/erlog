@@ -108,6 +108,12 @@ prove_call(G, Cs, Next0, Param = #param{bindings = Bs, choice = Cps, database = 
 prove_retract(H, B, Table, Params = #param{database = Db}) ->
   Functor = ec_support:functor(H),
   case erlog_memory:get_db_procedure(Db, Table, Functor) of
+    {cursor, Cursor, result, {clauses, Cs}} ->
+      try
+        retract_clauses(H, B, Cs, Params, Table)
+      after
+        erlog_memory:close(Db, Cursor)
+      end;
     {clauses, Cs} -> retract_clauses(H, B, Cs, Params, Table);
     undefined -> erlog_errors:fail(Params)
   end.

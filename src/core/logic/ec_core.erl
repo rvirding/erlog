@@ -104,13 +104,9 @@ prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, 
 -spec run_n_close(Fun :: fun(), #param{}) -> any().
 run_n_close(Fun, Params = #param{database = Db, cursor = Cursor}) ->
   try
-    Res = Fun(Params),
-    erlog_memory:close(Db, Cursor),
-    Res
-  catch
-    throw:E ->
-      erlog_memory:close(Db, Cursor),
-      throw(E)
+    Fun(Params)
+  after
+    erlog_memory:close(Db, Cursor)
   end.
 
 %% @private
