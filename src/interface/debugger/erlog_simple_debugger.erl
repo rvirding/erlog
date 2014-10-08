@@ -90,6 +90,10 @@ init([]) ->
 handle_call(conf, _From, State) ->
   Policy = process_action(),
   {reply, ok, State#state{policy = Policy}};
+handle_call({stop, Functor, Vars}, _From, State) ->
+  io:fwrite("Erlog debugger stopped execution on command ~p with memory: ~p.~n", [Functor, process_reply(Vars)]),
+  Policy = process_action(),
+  {reply, ok, State#state{policy = Policy}};
 handle_call({_, Functor, Vars}, _From, State = #state{policy = {stop, Rule} = Old}) ->  %stopping
   Fun =
     fun() ->
@@ -190,7 +194,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-process_match({{_},_,_}, _, _) -> false;  %skip support functors
+process_match({{_}, _, _}, _, _) -> false;  %skip support functors
 process_match(Functor, Execute, {detailed, Functor}) ->
   Execute();
 process_match(_, _, {detailed, _}) ->

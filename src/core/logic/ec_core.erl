@@ -50,6 +50,9 @@ prove_goal(Param = #param{goal = {{once}, Label}, next_goal = Next, choice = Cps
   %% There is no ( G, ! ) here, it has already been prepended to Next.
   Cut = #cut{label = Label},
   prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
+prove_goal(Param = #param{goal = {'??', Next}, bindings = Bs, debugger = Deb}) -> %debug stop point
+  Deb(stop, ec_support:dderef(Next, Bs), Bs),
+  prove_goal(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {{if_then_else}, Else, Label}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
   %% Need to push a choicepoint to fail back to inside Cond and a cut
   %% to cut back to before Then when Cond succeeds. #cp{type=if_then_else}

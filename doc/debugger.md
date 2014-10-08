@@ -72,3 +72,36 @@ section. When goal matches - debugger will print execution, otherwise it will be
     Execute {foo,a,b}, memory: []
     true
     
+#### Stopping with break poing
+To stop execution somewhere in your code before specific functor - place breakpoint on this line. To place breakpoint in 
+code use `'??'` special functor.  
+Example code with one breakpoint:  
+
+    test:-
+	    writeln("before breakpoint"),
+	    '??'(writeln("stop me")),
+	    writeln("after breakpoint").
+Output:
+
+    1> {ok, Pid} = erlog_simple_debugger:start_link().
+    {ok,<0.34.0>}
+    2> erlog_local_shell:start(Pid).
+    Erlog Shell V6.1 with debugger (abort with ^G)
+    | ?- consult('/home/prolog/test_debug.pl').
+    Execute {call,{consult,'/home/prolog/test_debug.pl'}}, memory: []
+    Execute {consult,'/home/prolog/test_debug.pl'}, memory: []
+    true
+    | ?- test.
+    Execute {call,test}, memory: []
+    Execute test, memory: []
+    Execute {writeln,"before breakpoint"}, memory: []
+    erlog_simple_printer: "before breakpoint"
+    Execute {'??',{writeln,"stop me"}, memory: []
+    Erlog debugger stopped execution on command {writeln,"stop me"} with memory: [].
+    Select action
+    | ?- listing 
+    erlog_simple_printer: "stop me"
+    Execute {writeln,"after breakpoint"}, memory: []
+    erlog_simple_printer: "after breakpoint"
+    true    
+    
