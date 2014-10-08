@@ -84,7 +84,7 @@ prove_goal(Param = #param{goal = G, database = Db}) ->
 %% prove_goal_clauses(Goal, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to prove Goal using Clauses which all have the same functor.
-prove_goal_clauses([{next, _}], Params) ->  %end of checking clauses
+prove_goal_clauses([], Params) ->  %end of checking clauses
   erlog_errors:fail(Params);
 prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) -> %for clauses with body
   %% Must be smart here and test whether we need to add a cut point.
@@ -97,7 +97,7 @@ prove_goal_clauses([C], Params = #param{choice = Cps, var_num = Vn}) -> %for cla
       prove_goal_clause(C, Params)
   end;
 prove_goal_clauses(C, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db, cursor = Cursor}) ->
-  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, C, Cursor}, next = Next, bs = Bs, vn = Vn},
+  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, Cursor}, next = Next, bs = Bs, vn = Vn},
   prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
 %% Run function and close cursor after that.
@@ -124,7 +124,6 @@ prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next
 %% @private
 check_result({built_in, Mod}, Param) -> Mod:prove_goal(Param);
 check_result({code, {Mod, Func}}, Param) -> Mod:Func(Param);
-check_result({clauses, []}, Param) -> erlog_errors:fail(Param);
 check_result({clauses, Cs}, Param) -> prove_goal_clauses(Cs, Param);
 check_result(undefined, Param) -> erlog_errors:fail(Param);
 check_result({erlog_error, E}, #param{database = Db}) -> erlog_errors:erlog_error(E, Db).
