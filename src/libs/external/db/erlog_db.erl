@@ -134,7 +134,8 @@ retract(Ch, Cb, C, Cursor, Param = #param{next_goal = Next, choice = Cps, bindin
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
-retract_clauses(_Ch, _Cb, [], Param, _) -> erlog_errors:fail(Param);
+retract_clauses(_, _, [], Param, _) -> erlog_errors:fail(Param);
+retract_clauses(Ch, Cb, [C], Param, Table) -> retract_clauses(Ch, Cb, C, Param, Table);
 retract_clauses(Ch, Cb, C, Param = #param{bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}, Table) ->
   case ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
     {succeed, Bs1, Vn1} ->
@@ -153,12 +154,14 @@ check_call_result({erlog_error, E}, #param{database = Db}, _, _) -> erlog_errors
 check_call_result(Cs, Param, G, Next) -> prove_call(G, Cs, Next, Param).
 
 retractall_clauses(_, [], _, _, Params = #param{next_goal = Next}) -> ec_core:prove_body(Params#param{goal = Next});
+retractall_clauses(Table, [Clause], H, B, Params) -> retractall_clauses(Table, Clause, H, B, Params);
 retractall_clauses(Table, Clause, H, B, Params = #param{bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}) ->
   case ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
     {succeed, _, _} ->
       erlog_memory:db_retract_clause(Db, Table, ec_support:functor(H), element(1, Clause)),
       retractall_clauses(Table, erlog_memory:next(Db, Cursor), H, B, Params);
-    fail -> retractall_clauses(Table, [], H, B, Params)
+    fail ->
+      retractall_clauses(Table, [], H, B, Params)
   end.
 
 %% @private

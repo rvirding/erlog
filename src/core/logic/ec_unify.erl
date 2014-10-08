@@ -45,6 +45,7 @@ unify_clauses(Ch, Cb, C, Param = #param{next_goal = Next, bindings = Bs0, var_nu
     fail -> unify_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param)
   end.
 
+unify_clause(Ch, Cb, [C], Bs0, Vn0) -> unify_clause(Ch, Cb, C, Bs0, Vn0);
 unify_clause(Ch, Cb, {_Tag, H0, {B0, _}}, Bs0, Vn0) ->
   {H1, Rs1, Vn1} = ec_term:term_instance(H0, Vn0),  %Unique vars on head first
   case unify(Ch, H1, Bs0) of
