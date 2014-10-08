@@ -72,7 +72,7 @@ section. When goal matches - debugger will print execution, otherwise it will be
     Execute {foo,a,b}, memory: []
     true
     
-#### Stopping with break poing
+#### Stopping with breakpoint
 To stop execution somewhere in your code before specific functor - place breakpoint on this line. To place breakpoint in 
 code use `'??'` special functor.  
 Example code with one breakpoint:  
