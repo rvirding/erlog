@@ -29,7 +29,8 @@
 -record(est, {cps,				%Choice points
 	      bs,				%Bindings
 	      vn,				%Var num
-	      db				%Database
+	      db,				%Database
+	      fs				%Flags
 	     }).
 -record(db, {mod,				%Database module
 	     ref,				%Database reference

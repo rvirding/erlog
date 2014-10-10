@@ -148,9 +148,10 @@
 %% Error types.
 -export([erlog_error/1,erlog_error/2,type_error/2,type_error/3,
 	 instantiation_error/0,instantiation_error/1,
-	 permission_error/3,permission_error/4]).
+	 permission_error/3,permission_error/4,
+	 existence_error/3,domain_error/3]).
 
-%%-compile(export_all).
+-compile(export_all).
 
 -import(lists, [map/2,foldl/3,foldr/3,mapfoldr/3]).
 
@@ -164,7 +165,11 @@ new(DbMod, DbArg) ->
     DbRef = DbMod:new(DbArg),			%Initialise the database
     Db0 = #db{mod=DbMod,ref=DbRef,loc=[]},
     Db1 = built_in_db(Db0),			%Add these builtins
-    St = #est{cps=[],bs=[],vn=0,db=Db1},
+    Fs = [{bounded,false},			%Default flags (sorted)
+	  {debug,off},
+	  {max_arity,250},
+	  {unknown,error}],
+    St = #est{cps=[],bs=[],vn=0,db=Db1,fs=Fs},
     {ok,St}.
 
 %% prove_goal(Goal, State) -> Succeed | Fail.
@@ -214,6 +219,9 @@ built_in_db(Db0) ->
 		 {halt, 1},
 		 %% All solutions
 		 {findall,3},
+		 %% Prolog flags
+		 {current_prolog_flag,2},
+		 {set_prolog_flag,2},
 		 %% External interface
 		 {ecall,2},
 		 %% Non-standard but useful
@@ -294,6 +302,7 @@ prove_goal({{once},Label}, Next, #est{cps=Cps}=St) ->
 prove_goal(repeat, Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
     Cp = #cp{type=disjunction,next=[repeat|Next],bs=Bs,vn=Vn},
     prove_body(Next, St#est{cps=[Cp|Cps]});
+
 %% Clause creation and destruction.
 prove_goal({abolish,Pi0}, Next, #est{bs=Bs,db=Db0}=St) ->
     case dderef(Pi0, Bs) of
@@ -317,6 +326,7 @@ prove_goal({assertz,C0}, Next, #est{bs=Bs,db=Db0}=St) ->
 prove_goal({retract,C0}, Next, #est{bs=Bs}=St) ->
     C = dderef(C0, Bs),
     prove_retract(C, Next, St);
+
 %% Process controll
 prove_goal({halt,C0}, _Next, #est{bs=Bs}) ->
     C = dderef(C0, Bs),
@@ -340,6 +350,7 @@ prove_goal({predicate_property,H0,P}, Next, #est{bs=Bs,db=Db}=St) ->
 	throw:{erlog_error,E} ->
 	    erlog_error(E, St)	                %Add state to error
     end;
+
 %% All solutions.
 prove_goal({findall,T,G,L}, Next, St) ->
     prove_findall(T, G, L, Next, St);
@@ -348,6 +359,13 @@ prove_goal({{findall},T0}, _Next, #est{bs=Bs,db=Db0}=St) ->
     [Loc|Locs] = Db0#db.loc,			%Add it to the top local list
     Db1 = Db0#db{loc=[[T1|Loc]|Locs]},
     ?FAIL(St#est{db=Db1});
+
+%% Prolog flags.
+prove_goal({current_prolog_flag,F,V}, Next, St) ->
+    prove_current_prolog_flag(F, V, Next, St);
+prove_goal({set_prolog_flag,F,V}, Next, #est{bs=Bs}=St) ->
+    prove_set_prolog_flag(deref(F, Bs), deref(V, Bs), Next, St);
+
 %% External interface.
 prove_goal({ecall,C0,Val}, Next, #est{bs=Bs}=St) ->
     %% Build the initial call.
@@ -366,11 +384,13 @@ prove_goal({ecall,C0,Val}, Next, #est{bs=Bs}=St) ->
 	       Other -> type_error(callable, Other, St)
 	   end,
     prove_ecall(Efun, Val, Next, St);
+
 %% Non-standard but useful.
 prove_goal({display,T}, Next, #est{bs=Bs}=St) ->
     %% A very simple display procedure.
     io:fwrite("~p\n", [dderef(T, Bs)]),
     prove_body(Next, St);
+
 %% Now look up the database.
 prove_goal(G0, Next, #est{bs=Bs,db=Db}=St) ->
     G = dderef(G0, Bs),
@@ -379,7 +399,13 @@ prove_goal(G0, Next, #est{bs=Bs,db=Db}=St) ->
 	built_in -> erlog_bips:prove_goal(G, Next, St);
 	{code,{Mod,Func}} -> Mod:Func(G, Next, St);
 	{clauses,Cs} -> prove_goal_clauses(G, Cs, Next, St);
-	undefined -> ?FAIL(St)
+	undefined ->
+	    case get_prolog_flag(unknown, St) of
+		error ->			%Throw error
+		    existence_error(procedure, pred_ind(functor(G)), St);
+		_ ->				%Fail or warning
+		    ?FAIL(St)
+	    end
     catch
 	throw:{erlog_error,E} ->
 	    erlog_error(E, St)	                %Add state to error
@@ -415,6 +441,8 @@ fail([#cp{type=current_predicate}=Cp|Cps], St) ->
     fail_current_predicate(Cp, Cps, St);
 fail([#cp{type=findall}=Cp|Cps], St) ->
     fail_findall(Cp, Cps, St);
+fail([#cp{type=current_prolog_flag}=Cp|Cps], St) ->
+    fail_current_prolog_flag(Cp, Cps, St);
 fail([#cp{type=ecall}=Cp|Cps], St) ->
     fail_ecall(Cp, Cps, St);
 fail([#cp{type=compiled,data=F}=Cp|Cps], St) ->
@@ -439,24 +467,24 @@ cut(Label, Last, Next, [#cp{type=goal_clauses,label=Label}=Cp|Cps], St) ->
 cut(Label, Last, Next, [_Cp|Cps], St) ->
     cut(Label, Last, Next, Cps, St).
 
-%% cut(Label, Last, Next, Cps, Bs, Vn, Db) ->
-%%     cut(Label, Last, Next, Cps, Bs, Vn, Db, 1).
+%% cut(Label, Last, Next, #est{cps=Cpd}=St) ->
+%%     cut(Label, Last, Next, Cps, St, 1).
 
-%% cut(Label, Last, Next, [#cut{label=Label}|Cps]=Cps0, Bs, Vn, Db, Cn) ->
+%% cut(Label, Last, Next, [#cut{label=Label}|Cps]=Cps0, St, Cn) ->
 %%     put(erlog_cut, orddict:update_counter(Cn, 1, get(erlog_cut))),
-%%     if  Last -> prove_body(Next, Cps, Bs, Vn, Db);
-%% 	true -> prove_body(Next, Cps0, Bs, Vn, Db)
+%%     if  Last -> prove_body(Next, St#est{cps=Cps});
+%% 	true -> prove_body(Next, St#est{cps=Cps0})
 %%     end;
-%% cut(Label, Last, Next, [#cp{type=if_then_else,label=Label}|Cps]=Cps0, Bs, Vn, Db, Cn) ->
+%% cut(Label, Last, Next, [#cp{type=if_then_else,label=Label}|Cps]=Cps0, St, Cn) ->
 %%     put(erlog_cut, orddict:update_counter(Cn, 1, get(erlog_cut))),
-%%     if  Last -> prove_body(Next, Cps, Bs, Vn, Db);
-%% 	true -> prove_body(Next, Cps0, Bs, Vn, Db)
+%%     if  Last -> prove_body(Next, St#est{cps=Cps});
+%% 	true -> prove_body(Next, St#est{cps=Cps0})
 %%     end;
-%% cut(Label, Last, Next, [#cp{type=goal_clauses,label=Label}=Cp|Cps], Bs, Vn, Db, Cn) ->
+%% cut(Label, Last, Next, [#cp{type=goal_clauses,label=Label}=Cp|Cps], St, Cn) ->
 %%     put(erlog_cut, orddict:update_counter(Cn, 1, get(erlog_cut))),
-%%     cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db);
-%% cut(Label, Last, Next, [_Cp|Cps], Bs, Vn, Db, Cn) ->
-%%     cut(Label, Last, Next, Cps, Bs, Vn, Db, Cn+1).
+%%     cut_goal_clauses(Last, Next, Cp, St#est{cps=Cps});
+%% cut(Label, Last, Next, [_Cp|Cps], St, Cn) ->
+%%     cut(Label, Last, Next, Cps, St, Cn+1).
 
 %% check_goal(Goal, Next, St, CutAfter, CutLabel) ->
 %%      {WellFormedBody,HasCut}.
@@ -544,7 +572,7 @@ unify_clause(Ch, Cb, {_Tag,H0,{B0,_}}, Bs0, Vn0) ->
 fail_clause(#cp{data={Ch,Cb,Cs},next=Next,bs=Bs,vn=Vn}, Cps, St) ->
     unify_clauses(Ch, Cb, Cs, Next, St#est{cps=Cps,bs=Bs,vn=Vn}).
 
-%% prove_current_predicate(PredInd, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
+%% prove_current_predicate(PredInd, Next, State) ->
 %%      void.
 %% Match functors of existing user (interpreted) predicate with PredInd.
 
@@ -689,6 +717,49 @@ findall_list([X0|Xs], Vn0, Bs, Acc) ->
     findall_list(Xs, Vn1, Bs, [X1|Acc]);
 findall_list([], Vn, _, Acc) -> {Acc,Vn}.
 
+%% prove_current_prolog_flag(Flag, Value, Next, State) ->
+%%      void.
+%% prove_set_prolog_flag(Flag, Value, Next, State) ->
+%%      void.
+
+prove_current_prolog_flag(F, V, Next, #est{fs=Fs}=St) ->
+    prove_prolog_flags(F, V, Fs, Next, St).
+
+prove_prolog_flags(F, V, [{Pf,Pv}|Fs], Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
+    Cp = #cp{type=current_prolog_flag,data={F,V,Fs},next=Next,bs=Bs,vn=Vn},
+    unify_prove_body(F, Pf, V, Pv, Next, St#est{cps=[Cp|Cps]});
+prove_prolog_flags(_F, _V, [], _Next, St) -> ?FAIL(St).
+
+fail_current_prolog_flag(#cp{data={F,V,Fs},next=Next,bs=Bs,vn=Vn}, Cps, St) ->
+    prove_prolog_flags(F, V, Fs, Next, St#est{cps=Cps,bs=Bs,vn=Vn}).
+
+prove_set_prolog_flag(F, V, Next, St) ->
+    %% Check settable flags.
+    case F of
+	debug ->
+	    prove_set_prolog_flag(debug, [on,off], V, Next, St);
+	unknown ->
+	    prove_set_prolog_flag(unknown, [error,fail,warning], V, Next, St);
+	{_} -> instantiation_error(St);
+	F -> domain_error(prolog_flag, F, St)
+    end.
+
+prove_set_prolog_flag(_F, _Vs, {_}, _Next, St) ->
+    instantiation_error(St);
+prove_set_prolog_flag(F, Vs, V, Next, St0) ->
+    case lists:member(V, Vs) of
+	true ->
+	    St1 = set_prolog_flag(F, V, St0),
+	    prove_body(Next, St1);
+	false -> domain_error(flag_value, {'+',F,V}, St0)
+    end.
+
+get_prolog_flag(F, #est{fs=Fs}) ->		%We should know the flags
+    orddict:fetch(F, Fs).
+
+set_prolog_flag(F, V, #est{fs=Fs}=St) ->
+    St#est{fs=orddict:store(F, V, Fs)}.
+
 %% prove_ecall(Generator, Value, Next, St) ->
 %%     void.
 %%  Call an external (Erlang) generator and handle return value,
@@ -779,6 +850,12 @@ permission_error(Op, Type, Value) ->
 
 permission_error(Op, Type, Value, St) ->
     erlog_error({permission_error,Op,Type,Value}, St).
+
+existence_error(Type, PI, St) ->
+    erlog_error({existence_error,Type,PI}, St).
+
+domain_error(Domain, Value, St) ->
+    erlog_error({domain_error,Domain,Value}, St).
 
 erlog_error(E) -> throw({erlog_error,E}).
 erlog_error(E, St) -> throw({erlog_error,E,St}).
@@ -1127,7 +1204,7 @@ body_conj(L, R) -> {',',L,R}.
 
 pred_ind({N,A}) -> {'/',N,A}.
 
-%% pred_ind(N, A) -> {'/',N,A}.
+pred_ind(N, A) -> {'/',N,A}.
 
 %% Bindings
 %% Bindings are kept in a dict where the key is the variable name.
