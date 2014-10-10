@@ -47,7 +47,7 @@ server_loop(Erl0) ->
 		    io:fwrite("Yes\n"),
 		    server_loop(Erl1);
 		{erlog_error,Error} ->
-		    io:fwrite("Error: ~p\n", [Error]),
+		    io:fwrite("Error: ~s\n", [erlog_io:write1(Error)]),
 		    server_loop(Erl0);
 		{error,{L,Pm,Pe}} ->
 		    io:fwrite("Error: ~w: ~s\n", [L,Pm:format_error(Pe)]),
@@ -60,7 +60,7 @@ server_loop(Erl0) ->
 	    case erlog:load(Erl0, Mod) of
 		{ok,Erl1} -> show_bindings([], Erl1);
 		{error,Error} ->
-		    io:fwrite("Error: ~p\n", [Error]),
+		    io:fwrite("Error: ~s\n", [erlog_io:write1(Error)]),
 		    server_loop(Erl0)
 	    end;
 	{ok,Goal} ->
@@ -84,7 +84,7 @@ shell_prove_result({fail,Erl}) ->
     server_loop(Erl);
 shell_prove_result({{error,Error},Erl}) ->
     %% Errors from the Erlog interpreters.
-    io:fwrite("Error: ~p\n", [Error]),
+    io:fwrite("Error: ~s\n", [erlog_io:write1(Error)]),
     server_loop(Erl);
 shell_prove_result({{'EXIT',Error},Erl}) ->	%No new database here
     %% Errors and exits from user code.
