@@ -222,12 +222,12 @@ handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state =
   catch
     throw:E -> {reply, E, State}
   end;
-handle_call({next, Cursor}, _From, State = #state{database = Db}) ->  %get next result by cursor
-  Res = Db:next(Cursor),
-  {reply, Res, State};
-handle_call({close, Cursor}, _From, State = #state{database = Db}) ->  %get next result by cursor
-  Res = Db:close(Cursor),
-  {reply, Res, State};
+handle_call({next, Cursor}, _From, State = #state{state = DbState, database = Db}) ->  %get next result by cursor
+  {Res, UState} = Db:next(DbState, Cursor),
+  {reply, Res, State#state{state = UState}};
+handle_call({close, Cursor}, _From, State = #state{state = DbState, database = Db}) ->  %get next result by cursor
+  {Res, UState} = Db:close(DbState, Cursor),
+  {reply, Res, State#state{state = UState}};
 handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
   try
     {Res, UState} = Db:Fun({StdLib, ExLib, DbState}, Params),

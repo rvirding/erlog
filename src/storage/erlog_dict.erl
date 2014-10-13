@@ -24,8 +24,8 @@
   get_interp_functors/1,
   findall/2,
   listing/2,
-  close/1,
-  next/1]).
+  close/2,
+  next/2]).
 
 new() -> {ok, dict:new()}.
 
@@ -123,19 +123,20 @@ findall({StdLib, ExLib, Db}, {Functor}) ->  %for bagof
       end
   end.
 
-close(undefined) -> ok;
-close(Cursor) ->
-  put(Cursor, queue:new()). %save empty queue
+close(Db, undefined) -> {ok, Db};
+close(Db, Cursor) ->
+  put(Cursor, queue:new()),
+  {ok, Db}. %save empty queue
 
-next(undefined) -> [];
-next(Cursor) ->
+next(Db, undefined) -> {[], Db};
+next(Db, Cursor) ->
   case get(Cursor) of   %get clauses
     undefined -> [];  %empty cursor
     Queue -> case queue:out(Queue) of  %take variant
                {{value, Val}, UQ} ->
                  put(Cursor, UQ),  %save others
-                 Val;  %return it
-               {empty, _} -> []  %nothing to return
+                 {Val, Db};  %return it
+               {empty, _} -> {[], Db}  %nothing to return
              end
   end.
 

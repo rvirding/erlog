@@ -24,8 +24,8 @@
   get_interp_functors/1,
   findall/2,
   listing/2,
-  close/1,
-  next/1]).
+  close/2,
+  next/2]).
 
 new() -> {ok, ets:new(eets, [bag, private])}.
 
@@ -117,19 +117,20 @@ findall({StdLib, ExLib, Db}, {Functor}) ->
       end
   end.
 
-close(undefined) -> ok;
-close(Cursor) ->
-  put(Cursor, queue:new()). %save empty queue
+close(Ets, undefined) -> {ok, Ets};
+close(Ets, Cursor) ->
+  put(Cursor, queue:new()), %save empty queue
+  {ok, Ets}.
 
-next(undefined) -> [];
-next(Cursor) ->
+next(Ets, undefined) -> {[], Ets};
+next(Ets, Cursor) ->
   case get(Cursor) of   %get clauses
-    undefined -> [];  %empty cursor
+    undefined -> {[], Ets};  %empty cursor
     Queue -> case queue:out(Queue) of  %take variant
                {{value, Val}, UQ} ->
                  put(Cursor, UQ),  %save others
                  Val;  %return it
-               {empty, _} -> []  %nothing to return
+               {empty, _} -> {[], Ets}  %nothing to return
              end
   end.
 

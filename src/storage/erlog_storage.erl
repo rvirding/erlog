@@ -9,28 +9,38 @@
 -module(erlog_storage).
 -author("tihon").
 
--callback new() -> {ok, State :: term()}.
+%% ------- Prolog -------
+%% add value right
+-callback assertz_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Param :: term()) -> {ok, NewState :: any()}.
 
--callback new(Params :: list()) -> {ok, State :: term()}.
+%% add value left
+-callback asserta_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Param :: term()) -> {ok, NewState :: any()}.
 
--callback close(Pid :: pid()) -> ok.
+%% find all values
+-callback findall({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Functor :: tuple()) -> {Res :: list(), NewState :: any()}.
 
--callback next(Pid :: pid()) -> ok.
+%% get all values in memory by search criteria
+-callback listing({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Param :: term()) -> {Res :: list(), NewState :: any()}.
 
--callback assertz_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
+%% remove selected functor
+-callback retract_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Param :: term()) -> {ok, NewState :: any()}.
 
--callback asserta_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
+%% remove all matching functors
+-callback abolish_clauses({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Func :: term()) -> {ok, NewState :: any()}.
 
--callback findall({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Functor :: tuple()) -> {Res :: list(), NewState :: term()}.
+%% ------- System -------
+-callback new() -> {ok, State :: any()}.
 
--callback listing({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {Res :: list(), NewState :: term()}.
+-callback new(Params :: list()) -> {ok, State :: any()}.
 
--callback retract_clause({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Param :: term()) -> {ok, NewState :: term()}.
+%% close cursor
+-callback close(State :: any(), Pid :: pid()) -> {ok, NewState :: any()}.
 
--callback abolish_clauses({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {ok, NewState :: term()}.
+%% get next result by cursor
+-callback next(State :: any(), Pid :: any()) -> {[] | any(), NewState :: any()}.
 
--callback get_procedure({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {atom, NewState :: term()}  | {term(), NewState :: term()}.
+-callback get_procedure({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Func :: term()) -> {atom, NewState :: any()}  | {term(), NewState :: any()}.
 
--callback get_procedure_type({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}, Func :: term()) -> {atom(), NewState :: term()}.
+-callback get_procedure_type({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Func :: term()) -> {atom(), NewState :: any()}.
 
--callback get_interp_functors({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: term()}) -> {list(), NewState :: term()}.
+-callback get_interp_functors({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}) -> {list(), NewState :: any()}.
