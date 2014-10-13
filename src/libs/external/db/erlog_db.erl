@@ -141,11 +141,14 @@ retract_clauses(Ch, Cb, C, Param = #param{bindings = Bs0, var_num = Vn0, databas
     {succeed, Bs1, Vn1} ->
       %% We have found a right clause so now retract it.
       retract(Ch, Cb, C, Cursor, Param, Bs1, Vn1, Table);
-    fail -> retract_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param, Table)
+    fail ->
+      {UCursor, Res} = erlog_memory:next(Db, Cursor),
+      retract_clauses(Ch, Cb, Res, Param#param{cursor = UCursor}, Table)
   end.
 
 fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}, Table}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  retract_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param#param{next_goal = Next, bindings = Bs, var_num = Vn}, Table).
+  {UCursor, Res} = erlog_memory:next(Db, Cursor),
+  retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}, Table).
 
 %% @private
 check_call_result([], Param, _, _) -> erlog_errors:fail(Param);
@@ -159,7 +162,8 @@ retractall_clauses(Table, Clause, H, B, Params = #param{bindings = Bs0, var_num 
   case ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
     {succeed, _, _} ->
       erlog_memory:db_retract_clause(Db, Table, ec_support:functor(H), element(1, Clause)),
-      retractall_clauses(Table, erlog_memory:next(Db, Cursor), H, B, Params);
+      {UCursor, Res} = erlog_memory:next(Db, Cursor),
+      retractall_clauses(Table, Res, H, B, Params#param{cursor = UCursor});
     fail ->
       retractall_clauses(Table, [], H, B, Params)
   end.

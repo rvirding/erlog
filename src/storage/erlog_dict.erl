@@ -135,8 +135,8 @@ next(Db, Cursor) ->
     Queue -> case queue:out(Queue) of  %take variant
                {{value, Val}, UQ} ->
                  put(Cursor, UQ),  %save others
-                 {Val, Db};  %return it
-               {empty, _} -> {[], Db}  %nothing to return
+                 {{cursor, Cursor, result, Val}, Db};  %return it
+               {empty, _} -> {cursor, Cursor, result, [], Db}  %nothing to return
              end
   end.
 

@@ -75,11 +75,13 @@ fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
 
 %% @private
 fail_clause(#cp{data = {Ch, Cb, Db, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  ec_unify:unify_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+  {UCursor, Res} = erlog_memory:next(Db, Cursor),
+  ec_unify:unify_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
 
 %% @private
 fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  ec_logic:retract_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
+  {UCursor, Res} = erlog_memory:next(Db, Cursor),
+  ec_logic:retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->
@@ -87,7 +89,8 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
 
 %% @private
 fail_goal_clauses(#cp{data = {G, Db, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  ec_core:prove_goal_clauses(erlog_memory:next(Db, Cursor), Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = Cursor}).
+  {UCursor, Res} = erlog_memory:next(Db, Cursor),
+  ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
   Data = erlog_memory:raw_fetch(Db, Tag),

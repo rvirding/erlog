@@ -129,8 +129,8 @@ next(Ets, Cursor) ->
     Queue -> case queue:out(Queue) of  %take variant
                {{value, Val}, UQ} ->
                  put(Cursor, UQ),  %save others
-                 Val;  %return it
-               {empty, _} -> {[], Ets}  %nothing to return
+                 {{cursor, Cursor, result, Val}, Ets};  %return it
+               {empty, _} -> {cursor, Cursor, result, [], Ets}  %nothing to return
              end
   end.
 

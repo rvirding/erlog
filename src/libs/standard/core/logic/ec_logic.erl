@@ -129,7 +129,9 @@ retract_clauses(Ch, Cb, C, Param = #param{next_goal = Next, choice = Cps, bindin
       erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
       Cp = #cp{type = retract, data = {Ch, Cb, {Db, Cursor}}, next = Next, bs = Bs0, vn = Vn0},
       ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
-    fail -> retract_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param)
+    fail ->
+      {UCursor, Res} = erlog_memory:next(Db, Cursor),
+      retract_clauses(Ch, Cb, Res, Param#param{cursor = UCursor})
   end.
 
 %% well_form_goal(Goal, Tail, HasCutAfter, CutLabel) -> {Body,HasCut}.
@@ -249,7 +251,8 @@ retractall_clauses(Clause, H, B, Params = #param{bindings = Bs0, var_num = Vn0, 
   case ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
     {succeed, _, _} ->
       erlog_memory:retract_clause(Db, ec_support:functor(H), element(1, Clause)),
-      retractall_clauses(erlog_memory:next(Db, Cursor), H, B, Params);
+      {UCursor, Res} = erlog_memory:next(Db, Cursor),
+      retractall_clauses(Res, H, B, Params#param{cursor = UCursor});
     fail -> retractall_clauses([], H, B, Params)
   end.
 

@@ -42,7 +42,9 @@ unify_clauses(Ch, Cb, C, Param = #param{next_goal = Next, bindings = Bs0, var_nu
     {succeed, Bs1, Vn1} ->
       Cp = #cp{type = clause, data = {Ch, Cb, Db, Cursor}, next = Next, bs = Bs0, vn = Vn0},
       ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
-    fail -> unify_clauses(Ch, Cb, erlog_memory:next(Db, Cursor), Param)
+    fail ->
+      {UCursor, Res} = erlog_memory:next(Db, Cursor),
+      unify_clauses(Ch, Cb, Res, Param#param{cursor = UCursor})
   end.
 
 unify_clause(Ch, Cb, [C], Bs0, Vn0) -> unify_clause(Ch, Cb, C, Bs0, Vn0);
