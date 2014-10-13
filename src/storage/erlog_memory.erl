@@ -228,7 +228,6 @@ handle_call({next, Cursor}, _From, State = #state{state = DbState, database = Db
           {cursor, After, result, Result} -> {After, Result}; %got new (or same cursor) and result. Form and return
           [] -> {Cursor, []}  %no result got - return old cursor and empty result
         end,
-  io:format("next res is ~p~n", [Ans]),
   {reply, Ans, State#state{state = UState}};
 handle_call({close, Cursor}, _From, State = #state{state = DbState, database = Db}) ->  %get next result by cursor
   {Res, UState} = Db:close(DbState, Cursor),

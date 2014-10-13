@@ -131,12 +131,12 @@ close(Db, Cursor) ->
 next(Db, undefined) -> {[], Db};
 next(Db, Cursor) ->
   case get(Cursor) of   %get clauses
-    undefined -> [];  %empty cursor
+    undefined -> {[], Db};  %empty cursor
     Queue -> case queue:out(Queue) of  %take variant
                {{value, Val}, UQ} ->
                  put(Cursor, UQ),  %save others
                  {{cursor, Cursor, result, Val}, Db};  %return it
-               {empty, _} -> {cursor, Cursor, result, [], Db}  %nothing to return
+               {empty, _} -> {{cursor, Cursor, result, []}, Db}  %nothing to return
              end
   end.
 

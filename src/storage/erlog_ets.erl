@@ -130,7 +130,7 @@ next(Ets, Cursor) ->
                {{value, Val}, UQ} ->
                  put(Cursor, UQ),  %save others
                  {{cursor, Cursor, result, Val}, Ets};  %return it
-               {empty, _} -> {cursor, Cursor, result, [], Ets}  %nothing to return
+               {empty, _} -> {{cursor, Cursor, result, []}, Ets}  %nothing to return
              end
   end.
 

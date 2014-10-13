@@ -121,7 +121,8 @@ check_goal(G0, Next, Bs, Db, Cut, Label) ->
 %% retract_clauses(Head, Body, Clauses, Next, ChoicePoints, Bindings, VarNum, Database) ->
 %%      void.
 %% Try to retract Head and Body using Clauses which all have the same functor.
-retract_clauses(_Ch, _Cb, [], Param) -> erlog_errors:fail(Param);
+retract_clauses(_, _, [], Param) -> erlog_errors:fail(Param);
+retract_clauses(Ch, Cb, [C], Param) -> retract_clauses(Ch, Cb, C, Param);
 retract_clauses(Ch, Cb, C, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}) -> %TODO foreach vs handmade recursion?
   case ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
     {succeed, Bs1, Vn1} ->
