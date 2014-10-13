@@ -199,6 +199,7 @@ built_in_db(Db0) ->
 		 {'!',0},
 		 {';',2},
 		 {fail,0},
+		 {false,0},
 		 {'->',2},
 		 {'\\+',1},
 		 {once,1},
@@ -268,6 +269,8 @@ prove_goal({{disj},R}, Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
     Cp = #cp{type=disjunction,next=R,bs=Bs,vn=Vn},
     prove_body(Next, St#est{cps=[Cp|Cps]});
 prove_goal(fail, _, St) ->
+    ?FAIL(St);
+prove_goal(false, _, St) ->			%Synonym of fail/0
     ?FAIL(St);
 prove_goal({{if_then},Label}, Next, #est{cps=Cps}=St) ->
     %% We effetively implement ( C -> T ) with ( C, !, T ) but cuts in

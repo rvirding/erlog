@@ -66,6 +66,8 @@ load(Db0) ->
 	   %% insert(L, X, [X|L]). insert([H|L], X, [H|L1]) :- insert(L, X, L1).
 	   %% delete([X|L], X, L). delete([H|L], X, [H|L1]) :- delete(L, X, L1).
 	   {':-',{delete,{1},{2},{3}},{insert,{3},{2},{1}}},
+	   %% last(List, Last) :- append(_, [Last], List).
+	   {':-',{last,{1},{2}},{append,{3},[{2}],{1}}},
 	   %% perm([], []).
 	   %% perm([X|Xs], Ys1) :- perm(Xs, Ys), insert(Ys, X, Ys1).
 	   {perm,[],[]},
