@@ -26,9 +26,10 @@ __Note__: prefer using cursors to fetching all clauses.
 To write your own memory implementation, based on your favourite database, or cache, or something else - implement 
 `erlog_storage` behavior and pass your module name in arguments, when you start erlog (as mentioned in Readme).  
 `new/1` is called automatically - when erlog starts. New should be used for initialisation of the database. New takes 
-list as param which was sent in erlog arguments for database module. 
-`close/1` is called automatically - when erlog deside to close the cursor.  
-`next/1` is called automatically to fetch next clause value from database.  
+list as param which was sent in erlog arguments for database module.  
+`close/2` is called automatically - when erlog deside to close the cursor, database state can be updated there.  
+`next/2` is called automatically to fetch next clause value from database, database state can be updated there. Also, you
+can update your cursor, if you hame some complex logic.   
 `get_procedure/2` is called automatically - when erlog is looking for a predicate to execute. First it search stdlib, then
 extended lib and then userspace. It is main erlog predicate. Note, that it is called on every execution and can be the main 
 reason of loading the database.  

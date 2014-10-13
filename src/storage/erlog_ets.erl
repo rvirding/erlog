@@ -98,8 +98,8 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
                  Cs when is_list(Cs) -> Cs;
                  _ -> []
                end,
-          Cursor = form_cursor(),
-          {{cursor, Cursor, result, {clauses, form_clauses(CS, Cursor)}}, Db}
+          {First, Cursor} = form_clauses(CS),
+          {{cursor, Cursor, result, {clauses, First}}, Db}
       end
   end;
 findall({StdLib, ExLib, Db}, {Functor}) ->
@@ -123,15 +123,11 @@ close(Ets, Cursor) ->
   {ok, Ets}.
 
 next(Ets, undefined) -> {[], Ets};
-next(Ets, Cursor) ->
-  case get(Cursor) of   %get clauses
-    undefined -> {[], Ets};  %empty cursor
-    Queue -> case queue:out(Queue) of  %take variant
-               {{value, Val}, UQ} ->
-                 put(Cursor, UQ),  %save others
-                 {{cursor, Cursor, result, Val}, Ets};  %return it
-               {empty, _} -> {{cursor, Cursor, result, []}, Ets}  %nothing to return
-             end
+next(Ets, Queue) ->
+  case queue:out(Queue) of  %take variant
+    {{value, Val}, UQ} ->
+      {{cursor, UQ, result, Val}, Ets};  %return it
+    {empty, UQ} -> {{cursor, UQ, result, []}, Ets}  %nothing to return
   end.
 
 get_procedure({StdLib, ExLib, _}, {Collection, Functor}) ->
@@ -146,8 +142,8 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
               error ->
                 case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
                   Cs when is_list(Cs) ->
-                    Cursor = form_cursor(),
-                    {cursor, Cursor, result, {clauses, form_clauses(Cs, Cursor)}};
+                    {First, Cursor} = form_clauses(Cs),
+                    {{cursor, Cursor, result, {clauses, First}}, Db};
                   _ -> undefined
                 end
             end
@@ -228,11 +224,7 @@ check_immutable(Dict, Functor) -> %TODO may be move me to erlog_memory?
   end.
 
 %% @private
-form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
-form_clauses([First | Loaded], Cursor) ->
+form_clauses([]) -> {[], queue:new()};
+form_clauses([First | Loaded]) ->
   Queue = queue:from_list(Loaded),
-  put(Cursor, Queue),
-  First.
-
-form_cursor() ->
-  [random:uniform(X) || X <- lists:seq(1, 20)].
+  {First, Queue}.

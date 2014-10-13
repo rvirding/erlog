@@ -103,8 +103,8 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
         error ->
           case dict:find(Functor, Dict) of  %search userspace last
             {ok, Cs} ->
-              Cursor = form_cursor(),
-              {{cursor, Cursor, result, {clauses, form_clauses(Cs, Cursor)}}, Db};
+              {First, Cursor} = form_clauses(Cs), %TODO fix bagof, possibly broken by return format
+              {{cursor, Cursor, result, {clauses, First}}, Db};
             error -> {[], Db}
           end
       end
@@ -123,21 +123,14 @@ findall({StdLib, ExLib, Db}, {Functor}) ->  %for bagof
       end
   end.
 
-close(Db, undefined) -> {ok, Db};
-close(Db, Cursor) ->
-  put(Cursor, queue:new()),
-  {ok, Db}. %save empty queue
+close(Db, _) -> {ok, Db}.
 
 next(Db, undefined) -> {[], Db};
-next(Db, Cursor) ->
-  case get(Cursor) of   %get clauses
-    undefined -> {[], Db};  %empty cursor
-    Queue -> case queue:out(Queue) of  %take variant
-               {{value, Val}, UQ} ->
-                 put(Cursor, UQ),  %save others
-                 {{cursor, Cursor, result, Val}, Db};  %return it
-               {empty, _} -> {{cursor, Cursor, result, []}, Db}  %nothing to return
-             end
+next(Db, Queue) ->
+  case queue:out(Queue) of  %take variant
+    {{value, Val}, UQ} ->
+      {{cursor, UQ, result, Val}, Db};  %return it
+    {empty, UQ} -> {{cursor, UQ, result, []}, Db}  %nothing to return
   end.
 
 get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
@@ -154,8 +147,8 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
               error ->
                 case dict:find(Functor, Db) of  %search userspace last
                   {ok, Cs} ->
-                    Cursor = form_cursor(),
-                    {cursor, Cursor, result, {clauses, form_clauses(Cs, Cursor)}};
+                    {First, Cursor} = form_clauses(Cs),
+                    {cursor, Cursor, result, {clauses, First}};
                   error -> undefined
                 end
             end
@@ -232,11 +225,7 @@ check_immutable(Dict, Functor) ->
   end.
 
 %% @private
-form_clauses(Loaded, _) when length(Loaded) =< 1 -> Loaded;
-form_clauses([First | Loaded], Cursor) ->
+form_clauses([]) -> {[], queue:new()};
+form_clauses([First | Loaded]) ->
   Queue = queue:from_list(Loaded),
-  put(Cursor, Queue),
-  First.
-
-form_cursor() ->
-  [random:uniform(X) || X <- lists:seq(1, 20)].
+  {First, Queue}.
