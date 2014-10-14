@@ -11,7 +11,7 @@
 
 -include("erlog_core.hrl").
 
--behaviour(gen_server).
+-behaviour(gen_server). %TODO do we really need gen_server here?
 
 %% API
 -export([start_link/1,
