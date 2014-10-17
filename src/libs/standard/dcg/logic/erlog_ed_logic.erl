@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 12. Авг. 2014 17:48
 %%%-------------------------------------------------------------------
--module(ed_logic).
+-module(erlog_ed_logic).
 -author("tihon").
 
 -include("erlog_core.hrl").
@@ -26,11 +26,11 @@ expand_term({'-->', _, _} = Term, Vn) ->
 expand_term(Term, Vn) -> {Term, Vn}.
 
 phrase(Params = #param{goal = Goal, next_goal = Next0, bindings = Bs, var_num = Vn0}) ->
-	{phrase, GRBody, S0, S} = ec_support:dderef(Goal, Bs),
-	{Body, Vn1} = ed_logic:dcg_body(GRBody, S0, S, Vn0),
+	{phrase, GRBody, S0, S} = erlog_ec_support:dderef(Goal, Bs),
+	{Body, Vn1} = erlog_ed_logic:dcg_body(GRBody, S0, S, Vn0),
 	%% io:format("~p\n", [Body]),
 	Next1 = [{call, Body} | Next0],    %Evaluate body
-	ec_core:prove_body(Params#param{goal = Next1, var_num = Vn1}).
+	erlog_ec_core:prove_body(Params#param{goal = Next1, var_num = Vn1}).
 
 %% dcg_rule(Term, VarNum) -> {ExpTerm,NewVarNum}.
 %% dcg_rule(DCGRule, VarIn, VarOout, VarNum) -> {ExpTerm,NewVarNum}.

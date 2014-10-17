@@ -197,7 +197,7 @@ listing({_, _, Db}, {[]}) ->
 
 %% @private
 clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
-  {Functor, Body} = case catch {ok, ec_support:functor(Head), ec_body:well_form_body(Body0, false, sture)} of
+  {Functor, Body} = case catch {ok, erlog_ec_support:functor(Head), erlog_ec_body:well_form_body(Body0, false, sture)} of
                       {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
                       {ok, F, B} -> {F, B}
                     end,
@@ -221,7 +221,7 @@ check_duplicates(Cs, Head, Body) ->
 check_immutable(Dict, Functor) ->
   case dict:is_key(Functor, Dict) of
     false -> ok;
-    true -> erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor))
+    true -> erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor))
   end.
 
 %% @private

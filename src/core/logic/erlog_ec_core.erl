@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 12. Авг. 2014 16:47
 %%%-------------------------------------------------------------------
--module(ec_core).
+-module(erlog_ec_core).
 -author("tihon").
 
 -include("erlog_core.hrl").
@@ -23,10 +23,10 @@ prove_goal(Goal0, Db, Fcon, Event, Deb) ->
   %% put(erlog_cps, orddict:new()),
   %% put(erlog_var, orddict:new()),
   %% Check term and build new instance of term with bindings.
-  {Goal1, Bs, Vn} = ec_logic:initial_goal(Goal0),
+  {Goal1, Bs, Vn} = erlog_ec_logic:initial_goal(Goal0),
   Params = #param{goal = [{call, Goal1}], choice = [], bindings = Bs, var_num = Vn,
     event_man = Event, database = Db, f_consulter = Fcon, debugger = Deb},
-  ec_core:prove_body(Params). %TODO use lists:foldr instead!
+  erlog_ec_core:prove_body(Params). %TODO use lists:foldr instead!
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
 %%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
@@ -35,7 +35,7 @@ prove_goal(Goal0, Db, Fcon, Event, Deb) ->
 %% goal/body succeeds.
 prove_body(Params = #param{goal = [G | Gs], debugger = Deb, bindings = Bs}) -> %TODO use lists:foldr instead!
   %%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
-  Deb(ok, ec_support:dderef(G, Bs), Bs),
+  Deb(ok, erlog_ec_support:dderef(G, Bs), Bs),
   prove_goal(Params#param{goal = G, next_goal = Gs});
 prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
   %%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
@@ -51,7 +51,7 @@ prove_goal(Param = #param{goal = {{once}, Label}, next_goal = Next, choice = Cps
   Cut = #cut{label = Label},
   prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
 prove_goal(Param = #param{goal = {'??', Next}, bindings = Bs, debugger = Deb}) -> %debug stop point
-  Deb(stop, ec_support:dderef(Next, Bs), Bs),
+  Deb(stop, erlog_ec_support:dderef(Next, Bs), Bs),
   prove_goal(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {{if_then_else}, Else, Label}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
   %% Need to push a choicepoint to fail back to inside Cond and a cut
@@ -70,14 +70,14 @@ prove_goal(Param = #param{goal = {{if_then}, Label}, next_goal = Next, choice = 
   prove_body(Param#param{goal = Next, choice = [Cut | Cps]});
 prove_goal(Param = #param{goal = {{cut}, Label, Last}}) ->
   %% Cut succeeds and trims back to cut ancestor.
-  ec_support:cut(Label, Last, Param);
+  erlog_ec_support:cut(Label, Last, Param);
 prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
   %% There is no L here, it has already been prepended to Next.
   Cp = #cp{type = disjunction, next = R, bs = Bs, vn = Vn},
   prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
-  case catch erlog_memory:get_procedure(Db, ec_support:functor(G)) of
+  case catch erlog_memory:get_procedure(Db, erlog_ec_support:functor(G)) of
     {cursor, Cursor, result, Result} ->
       Fun = fun(Params) -> check_result(Result, Params) end,
       run_n_close(Fun, Param#param{cursor = Cursor});
@@ -117,10 +117,10 @@ prove_goal_clause([], Param) -> erlog_errors:fail(Param);
 prove_goal_clause([L], Param) -> prove_goal_clause(L, Param);
 prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
   Label = Vn0,
-  case ec_unify:unify_head(G, H0, Bs0, Vn0 + 1) of
+  case erlog_ec_unify:unify_head(G, H0, Bs0, Vn0 + 1) of
     {succeed, Rs0, Bs1, Vn1} ->
-      {B1, _Rs2, Vn2} = ec_body:body_instance(B0, Next, Rs0, Vn1, Label),
-      ec_core:prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
+      {B1, _Rs2, Vn2} = erlog_ec_body:body_instance(B0, Next, Rs0, Vn1, Label),
+      erlog_ec_core:prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
     fail -> erlog_errors:fail(Param)
   end.
 

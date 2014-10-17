@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 15. Июль 2014 16:09
 %%%-------------------------------------------------------------------
--module(ec_support).
+-module(erlog_ec_support).
 -author("tihon").
 
 -include("erlog_core.hrl").
@@ -133,19 +133,19 @@ remove_nth(List, N) ->
 write(Res, Bs) when is_list(Res) ->
 	case io_lib:printable_list(Res) of
 		true -> Res;
-		false -> ec_support:dderef(Res, Bs)
+		false -> erlog_ec_support:dderef(Res, Bs)
 	end;
 write(Res, Bs) ->
 	write([Res], Bs).
 
 
 cut(Label, Last, Param = #param{next_goal = Next, choice = [#cut{label = Label} | Cps] = Cps0}) ->
-	if Last -> ec_core:prove_body(Param#param{goal = Next, choice = Cps});
-		true -> ec_core:prove_body(Param#param{goal = Next, choice = Cps0})
+	if Last -> erlog_ec_core:prove_body(Param#param{goal = Next, choice = Cps});
+		true -> erlog_ec_core:prove_body(Param#param{goal = Next, choice = Cps0})
 	end;
 cut(Label, Last, Param = #param{next_goal = Next, choice = [#cp{type = if_then_else, label = Label} | Cps] = Cps0}) ->
-	if Last -> ec_core:prove_body(Param#param{goal = Next, choice = Cps});
-		true -> ec_core:prove_body(Param#param{goal = Next, choice = Cps0})
+	if Last -> erlog_ec_core:prove_body(Param#param{goal = Next, choice = Cps});
+		true -> erlog_ec_core:prove_body(Param#param{goal = Next, choice = Cps0})
 	end;
 cut(Label, Last, Param = #param{choice = [#cp{type = goal_clauses, label = Label} = Cp | Cps]}) ->
 	cut_goal_clauses(Last, Cp, Param#param{choice = Cps});
@@ -155,8 +155,8 @@ cut(Label, Last, Param = #param{choice = [_Cp | Cps]}) ->
 %% cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db).
 cut_goal_clauses(true, #cp{label = _}, Param = #param{next_goal = Next}) ->
 	%% Just remove the choice point completely and continue.
-	ec_core:prove_body(Param#param{goal = Next});
+	erlog_ec_core:prove_body(Param#param{goal = Next});
 cut_goal_clauses(false, #cp{label = L}, Param = #param{next_goal = Next, choice = Cps}) ->
 	%% Replace choice point with cut point then continue.
 	Cut = #cut{label = L},
-	ec_core:prove_body(Param#param{goal = Next, choice = [Cut | Cps]}).
+	erlog_ec_core:prove_body(Param#param{goal = Next, choice = [Cut | Cps]}).

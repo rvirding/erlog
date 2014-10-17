@@ -191,7 +191,7 @@ handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib
 handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
   case dict:is_key(Functor, StdLib) of
     true ->
-      {reply, {erlog_error, {modify, static_procedure, ec_support:pred_ind(Functor)}}, State};
+      {reply, {erlog_error, {modify, static_procedure, erlog_ec_support:pred_ind(Functor)}}, State};
     false ->
       {reply, ok, State#state{exlib = dict:store(Functor, {code, {M, F}}, ExLib)}}
   end;

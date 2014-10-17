@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 15. Июль 2014 16:06
 %%%-------------------------------------------------------------------
--module(ec_body).
+-module(erlog_ec_body).
 -author("tihon").
 
 -include("erlog_core.hrl").
@@ -18,8 +18,8 @@
 %%	void.
 %% Unify Term1 = Term2, on success prove body Next else fail.
 unify_prove_body(T1, T2, Params = #param{next_goal = Next, bindings = Bs0}) ->
-	case ec_unify:unify(T1, T2, Bs0) of
-		{succeed, Bs1} -> ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
+	case erlog_ec_unify:unify(T1, T2, Bs0) of
+		{succeed, Bs1} -> erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
 		fail -> erlog_errors:fail(Params)
 	end.
 
@@ -27,7 +27,7 @@ unify_prove_body(T1, T2, Params = #param{next_goal = Next, bindings = Bs0}) ->
 %%	void.
 %% Unify A1 = B1, A2 = B2, on success prove body Next else fail.
 unify_prove_body(A1, B1, A2, B2, Params = #param{bindings = Bs0}) ->
-	case ec_unify:unify(A1, B1, Bs0) of
+	case erlog_ec_unify:unify(A1, B1, Bs0) of
 		{succeed, Bs1} -> unify_prove_body(A2, B2, Params#param{bindings = Bs1});
 		fail -> erlog_errors:fail(Params)
 	end.
@@ -67,7 +67,7 @@ body_instance([{{once} = Once, G0, _} | Gs0], Tail, Rs0, Vn0, Label) ->
 	{[{Once, Label} | G1], Rs2, Vn2};
 body_instance([G0 | Gs0], Tail, Rs0, Vn0, Label) ->
 	{Gs1, Rs1, Vn1} = body_instance(Gs0, Tail, Rs0, Vn0, Label),
-	{G1, Rs2, Vn2} = ec_term:term_instance(G0, Rs1, Vn1),
+	{G1, Rs2, Vn2} = erlog_ec_term:term_instance(G0, Rs1, Vn1),
 	{[G1 | Gs1], Rs2, Vn2};
 body_instance([], Tail, Rs, Vn, _Label) -> {Tail, Rs, Vn}.
 
@@ -106,7 +106,7 @@ well_form_body(fail, _Tail, _Cut, _Label) -> {[fail], false};  %No further
 well_form_body('!', Tail, Cut, Label) ->
 	{[{{cut}, Label, not Cut} | Tail], true};
 well_form_body(Goal, Tail, Cut, _Label) ->
-	ec_support:functor(Goal),        %Check goal
+	erlog_ec_support:functor(Goal),        %Check goal
 	{[Goal | Tail], Cut}.
 
 %% body_term(Body, Repls, VarNum) -> {Term,NewRepls,NewVarNum}.
@@ -141,7 +141,7 @@ body_term([{{once}, G0, _} | Gs0], Rs0, Vn0) ->
 	{body_conj({once, G1}, Gs1), Rs2, Vn2};
 body_term([G0 | Gs0], Rs0, Vn0) ->
 	{Gs1, Rs1, Vn1} = body_term(Gs0, Rs0, Vn0),
-	{G1, Rs2, Vn2} = ec_term:term_instance(G0, Rs1, Vn1),
+	{G1, Rs2, Vn2} = erlog_ec_term:term_instance(G0, Rs1, Vn1),
 	{body_conj(G1, Gs1), Rs2, Vn2};
 body_term([], Rs, Vn) -> {true, Rs, Vn}.
 

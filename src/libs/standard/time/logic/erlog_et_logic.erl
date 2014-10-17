@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 12. Авг. 2014 18:10
 %%%-------------------------------------------------------------------
--module(et_logic).
+-module(erlog_et_logic).
 -author("tihon").
 
 -include("erlog_time.hrl").
@@ -32,7 +32,7 @@ date_to_seconds(Time, sec) -> Time.
 -spec date_string_to_data(string()) -> tuple().
 date_string_to_data(DataStr) ->
 	[MStr, DStr, YStr, HStr, MnStr, SStr] = string:tokens(DataStr, " :"),
-	Month = ec_support:index_of(MStr, tuple_to_list(?MONTHS)),
+	Month = erlog_ec_support:index_of(MStr, tuple_to_list(?MONTHS)),
 	{{list_to_integer(YStr), Month, list_to_integer(DStr)},
 		{list_to_integer(HStr), list_to_integer(MnStr), list_to_integer(SStr)}}.
 
@@ -65,5 +65,5 @@ check_var({'-', Var}, Bs) ->
 		Res when is_integer(Res) -> -1 * Res;
 		Res -> Res
 	end;
-check_var({Var}, Bs) -> check_var(ec_support:deref({Var}, Bs), Bs);
+check_var({Var}, Bs) -> check_var(erlog_ec_support:deref({Var}, Bs), Bs);
 check_var(Var, _) -> Var.

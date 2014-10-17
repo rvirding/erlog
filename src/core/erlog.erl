@@ -207,7 +207,7 @@ prove_goal(Goal0, State = #state{db = Db, f_consulter = Fcon, e_man = Event, deb
   Goal1 = erlog_logic:unlistify(Goal0),
   %% Must use 'catch' here as 'try' does not do last-call
   %% optimisation.
-  case erlog_logic:prove_result(catch ec_core:prove_goal(Goal1, Db, Fcon, Event, Deb), Vs) of
+  case erlog_logic:prove_result(catch erlog_ec_core:prove_goal(Goal1, Db, Fcon, Event, Deb), Vs) of
     {succeed, Res, Args} -> {{succeed, Res}, State#state{state = Args}};
     OtherRes -> {OtherRes, State}
   end.

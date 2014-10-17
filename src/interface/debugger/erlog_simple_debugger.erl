@@ -200,7 +200,7 @@ process_match(Functor, Execute, {detailed, Functor}) ->
 process_match(_, _, {detailed, _}) ->
   false;
 process_match(Functor, Execute, {arity, Pred}) ->
-  case ec_support:functor(Functor) of
+  case erlog_ec_support:functor(Functor) of
     Pred -> Execute();
     _ -> false
   end.

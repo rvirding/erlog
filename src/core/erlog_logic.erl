@@ -28,7 +28,7 @@ unlistify([]) -> true;
 unlistify(G) -> G.        %In case it wasn't a list.
 
 prove_result({succeed, Cps, Bs, _Vn, _Db1}, Vs) ->
-	{succeed, ec_support:dderef(Vs, Bs), [Vs, Cps]};
+	{succeed, erlog_ec_support:dderef(Vs, Bs), [Vs, Cps]};
 prove_result({fail, _Db1}, _Vs) ->
 	fail;
 prove_result({erlog_error, Error, _Db1}, _Vs) ->

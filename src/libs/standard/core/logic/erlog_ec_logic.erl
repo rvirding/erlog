@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 15. Июль 2014 16:02
 %%%-------------------------------------------------------------------
--module(ec_logic).
+-module(erlog_ec_logic).
 -author("tihon").
 
 -include("erlog_core.hrl").
@@ -33,13 +33,13 @@
 prove_findall(T, G, B0, Param = #param{bindings = Bs, choice = Cps, next_goal = Next, var_num = Vn, database = Db}) ->
   Label = Vn,
   Tag = Vn + 1,  %Increment to avoid clashes
-  {Next1, _} = ec_logic:check_goal(G, [{findall, Tag, T}], Bs, Db, false, Label),
+  {Next1, _} = erlog_ec_logic:check_goal(G, [{findall, Tag, T}], Bs, Db, false, Label),
   B1 = partial_list(B0, Bs),
   Cp = #cp{type = findall, data = {Tag, B1}, next = Next, bs = Bs, vn = Vn},
   erlog_memory:raw_store(Db, Tag, []),  %Initialise collection
   %% Catch case where an erlog error occurs when cleanup database.
   try
-    ec_core:prove_body(Param#param{goal = Next1, choice = [Cp | Cps], bindings = Bs, var_num = Vn + 1})
+    erlog_ec_core:prove_body(Param#param{goal = Next1, choice = [Cp | Cps], bindings = Bs, var_num = Vn + 1})
   catch
     throw:{erlog_error, E, Dba} ->
       Dbb = erlog_memory:raw_erase(Dba, Tag),  %Clear special entry
@@ -54,9 +54,9 @@ prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings =
   case Efun() of
     {succeed, Ret, Cont} ->      %Succeed and more choices
       Cp = #cp{type = ecall, data = {Cont, Val}, next = Next, bs = Bs, vn = Vn},
-      ec_body:unify_prove_body(Val, Ret, Param#param{choice = [Cp | Cps]});
+      erlog_ec_body:unify_prove_body(Val, Ret, Param#param{choice = [Cp | Cps]});
     {succeed_last, Ret} ->      %Succeed but last choice
-      ec_body:unify_prove_body(Val, Ret, Param);
+      erlog_ec_body:unify_prove_body(Val, Ret, Param);
     fail -> erlog_errors:fail(Param)      %No more
   end.
 
@@ -64,14 +64,14 @@ prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings =
 %%      void.
 %% Unify clauses matching with functor from Head with both Head and Body.
 prove_clause(H, B, Params = #param{database = Db}) ->
-  Functor = ec_support:functor(H),
+  Functor = erlog_ec_support:functor(H),
   case erlog_memory:get_procedure(Db, Functor) of
     {cursor, Cursor, result, {clauses, Cs}} ->
-      ec_core:run_n_close(fun(Param) -> ec_unify:unify_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(fun(Param) -> erlog_ec_unify:unify_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
     {code, _} ->
-      erlog_errors:permission_error(access, private_procedure, ec_support:pred_ind(Functor));
+      erlog_errors:permission_error(access, private_procedure, erlog_ec_support:pred_ind(Functor));
     built_in ->
-      erlog_errors:permission_error(access, private_procedure, ec_support:pred_ind(Functor));
+      erlog_errors:permission_error(access, private_procedure, erlog_ec_support:pred_ind(Functor));
     undefined -> erlog_errors:fail(Params)
   end.
 
@@ -89,7 +89,7 @@ prove_current_predicate(Pi, Param = #param{database = Db}) ->
 
 prove_predicates(Pi, [F | Fs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
   Cp = #cp{type = current_predicate, data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn},
-  ec_body:unify_prove_body(Pi, ec_support:pred_ind(F), Param#param{choice = [Cp | Cps]});
+  erlog_ec_body:unify_prove_body(Pi, erlog_ec_support:pred_ind(F), Param#param{choice = [Cp | Cps]});
 prove_predicates(_Pi, [], Param) -> erlog_errors:fail(Param).
 
 %% prove_retract(Clause, Next, ChoicePoints, Bindings, VarNum, Database) ->
@@ -109,7 +109,7 @@ prove_retractall(H, Params) ->
 %%      {WellFormedBody,HasCut}.
 %% Check to see that Goal is bound and ensure that it is well-formed.
 check_goal(G0, Next, Bs, Db, Cut, Label) ->
-  case ec_support:dderef(G0, Bs) of
+  case erlog_ec_support:dderef(G0, Bs) of
     {_} -> erlog_errors:instantiation_error(Db);    %Must have something to call
     G1 ->
       case catch {ok, well_form_goal(G1, Next, Cut, Label)} of
@@ -124,12 +124,12 @@ check_goal(G0, Next, Bs, Db, Cut, Label) ->
 retract_clauses(_, _, [], Param) -> erlog_errors:fail(Param);
 retract_clauses(Ch, Cb, [C], Param) -> retract_clauses(Ch, Cb, C, Param);
 retract_clauses(Ch, Cb, C, Param = #param{next_goal = Next, choice = Cps, bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}) -> %TODO foreach vs handmade recursion?
-  case ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
+  case erlog_ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
     {succeed, Bs1, Vn1} ->
       %% We have found a right clause so now retract it.
-      erlog_memory:retract_clause(Db, ec_support:functor(Ch), element(1, C)),
+      erlog_memory:retract_clause(Db, erlog_ec_support:functor(Ch), element(1, C)),
       Cp = #cp{type = retract, data = {Ch, Cb, {Db, Cursor}}, next = Next, bs = Bs0, vn = Vn0},
-      ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+      erlog_ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
     fail ->
       {UCursor, Res} = erlog_memory:next(Db, Cursor),
       retract_clauses(Ch, Cb, Res, Param#param{cursor = UCursor})
@@ -165,7 +165,7 @@ well_form_goal(fail, _Tail, _Cut, _Label) -> {[fail], false};  %No further
 well_form_goal('!', Tail, Cut, Label) ->
   {[{{cut}, Label, not Cut} | Tail], true};
 well_form_goal(Goal, Tail, Cut, _Label) ->
-  ec_support:functor(Goal),        %Check goal
+  erlog_ec_support:functor(Goal),        %Check goal
   {[Goal | Tail], Cut}.
 
 parse_int(Float) when is_float(Float) -> round(Float);
@@ -185,17 +185,17 @@ to_string(Value) -> lists:flatten(io_lib:format("~p", [Value])).
 %% Check term for well-formedness as an Erlog term and replace '_'
 %% variables with unique numbered variables. Error on non-well-formed
 %% goals.
-initial_goal(Goal) -> initial_goal(Goal, ec_support:new_bindings(), 0).
+initial_goal(Goal) -> initial_goal(Goal, erlog_ec_support:new_bindings(), 0).
 
 
 %% @private
 initial_goal({'_'}, Bs, Vn) -> {{Vn}, Bs, Vn + 1};  %Anonymous variable
 initial_goal({Name} = Var0, Bs, Vn) when is_atom(Name) ->
-  case ec_support:get_binding(Var0, Bs) of
+  case erlog_ec_support:get_binding(Var0, Bs) of
     {ok, Var1} -> {Var1, Bs, Vn};
     error ->
       Var1 = {Vn},
-      {Var1, ec_support:add_binding(Var0, Var1, Bs), Vn + 1}
+      {Var1, erlog_ec_support:add_binding(Var0, Var1, Bs), Vn + 1}
   end;
 initial_goal([H0 | T0], Bs0, Vn0) ->
   {H1, Bs1, Vn1} = initial_goal(H0, Bs0, Vn0),
@@ -225,33 +225,33 @@ partial_list(Other, _) -> erlog_errors:type_error(list, Other).
 
 %% @private
 prove_retract(H, B, Params = #param{database = Db}) ->
-  Functor = ec_support:functor(H),
+  Functor = erlog_ec_support:functor(H),
   case erlog_memory:get_procedure(Db, Functor) of
     {cursor, Cursor, result, {clauses, Cs}} ->
-      ec_core:run_n_close(fun(Param) -> retract_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(fun(Param) -> retract_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
     {code, _} ->
-      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
+      erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
     built_in ->
-      erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
+      erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
     undefined -> erlog_errors:fail(Params)
   end.
 
 %% @private
 prove_retractall(H, B, Params = #param{database = Db}) ->
-  Functor = ec_support:functor(H),
+  Functor = erlog_ec_support:functor(H),
   case erlog_memory:get_procedure(Db, Functor) of
     {cursor, Cursor, result, Result} ->
       Fun = fun(Param) -> check_result(Result, H, B, Functor, Param) end,
-      ec_core:run_n_close(Fun, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(Fun, Params#param{cursor = Cursor});
     Result ->
       check_result(Result, H, B, Functor, Params)
   end.
 
-retractall_clauses([], _, _, Params = #param{next_goal = Next}) -> ec_core:prove_body(Params#param{goal = Next});
+retractall_clauses([], _, _, Params = #param{next_goal = Next}) -> erlog_ec_core:prove_body(Params#param{goal = Next});
 retractall_clauses(Clause, H, B, Params = #param{bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}) ->
-  case ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
+  case erlog_ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
     {succeed, _, _} ->
-      erlog_memory:retract_clause(Db, ec_support:functor(H), element(1, Clause)),
+      erlog_memory:retract_clause(Db, erlog_ec_support:functor(H), element(1, Clause)),
       {UCursor, Res} = erlog_memory:next(Db, Cursor),
       retractall_clauses(Res, H, B, Params#param{cursor = UCursor});
     fail -> retractall_clauses([], H, B, Params)
@@ -259,10 +259,10 @@ retractall_clauses(Clause, H, B, Params = #param{bindings = Bs0, var_num = Vn0, 
 
 %% @private
 check_result({built_in, _}, _, _, Functor, _) ->
-  erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
+  erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
 check_result({code, _}, _, _, Functor, _) ->
-  erlog_errors:permission_error(modify, static_procedure, ec_support:pred_ind(Functor));
+  erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
 check_result({clauses, Cs}, H, B, _, Params) ->
   retractall_clauses(Cs, H, B, Params);
-check_result(undefined, _, _, _, Params = #param{next_goal = Next}) -> ec_core:prove_body(Params#param{goal = Next});
+check_result(undefined, _, _, _, Params = #param{next_goal = Next}) -> erlog_ec_core:prove_body(Params#param{goal = Next});
 check_result({erlog_error, E}, _, _, _, #param{database = Db}) -> erlog_errors:erlog_error(E, Db).

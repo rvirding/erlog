@@ -30,10 +30,10 @@ load(Db) ->
 	lists:foreach(fun(Proc) -> erlog_memory:load_kernel_space(Db, ?MODULE, Proc) end, ?ERLOG_DCG).
 
 prove_goal(Params = #param{goal = {expand_term, _, _} = Goal, bindings = Bs, var_num = Vn0}) ->
-	{expand_term, DCGRule, A2} = ec_support:dderef(Goal, Bs),
-	{Exp, Vn1} = ed_logic:expand_term(DCGRule, Vn0),
-	ec_body:unify_prove_body(A2, Exp, Params#param{var_num = Vn1});
+	{expand_term, DCGRule, A2} = erlog_ec_support:dderef(Goal, Bs),
+	{Exp, Vn1} = erlog_ed_logic:expand_term(DCGRule, Vn0),
+	erlog_ec_body:unify_prove_body(A2, Exp, Params#param{var_num = Vn1});
 prove_goal(Params = #param{goal = {phrase, A, B}}) ->
-	ed_logic:phrase(Params#param{goal = {phrase, A, B, []}});
+	erlog_ed_logic:phrase(Params#param{goal = {phrase, A, B, []}});
 prove_goal(Params = #param{goal = {phrase, _, _, _}}) ->
-	ed_logic:phrase(Params).
+	erlog_ed_logic:phrase(Params).
