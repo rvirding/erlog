@@ -40,3 +40,12 @@
 %% Define the choice point record.
 -record(cp, {type,label,data,next,bs,vn}).
 -record(cut, {label,next}).
+
+%% Default prolog flags (sorted), {Flag,DefaultValue,SettableValues}.
+-define(PROLOG_FLAGS, [{bounded,false,none},
+		       {debug,off,[off,on]},
+		       {dialect,erlog,none},
+		       {double_quotes,codes,none},
+		       {iso,true,none},		%Optimistic
+		       {max_arity,250,none},
+		       {unknown,error,[error,fail,warning]}]).

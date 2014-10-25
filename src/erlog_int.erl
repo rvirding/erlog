@@ -165,10 +165,7 @@ new(DbMod, DbArg) ->
     DbRef = DbMod:new(DbArg),			%Initialise the database
     Db0 = #db{mod=DbMod,ref=DbRef,loc=[]},
     Db1 = built_in_db(Db0),			%Add these builtins
-    Fs = [{bounded,false},			%Default flags (sorted)
-	  {debug,off},
-	  {max_arity,250},
-	  {unknown,error}],
+    Fs = ?PROLOG_FLAGS,
     St = #est{cps=[],bs=[],vn=0,db=Db1,fs=Fs},
     {ok,St}.
 
@@ -366,8 +363,8 @@ prove_goal({{findall},T0}, _Next, #est{bs=Bs,db=Db0}=St) ->
 %% Prolog flags.
 prove_goal({current_prolog_flag,F,V}, Next, St) ->
     prove_current_prolog_flag(F, V, Next, St);
-prove_goal({set_prolog_flag,F,V}, Next, #est{bs=Bs}=St) ->
-    prove_set_prolog_flag(deref(F, Bs), deref(V, Bs), Next, St);
+prove_goal({set_prolog_flag,F,V}, Next, St) ->
+    prove_set_prolog_flag(F, V, Next, St);
 
 %% External interface.
 prove_goal({ecall,C0,Val}, Next, #est{bs=Bs}=St) ->
@@ -728,7 +725,7 @@ findall_list([], Vn, _, Acc) -> {Acc,Vn}.
 prove_current_prolog_flag(F, V, Next, #est{fs=Fs}=St) ->
     prove_prolog_flags(F, V, Fs, Next, St).
 
-prove_prolog_flags(F, V, [{Pf,Pv}|Fs], Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
+prove_prolog_flags(F, V, [{Pf,Pv,_}|Fs], Next, #est{cps=Cps,bs=Bs,vn=Vn}=St) ->
     Cp = #cp{type=current_prolog_flag,data={F,V,Fs},next=Next,bs=Bs,vn=Vn},
     unify_prove_body(F, Pf, V, Pv, Next, St#est{cps=[Cp|Cps]});
 prove_prolog_flags(_F, _V, [], _Next, St) -> ?FAIL(St).
@@ -736,32 +733,33 @@ prove_prolog_flags(_F, _V, [], _Next, St) -> ?FAIL(St).
 fail_current_prolog_flag(#cp{data={F,V,Fs},next=Next,bs=Bs,vn=Vn}, Cps, St) ->
     prove_prolog_flags(F, V, Fs, Next, St#est{cps=Cps,bs=Bs,vn=Vn}).
 
-prove_set_prolog_flag(F, V, Next, St) ->
-    %% Check settable flags.
-    case F of
-	debug ->
-	    prove_set_prolog_flag(debug, [on,off], V, Next, St);
-	unknown ->
-	    prove_set_prolog_flag(unknown, [error,fail,warning], V, Next, St);
-	{_} -> instantiation_error(St);
-	F -> domain_error(prolog_flag, F, St)
+prove_set_prolog_flag(F, V, Next, #est{bs=Bs,fs=Fs}=St) ->
+    prove_set_prolog_flag(deref(F, Bs), deref(V, Bs), Next, Fs, St).
+
+prove_set_prolog_flag({_}, _V, _Next, _Fs, St) ->
+    instantiation_error(St);
+prove_set_prolog_flag(_F, {_}, _Next, _Fs, St) ->
+    instantiation_error(St);
+prove_set_prolog_flag(F, V, Next, Fs, St) ->
+    case lists:keyfind(F, 1, Fs) of
+	{_,_,Pvs} when Pvs =/= none ->		%Settable flag
+	    prove_set_prolog_flag(F, V, Pvs, Next, Fs, St);
+	_ ->
+	    domain_error(prolog_flag, F, St)
     end.
 
-prove_set_prolog_flag(_F, _Vs, {_}, _Next, St) ->
-    instantiation_error(St);
-prove_set_prolog_flag(F, Vs, V, Next, St0) ->
-    case lists:member(V, Vs) of
+prove_set_prolog_flag(F, V, Pvs, Next, Fs0, St) ->
+    case lists:member(V, Pvs) of		%Valid value
 	true ->
-	    St1 = set_prolog_flag(F, V, St0),
-	    prove_body(Next, St1);
-	false -> domain_error(flag_value, {'+',F,V}, St0)
+	    Fs1 = lists:keyreplace(F, 1, Fs0, {F,V,Pvs}),
+	    prove_body(Next, St#est{fs=Fs1});
+	false ->
+	    domain_error(flag_value, {'+',F,V}, St)
     end.
 
 get_prolog_flag(F, #est{fs=Fs}) ->		%We should know the flags
-    orddict:fetch(F, Fs).
-
-set_prolog_flag(F, V, #est{fs=Fs}=St) ->
-    St#est{fs=orddict:store(F, V, Fs)}.
+    {_,V,_} = lists:keyfind(F, 1, Fs),
+    V.
 
 %% prove_ecall(Generator, Value, Next, St) ->
 %%     void.
