@@ -40,7 +40,7 @@
 	var_num,
 	database,
 	event_man,
-	f_consulter,
+	f_consulter :: atom(),
   debugger,
   cursor
 }).

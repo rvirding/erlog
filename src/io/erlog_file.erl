@@ -27,16 +27,16 @@
 %%	{ok,NewDatabase} | {error,Error} | {erlog_error,Error}.
 %% Load/reload an Erlog file into the interpreter. Reloading will
 %% abolish old definitons of clauses.
--spec consult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
-consult(Fun, File, Db) ->
-  case Fun(File) of %default is erlog_io:read_file/1
+-spec consult(atom(), File :: string(), Db :: pid()) -> ok | tuple().
+consult(Consulter, File, Db) ->
+  case Consulter:load(File) of %call erlog_file_consulter implementation
     {ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
     Error -> Error
   end.
 
--spec reconsult(fun(), File :: string(), Db :: pid()) -> ok | tuple().
-reconsult(Fun, File, Db) ->
-  case Fun(File) of %default is erlog_io:read_file/1
+-spec reconsult(atom(), File :: string(), Db :: pid()) -> ok | tuple().
+reconsult(Consulter, File, Db) ->
+  case Consulter:load(File) of %call erlog_file_consulter implementation
     {ok, Terms} ->
       case consult_terms(fun reconsult_assert/2, {Db, []}, Terms) of
         ok -> ok;

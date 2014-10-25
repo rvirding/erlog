@@ -17,15 +17,15 @@
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
 %% everything is consistent then prove the goal as a call.
--spec prove_goal(Goal0 :: term(), Db :: pid(), Fcon :: fun(), Event :: pid(), Deb :: fun()) -> term().
-prove_goal(Goal0, Db, Fcon, Event, Deb) ->
+-spec prove_goal(Goal0 :: term(), Db :: pid(), Consuter :: atom(), Event :: pid(), Deb :: fun()) -> term().
+prove_goal(Goal0, Db, Consulter, Event, Deb) ->
   %% put(erlog_cut, orddict:new()),
   %% put(erlog_cps, orddict:new()),
   %% put(erlog_var, orddict:new()),
   %% Check term and build new instance of term with bindings.
   {Goal1, Bs, Vn} = erlog_ec_logic:initial_goal(Goal0),
   Params = #param{goal = [{call, Goal1}], choice = [], bindings = Bs, var_num = Vn,
-    event_man = Event, database = Db, f_consulter = Fcon, debugger = Deb},
+    event_man = Event, database = Db, f_consulter = Consulter, debugger = Deb},
   erlog_ec_core:prove_body(Params). %TODO use lists:foldr instead!
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
