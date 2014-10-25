@@ -45,7 +45,8 @@
   f_consulter :: atom(), %file consulter
   debugger :: fun(), %debugger function
   e_man :: pid(), %event manager, used for debuging and other output (not for return)
-  state = normal :: normal | list() %state for solution selecting.
+  state = normal :: normal | list(), %state for solution selecting.
+  libs_dir :: string()  %path for directory, where prolog libs are stored
 }).
 
 execute(Worker, Command, undefined) -> execute(Worker, Command);
@@ -75,7 +76,7 @@ init(Params) -> % use custom database implementation
     undefined -> ok;
     {Module, Arguments} -> gen_event:add_handler(E, Module, Arguments)
   end,
-  {ok, #state{db = Db, f_consulter = FileCon, e_man = E, debugger = Debugger}}.
+  {ok, #state{db = Db, f_consulter = FileCon, e_man = E, debugger = Debugger, libs_dir = LibsDir}}.
 
 handle_call({execute, Command}, _From, State) -> %running prolog code in normal mode
   {Res, _} = Repl = case erlog_scan:tokens([], Command, 1) of
@@ -114,12 +115,9 @@ change_state({_, State}) -> State#state{state = normal}.
 %% Configurates database with arguments, populates it and returns.
 -spec init_database(Params :: proplists:proplist()) -> {ok, Pid :: pid()}.
 init_database(Params) ->
-  {ok, DbPid} = case proplists:get_value(database, Params) of
-                  undefined -> erlog_memory:start_link(erlog_dict); %default database is ets module
-                  Module ->
-                    Args = proplists:get_value(arguments, Params),
-                    erlog_memory:start_link(Module, Args)
-                end,
+  Module = proplists:get_value(database, Params, erlog_dict), %default database is dict module
+  Args = proplists:get_value(arguments, Params, []),
+  {ok, DbPid} = erlog_memory:start_link(Module, Args),
   load_built_in(DbPid),
   {ok, DbPid}.
 
@@ -193,8 +191,8 @@ process_command({prove, Goal}, State) ->
   prove_goal(Goal, State);
 process_command(next, State = #state{state = normal}) ->  % can't select solution, when not in select mode
   {fail, State};
-process_command(next, State = #state{state = [Vs, Cps], db = Db, f_consulter = Consulter}) ->
-  case erlog_logic:prove_result(catch erlog_errors:fail(#param{choice = Cps, database = Db, f_consulter = Consulter}), Vs) of
+process_command(next, State = #state{state = [Vs, Cps], db = Db, f_consulter = Consulter, libs_dir = LD}) ->
+  case erlog_logic:prove_result(catch erlog_errors:fail(#param{choice = Cps, database = Db, f_consulter = Consulter, libs_dir = LD}), Vs) of
     {Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
     Other -> {Other, State}
   end;
@@ -203,13 +201,13 @@ process_command(halt, State) ->
   {ok, State}.
 
 %% @private
-prove_goal(Goal0, State = #state{db = Db, f_consulter = Consulter, e_man = Event, debugger = Deb}) ->
+prove_goal(Goal0, State = #state{db = Db, f_consulter = Consulter, e_man = Event, debugger = Deb, libs_dir = LD}) ->
   Vs = erlog_logic:vars_in(Goal0),
   %% Goal may be a list of goals, ensure proper goal.
   Goal1 = erlog_logic:unlistify(Goal0),
   %% Must use 'catch' here as 'try' does not do last-call
   %% optimisation.
-  case erlog_logic:prove_result(catch erlog_ec_core:prove_goal(Goal1, Db, Consulter, Event, Deb), Vs) of
+  case erlog_logic:prove_result(catch erlog_ec_core:prove_goal(Goal1, Db, Consulter, Event, Deb, LD), Vs) of
     {succeed, Res, Args} -> {{succeed, Res}, State#state{state = Args}};
     OtherRes -> {OtherRes, State}
   end.

@@ -60,3 +60,9 @@ _File `erlog_uid.erl`_
     id_1(Params = #param{goal = {id, Res}, next_goal = Next, bindings = Bs0}) ->
 	    Bs = ec_support:add_binding(Res, binary_to_list(uuid:generate()), Bs0),
 	    ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
+	    
+### Prolog libraries
+You can also write prolog libraries, which you can load manually of automatically. All this libraries will be loaded to 
+library space. For automatic loading libraries - move them to `lib/autoload` directory.  
+Note, that if you create a functor in prolog library and load this library - you won't create same functor in userspace with
+the help of `assert`. Also - if you have same functors in different libraries - they will be rewritten by last loaded.

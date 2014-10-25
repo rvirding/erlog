@@ -27,7 +27,7 @@ load(Db) ->
 			put(erlog_cache, Ets);
 		_ -> ok
 	end,
-	lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_CACHE).
+	lists:foreach(fun(Proc) -> erlog_memory:load_native_library(Db, Proc) end, ?ERLOG_CACHE).
 
 put_2(Params = #param{goal = {put, _, _} = Goal, next_goal = Next, bindings = Bs}) ->
 	{put, Key, Value} = erlog_ec_support:dderef(Goal, Bs),

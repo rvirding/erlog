@@ -16,7 +16,9 @@
 %% API
 -export([start_link/1,
   start_link/2,
-  load_library_space/2,
+  load_native_library/2,
+  load_extended_library/2,
+  load_extended_library/3,
   assertz_clause/3,
   asserta_clause/3,
   retract_clause/3,
@@ -57,7 +59,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state,
+-record(state,  %TODO move to erlog, remove this process as separate
 {
   stdlib :: dict,  %kernel-space memory
   exlib :: dict, %library-space memory
@@ -73,7 +75,12 @@
 load_kernel_space(Database, Module, Functor) -> gen_server:call(Database, {load_kernel_space, {Module, Functor}}).
 
 %% libraryspace predicate loading
-load_library_space(Database, Proc) -> gen_server:call(Database, {load_library_space, {Proc}}).
+load_native_library(Database, Proc) -> gen_server:call(Database, {load_native, Proc}).
+
+%% add prolog functor to libraryspace
+load_extended_library(Database, {':-', Head, Body}) -> load_extended_library(Database, Head, Body);
+load_extended_library(Database, Head) -> load_extended_library(Database, Head, true).
+load_extended_library(Database, Head, Body) -> gen_server:call(Database, {load_extended, {Head, Body}}).
 
 %% userspace predicate loading
 assertz_clause(Database, {':-', Head, Body}) -> assertz_clause(Database, Head, Body);
@@ -95,7 +102,7 @@ db_asserta_clause(Database, Collection, Head, Body) ->
   gen_server:call(Database, {asserta_clause, {Collection, Head, Body}}).
 
 db_findall(Database, Collection, Fun) -> gen_server:call(Database, {findall, {Collection, Fun}}).
-finadll(Database, Fun) -> gen_server:call(Database, {findall, {Fun}}).
+finadll(Database, Fun) -> gen_server:call(Database, {findall, {Fun}}).  %TODO remove such encapsulation cases
 
 next(Database, Cursor) -> gen_server:call(Database, {next, Cursor}).
 
@@ -177,7 +184,7 @@ init([Database, Params]) when is_atom(Database) ->
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(handle_call(Request :: term(), From :: {pid(), Tag :: term()},
+-spec(handle_call(Request :: term(), From :: {pid(), Tag :: term()},  %TODO refactor me, get rid of gen_server and its callbacks
     State :: #state{}) ->
   {reply, Reply :: term(), NewState :: #state{}} |
   {reply, Reply :: term(), NewState :: #state{}, timeout() | hibernate} |
@@ -188,13 +195,13 @@ init([Database, Params]) when is_atom(Database) ->
 handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib = StdLib}) ->  %load kernel space into memory
   UStdlib = dict:store(Functor, {built_in, Module}, StdLib),
   {reply, ok, State#state{stdlib = UStdlib}};
-handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
-  case dict:is_key(Functor, StdLib) of
-    true ->
-      {reply, {erlog_error, {modify, static_procedure, erlog_ec_support:pred_ind(Functor)}}, State};
-    false ->
-      {reply, ok, State#state{exlib = dict:store(Functor, {code, {M, F}}, ExLib)}}
-  end;
+handle_call({load_native, {Functor, M, F}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+  check_immutable(StdLib, Functor),
+  {reply, ok, State#state{exlib = dict:store(Functor, {code, {M, F}}, ExLib)}};
+handle_call({load_extended, {H, _} = F}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+  check_immutable(StdLib, erlog_ec_support:functor(H)),
+  {Res, UExLib} = erlog_dict:assertz_clause({StdLib, ExLib, ExLib}, F), %use erlog_dict module to assert library to exlib dict
+  {reply, Res, State#state{exlib = UExLib}};
 handle_call({raw_store, {Key, Value}}, _From, State = #state{in_mem = InMem}) ->  %findall store
   Umem = store(Key, Value, InMem),
   {reply, ok, State#state{in_mem = Umem}};
@@ -209,6 +216,7 @@ handle_call({raw_erase, {Key}}, _From, State = #state{in_mem = InMem}) ->  %find
   Umem = dict:erase(Key, InMem),
   {reply, ok, State#state{in_mem = Umem}};
 handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+  check_immutable(StdLib, Func),
   try
     {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, {Func}),
     {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
@@ -216,9 +224,28 @@ handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, da
     throw:E -> {reply, E, State}
   end;
 handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
+  check_immutable(StdLib, Func),  %abolishing fact from default memory need to be checked
   try
     {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
     {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
+  catch
+    throw:E -> {reply, E, State}
+  end;
+handle_call({Fun, {F, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib})
+  when Fun == asserta_clause; Fun == assertz_clause ->
+  check_immutable(StdLib, erlog_ec_support:functor(F)),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, erlog_ec_support:functor(F)),
+  try
+    {Res, UState} = Db:Fun({StdLib, ExLib, DbState}, Params),
+    {reply, Res, State#state{state = UState}}
+  catch
+    throw:E -> {reply, E, State}
+  end;handle_call({retract_clause, {Func, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
+  check_immutable(StdLib, Func),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, Func),
+  try
+    {Res, UState} = Db:retract_clause({StdLib, ExLib, DbState}, Params),
+    {reply, Res, State#state{state = UState}}
   catch
     throw:E -> {reply, E, State}
   end;
@@ -341,4 +368,12 @@ check_abolish(Func, StdLib, ExLib, Db, DbState, Params) ->
       {ExLib, NewState, Res};
     UExlib -> %dict changed -> was deleted
       {UExlib, DbState, ok}
+  end.
+
+%% @private
+check_immutable(Dict, Functor) ->
+  case dict:is_key(Functor, Dict) of
+    false -> ok;
+    true ->
+      erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor)) %TODO will crash db process, but not erlog
   end.

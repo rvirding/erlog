@@ -146,13 +146,18 @@ prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulte
       erlog_errors:erlog_error(Error, Db)
   end,
   erlog_ec_core:prove_body(Param#param{goal = Next});
-prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db}) ->
+prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db}) when is_atom(Library) ->
   try Library:load(Db)
   catch
     _:Error ->
       erlog_errors:erlog_error(Error, Db)
   end,
   erlog_ec_core:prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db, f_consulter = Consulter, libs_dir = LD}) when is_list(Library) ->
+  case erlog_file:load_library(Consulter, lists:concat([LD, "/", Library]), Db) of
+    ok -> erlog_ec_core:prove_body(Param#param{goal = Next});
+    _ -> erlog_errors:fail(Param)
+  end;
 prove_goal(Param = #param{goal = {listing, Res}, next_goal = Next, bindings = Bs0, database = Db}) ->
   Content = erlog_memory:listing(Db, []),
   Bs = erlog_ec_support:add_binding(Res, Content, Bs0),

@@ -14,7 +14,7 @@
 -behaviour(erlog_storage).
 
 %% erlog callbacks
--export([new/0, new/1,
+-export([new/1,
   assertz_clause/2,
   asserta_clause/2,
   retract_clause/2,
@@ -26,8 +26,6 @@
   listing/2,
   close/2,
   next/2]).
-
-new() -> {ok, dict:new()}.
 
 new(_) -> {ok, dict:new()}.
 
@@ -70,9 +68,7 @@ retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
   {Res, Udict} = retract_clause({StdLib, ExLib, Dict}, {Functor, Ct}),
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db};
-retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
-  ok = check_immutable(StdLib, Functor),
-  ok = check_immutable(ExLib, Functor),
+retract_clause({_, _, Db}, {Functor, Ct}) ->
   Udb = case dict:is_key(Functor, Db) of
           true ->
             dict:update(Functor, fun(Old) -> lists:keydelete(Ct, 1, Old) end, [], Db);
@@ -85,8 +81,7 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
   {Res, Udict} = abolish_clauses({StdLib, ExLib, Dict}, {Functor}),
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db};
-abolish_clauses({StdLib, _, Db}, {Functor}) ->
-  ok = check_immutable(StdLib, Functor),
+abolish_clauses({_, _, Db}, {Functor}) ->
   Udb = case dict:is_key(Functor, Db) of
           true -> dict:erase(Functor, Db);
           false -> Db        %Do nothing
@@ -103,8 +98,8 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
         error ->
           case dict:find(Functor, Dict) of  %search userspace last
             {ok, Cs} ->
-              {First, Cursor} = form_clauses(Cs), %TODO fix bagof, possibly broken by return format
-              {{cursor, Cursor, result, {clauses, First}}, Db};
+              Res = work_with_clauses(Cs), %TODO fix bagof, possibly broken by return format
+              {Res, Db};
             error -> {[], Db}
           end
       end
@@ -138,17 +133,18 @@ get_procedure({StdLib, ExLib, Db}, {Collection, Functor}) ->
   {Res, Udict} = get_procedure({StdLib, ExLib, Dict}, {Functor}),
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db};
-get_procedure({StdLib, ExLib, Db}, {Functor}) ->
+get_procedure({StdLib, ExLib, Db}, {Functor}) ->  %TODO move all operations with stdlib and exlib to erlog_memory!
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
             case dict:find(Functor, ExLib) of  %search libraryspace then
+              {ok, Cs} when is_list(Cs) ->
+                work_with_clauses(Cs);
               {ok, ExFun} -> ExFun;
               error ->
                 case dict:find(Functor, Db) of  %search userspace last
                   {ok, Cs} ->
-                    {First, Cursor} = form_clauses(Cs),
-                    {cursor, Cursor, result, {clauses, First}};
+                    work_with_clauses(Cs);
                   error -> undefined
                 end
             end
@@ -196,13 +192,11 @@ listing({_, _, Db}, {[]}) ->
   {dict:fetch_keys(Db), Db}.
 
 %% @private
-clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
+clause(Head, Body0, {_, _, Db}, ClauseFun) ->
   {Functor, Body} = case catch {ok, erlog_ec_support:functor(Head), erlog_ec_body:well_form_body(Body0, false, sture)} of
                       {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
                       {ok, F, B} -> {F, B}
                     end,
-  ok = check_immutable(StdLib, Functor),  %check built-in functions (read only) for clause
-  ok = check_immutable(ExLib, Functor),   %check library functions (read only) for clauses
   case dict:find(Functor, Db) of
     {ok, Cs} -> ClauseFun(Functor, Cs, Body);
     error -> dict:append(Functor, {0, Head, Body}, Db)
@@ -218,14 +212,12 @@ check_duplicates(Cs, Head, Body) ->
     end, false, Cs)).
 
 %% @private
-check_immutable(Dict, Functor) ->
-  case dict:is_key(Functor, Dict) of
-    false -> ok;
-    true -> erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor))
-  end.
-
-%% @private
 form_clauses([]) -> {[], queue:new()};
 form_clauses([First | Loaded]) ->
   Queue = queue:from_list(Loaded),
   {First, Queue}.
+
+%% @private
+work_with_clauses(Cs) ->
+  {First, Cursor} = form_clauses(Cs),
+  {cursor, Cursor, result, {clauses, First}}.

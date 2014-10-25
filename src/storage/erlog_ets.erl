@@ -14,7 +14,7 @@
 -behaviour(erlog_storage).
 
 %% erlog callbacks
--export([new/0, new/1,
+-export([new/1,
   assertz_clause/2,
   asserta_clause/2,
   retract_clause/2,
@@ -26,8 +26,6 @@
   listing/2,
   close/2,
   next/2]).
-
-new() -> {ok, ets:new(eets, [bag, private])}.
 
 new(_) -> {ok, ets:new(eets, [bag, private])}.
 
@@ -66,9 +64,7 @@ retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
   {Res, Db};
-retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
-  ok = check_immutable(StdLib, Functor),
-  ok = check_immutable(ExLib, Functor),
+retract_clause({_, _, Db}, {Functor, Ct}) ->
   case catch ets:lookup_element(Db, Functor, 2) of
     Cs when is_list(Cs) ->
       Object = lists:keyfind(Ct, 1, Cs),
@@ -81,8 +77,7 @@ abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
   {Res, Db};
-abolish_clauses({StdLib, _, Db}, {Functor}) ->
-  ok = check_immutable(StdLib, Functor),
+abolish_clauses({_, _, Db}, {Functor}) ->
   ets:delete(Db, Functor),
   {ok, Db}.
 
@@ -98,8 +93,8 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
                  Cs when is_list(Cs) -> Cs;
                  _ -> []
                end,
-          {First, Cursor} = form_clauses(CS),
-          {{cursor, Cursor, result, {clauses, First}}, Db}
+          Res = work_with_clauses(CS),
+          {Res, Db}
       end
   end;
 findall({StdLib, ExLib, Db}, {Functor}) ->
@@ -141,9 +136,7 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
               {ok, ExFun} -> ExFun;
               error ->
                 case catch ets:lookup_element(Db, Functor, 2) of  %search userspace last
-                  Cs when is_list(Cs) ->
-                    {First, Cursor} = form_clauses(Cs),
-                    {{cursor, Cursor, result, {clauses, First}}, Db};
+                  Cs when is_list(Cs) -> work_with_clauses(Cs);
                   _ -> undefined
                 end
             end
@@ -196,13 +189,11 @@ listing({_, _, Db}, {[]}) ->
     end, [], Db), Db}.
 
 %% @private
-clause(Head, Body0, {StdLib, ExLib, Db}, ClauseFun) ->
+clause(Head, Body0, {_, _, Db}, ClauseFun) ->
   {Functor, Body} = case catch {ok, erlog_ec_support:functor(Head), erlog_ec_body:well_form_body(Body0, false, sture)} of
                       {erlog_error, E} -> erlog_errors:erlog_error(E, Db);
                       {ok, F, B} -> {F, B}
                     end,
-  ok = check_immutable(StdLib, Functor),  %check built-in functions (read only) for clause
-  ok = check_immutable(ExLib, Functor),   %check library functions (read only) for clauses
   case ets:lookup(Db, Functor) of
     [] -> ets:insert(Db, {Functor, {0, Head, Body}});
     Cs -> ClauseFun(Functor, Cs, Body)
@@ -217,14 +208,12 @@ check_duplicates(Cs, Head, Body) ->
     end, true, Cs).
 
 %% @private
-check_immutable(Dict, Functor) -> %TODO may be move me to erlog_memory?
-  case dict:is_key(Functor, Dict) of
-    false -> ok;
-    true -> erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor))
-  end.
-
-%% @private
 form_clauses([]) -> {[], queue:new()};
 form_clauses([First | Loaded]) ->
   Queue = queue:from_list(Loaded),
   {First, Queue}.
+
+%% @private
+work_with_clauses(Cs) ->
+  {First, Cursor} = form_clauses(Cs),
+  {cursor, Cursor, result, {clauses, First}}.

@@ -29,8 +29,6 @@
 -callback abolish_clauses({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Func :: term()) -> {ok, NewState :: any()}.
 
 %% ------- System -------
--callback new() -> {ok, State :: any()}.
-
 -callback new(Params :: list()) -> {ok, State :: any()}.
 
 %% close cursor

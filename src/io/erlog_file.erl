@@ -18,7 +18,7 @@
 
 -module(erlog_file).
 
--export([consult/3, reconsult/3]).
+-export([consult/3, reconsult/3, load_library/3]).
 
 
 %% consult(File, Database) ->
@@ -31,6 +31,14 @@
 consult(Consulter, File, Db) ->
   case Consulter:load(File) of %call erlog_file_consulter implementation
     {ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
+    Error -> Error
+  end.
+
+%% consult to library space
+-spec load_library(atom(), File :: string(), Db :: pid()) -> ok | tuple().
+load_library(Consulter, File, Db) ->
+  case Consulter:load(File) of %call erlog_file_consulter implementation
+    {ok, Terms} -> consult_terms(fun consult_lib/2, Db, Terms);
     Error -> Error
   end.
 
@@ -51,6 +59,14 @@ consult_assert(Term0, Db) ->
   Term1 = erlog_ed_logic:expand_term(Term0),
   check_assert(Db, Term1),
   {ok, Db}.  %TODO refactor consult_terms not to pass DB everywhere!
+
+%% @private
+-spec consult_lib(Term0 :: term(), Db :: pid()) -> {ok, Db :: pid()}.
+consult_lib(Term0, Db) ->
+  Term1 = erlog_ed_logic:expand_term(Term0),
+  check_load(Db, Term1),
+  {ok, Db}.
+
 
 %% @private
 -spec reconsult_assert(Term0 :: term(), {Db :: pid(), Seen :: list()}) -> {ok, {Db :: pid(), list()}}.
@@ -92,6 +108,14 @@ functor(T) -> erlog_ec_support:functor(T).
 %% @private
 check_assert(Db, Term) ->
   case erlog_memory:assertz_clause(Db, Term) of
+    {erlog_error, E} -> erlog_errors:erlog_error(E);
+    _ -> ok
+  end.
+
+%% @private
+%% Same as check assert, but use library space
+check_load(Db, Term) ->
+  case erlog_memory:load_extended_library(Db, Term) of
     {erlog_error, E} -> erlog_errors:erlog_error(E);
     _ -> ok
   end.
