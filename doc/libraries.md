@@ -71,3 +71,15 @@ You can also write prolog libraries, which you can load manually of automaticall
 library space. For automatic loading libraries - move them to `lib/autoload` directory, or use library autoload standard method.
 Note, that if you create a functor in prolog library and load this library - you won't create same functor in userspace with
 the help of `assert`. Also - if you have same functors in different libraries - they will be rewritten by last loaded.
+
+#### When prefer autoloading?
+You may noticed, that `use/1` and `consult/1` share same functionality. The only difference is that `consult` loads predicates
+to __userspace__, while `use` loads predicates to __library space__ (Extended). When is it optional to select each?  
+If you work locally, without your own storage implementation - it doesnt' matter, as default erlog storage model for userspace is
+same as for library space - dict. But when you have your own memory implementation - you should understand:
+   
+* library space is dict, stored in local memory. It can be faster, than your remote database.
+* when your system has many users, who shares some code (library) - consulting this library leads to copying it to user's 
+tables/collections/namespaces, while using library will make copy only in memory of user's thread.
+* if you store huge number of facts into library - dict implementation of library space can show worse performance, than 
+your database.
