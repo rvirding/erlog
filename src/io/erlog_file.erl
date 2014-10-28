@@ -30,7 +30,7 @@
 -spec consult(atom(), File :: string(), Db :: pid()) -> ok | tuple().
 consult(Consulter, File, Db) ->
   case Consulter:load(File) of %call erlog_file_consulter implementation
-    {ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
+    {ok, Terms} -> io:format("consult terms ~p~n", [Terms]), consult_terms(fun consult_assert/2, Db, Terms);
     Error -> Error
   end.
 

@@ -33,8 +33,13 @@ everywhere in your code. Just add param `{libraries, [my_first_lib, my second_li
 
     ConfList = [{libraries, [my_first_lib, my second_lib]}],
     erlog:start_link(ConfList).
-All libraries from array will be loaded.
+All libraries from array will be loaded.  
+You can load native libraries - just pass name of your module where library is implemented to ConfList as an atom. Or you
+can load library, written in prolog. In that case you should pass full path to library as a string:
     
+    ConfList = [{libraries, [my_first_lib, my second_lib, "/home/user/testlib.pl"]}],
+    erlog:start_link(ConfList).
+   
 ### Writing your own libraries
 You can write your own external libraries. For doing so - just setup behaviour `erlog_exlib`. It has one callback function
 `load(Db)` for initialisation library. Then you should define your execution functions. See __External libraries__ for 
@@ -63,6 +68,6 @@ _File `erlog_uid.erl`_
 	    
 ### Prolog libraries
 You can also write prolog libraries, which you can load manually of automatically. All this libraries will be loaded to 
-library space. For automatic loading libraries - move them to `lib/autoload` directory.  
+library space. For automatic loading libraries - move them to `lib/autoload` directory, or use library autoload standard method.
 Note, that if you create a functor in prolog library and load this library - you won't create same functor in userspace with
 the help of `assert`. Also - if you have same functors in different libraries - they will be rewritten by last loaded.

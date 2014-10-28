@@ -69,7 +69,7 @@ init(Params) -> % use custom database implementation
   {ok, Db} = init_database(Params),
   LibsDir = proplists:get_value(libs_dir, Params, "../lib"), %default assumes erlog is run from ebin
   ok = load_prolog_libraries(FileCon, LibsDir, Db),
-  ok = load_external_libraries(Params, Db),
+  ok = load_external_libraries(Params, FileCon, Db),
   {ok, E} = gen_event:start_link(),
   Debugger = init_debugger(Params),
   case proplists:get_value(event_h, Params) of  %register handler, if any
@@ -149,10 +149,16 @@ load_prolog_libraries(Fcon, LibsDir, Db) ->
   ok.
 
 %% @private
-load_external_libraries(Params, Database) ->
+load_external_libraries(Params, FileCon, Database) ->
   case proplists:get_value(libraries, Params) of
     undefined -> ok;
-    Libraries -> lists:foreach(fun(Mod) -> Mod:load(Database) end, Libraries)
+    Libraries ->
+      lists:foreach(
+        fun(Mod) when is_atom(Mod) -> %autoload native library
+          Mod:load(Database);
+          (PrologLib) when is_list(PrologLib) ->  %autoload external library
+            erlog_file:consult(FileCon, PrologLib, Database)
+        end, Libraries)
   end.
 
 %% @private

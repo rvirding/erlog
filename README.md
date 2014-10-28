@@ -134,7 +134,14 @@ remember, that two execution requests can be processed on different erlog instan
     some_lib_fun(some_val). %returns false
 In this example system erlog gen server is created one per one separate command (F.e. http request). Firstly - library
 `some_lib` is loaded. Than erlog server with loaded library is destroyed (as request is complete) and for another request
-`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.  
+`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.
+##### Automatic libraries loading
+For convenient libraries usage you can load all libraries you need when creating a core. It will let you not to call `use/1`
+everywhere in your code. Just add param `{libraries, [my_first_lib, my second_lib]}` in your params when starting a core:
+
+    ConfList = [{libraries, [Lib1, Lib2]}],
+    erlog:start_link(ConfList).
+All libraries from array will be loaded.
 More in [docs](https://github.com/comtihon/erlog/blob/master/doc/libraries.md "libraries").  
 ##### Loading Prolog libraries
 When configuring erlog you should set default library directory as __libs_dir__:
