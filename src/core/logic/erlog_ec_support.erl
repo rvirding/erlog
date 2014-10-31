@@ -28,7 +28,7 @@ deref(T, _) -> T.        %Not a variable, return it.
 
 %% deref_list(List, Bindings) -> List.
 %%  Dereference the top-level checking that it is a list.
-deref_list([], _) -> [];      %It already is a list %TODO where it is used?
+deref_list([], _) -> [];      %It already is a list
 deref_list([_ | _] = L, _) -> L;
 deref_list({V}, Bs) ->
 	case dict:find(V, Bs) of
@@ -45,7 +45,7 @@ dderef([], _) -> [];
 dderef([H0 | T0], Bs) ->
 	[dderef(H0, Bs) | dderef(T0, Bs)];
 dderef({V} = Var, Bs) ->
-	case ?BIND:find(V, Bs) of %TODO check, why dict instead erlog_storage
+	case ?BIND:find(V, Bs) of
 		{ok, T} -> dderef(T, Bs);
 		error -> Var
 	end;
