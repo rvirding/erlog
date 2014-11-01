@@ -25,21 +25,10 @@ load(Db) ->
 prove_goal(Params = #param{goal = {localtime, Var}, next_goal = Next, bindings = Bs0}) ->
   {M, S, _} = os:timestamp(),
   Now = erlog_et_logic:date_to_ts({M, S}),
-  case erlog_ec_support:is_bound(Var) of
-    true -> %compare to now if set
-      Value = erlog_ec_support:deref(Var, Bs0),
-      try to_integer(Value) of
-        Now ->
-          erlog_ec_core:prove_body(Params#param{goal = Next});
-        _ ->
-          erlog_errors:fail(Params)
-      catch
-        _:_ ->
-          erlog_errors:fail(Params)
-      end;
-    false ->  %write now if unset
-      Bs = erlog_ec_support:add_binding(Var, Now, Bs0),
-      erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs})
+  Value = to_integer(erlog_ec_support:deref(Var, Bs0)), %convert to integer, as it can be string, or binary.
+  case erlog_ec_support:try_add(Now, Value, Bs0) of
+    error -> erlog_errors:fail(Params);
+    Bs -> erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs})
   end;
 %% Returns timestamp for data, ignoring time
 prove_goal(Params = #param{goal = {date, DateString, Res}, next_goal = Next, bindings = Bs0}) ->
