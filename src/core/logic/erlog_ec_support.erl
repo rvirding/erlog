@@ -15,12 +15,10 @@
 -export([new_bindings/0, get_binding/2, add_binding/3,
   functor/1, cut/3, collect_alternatives/3,
   update_result/4, update_vars/4, deref/2, dderef_list/2,
-  make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1]).
+  make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1, try_add/3]).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
-deref(L, Bs) when is_list(L) ->
-  lists:foldl(fun(Var, Res) -> [deref(Var, Bs), Res] end, [], L);
 deref({V} = T0, Bs) ->
   case ?BIND:find(V, Bs) of
     {ok, T1} -> deref(T1, Bs);
@@ -30,7 +28,7 @@ deref(T, _) -> T.        %Not a variable, return it.
 
 %% deref_list(List, Bindings) -> List.
 %%  Dereference the top-level checking that it is a list.
-deref_list([], _) -> [];      %It already is a list %TODO where it is used?
+deref_list([], _) -> [];      %It already is a list
 deref_list([_ | _] = L, _) -> L;
 deref_list({V}, Bs) ->
   case dict:find(V, Bs) of
@@ -47,7 +45,7 @@ dderef([], _) -> [];
 dderef([H0 | T0], Bs) ->
   [dderef(H0, Bs) | dderef(T0, Bs)];
 dderef({V} = Var, Bs) ->
-  case ?BIND:find(V, Bs) of %TODO check, why dict instead erlog_storage
+  case ?BIND:find(V, Bs) of
     {ok, T} -> dderef(T, Bs);
     error -> Var
   end;
@@ -93,6 +91,18 @@ pred_ind({N, A}) -> {'/', N, A}.
 %% Bindings
 %% Bindings are kept in a dict where the key is the variable name.
 new_bindings() -> ?BIND:new().
+
+%% Add bindings if acc is not bound. If it is bound - match result.
+try_add(Var, Res, Bs) ->
+  Value = deref(Res, Bs),
+  case is_bound(Value) of
+    false -> add_binding(Res, Var, Bs); %not bound - just add var
+    true ->
+      case Value of %is bound. Fail if not the same
+        Var -> Bs;
+        _ -> error
+      end
+  end.
 
 add_binding({V}, Val, Bs0) ->
   ?BIND:store(V, Val, Bs0).
