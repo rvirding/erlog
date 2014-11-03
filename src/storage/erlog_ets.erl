@@ -27,14 +27,24 @@
   close/2,
   next/2]).
 
+%% erlog db callbacks
+-export([db_assertz_clause/2,
+  db_asserta_clause/2,
+  db_retract_clause/2,
+  db_abolish_clauses/2,
+  db_findall/2,
+  get_db_procedure/2,
+  db_listing/2]).
+
 new() -> {ok, ets:new(eets, [bag, private])}.
 
 new(_) -> {ok, ets:new(eets, [bag, private])}.
 
-assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
+db_assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = assertz_clause({StdLib, ExLib, Ets}, {Head, Body0}),
-  {Res, Db};
+  {Res, Db}.
+
 assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
   clause(Head, Body0, Memory,
     fun(Functor, Cs, Body) ->
@@ -45,10 +55,11 @@ assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
     end),
   {ok, Db}.
 
-asserta_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
+db_asserta_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = asserta_clause({StdLib, ExLib, Ets}, {Head, Body0}),
-  {Res, Db};
+  {Res, Db}.
+
 asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
   clause(Head, Body0, Memory,
     fun(Functor, Cs, Body) ->
@@ -62,10 +73,11 @@ asserta_clause({_, _, Db} = Memory, {Head, Body0}) ->
     end),
   {ok, Db}.
 
-retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
+db_retract_clause({StdLib, ExLib, Db}, {Collection, Functor, Ct}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = retract_clause({StdLib, ExLib, Ets}, {Functor, Ct}),
-  {Res, Db};
+  {Res, Db}.
+
 retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
   ok = check_immutable(StdLib, Functor),
   ok = check_immutable(ExLib, Functor),
@@ -77,16 +89,17 @@ retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
   end,
   {ok, Db}.
 
-abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
+db_abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
-  {Res, Db};
-abolish_clauses({StdLib, _, Db}, {Functor}) ->
+  {Res, Db}.
+
+abolish_clauses({StdLib, _, Db}, Functor) ->
   ok = check_immutable(StdLib, Functor),
   ets:delete(Db, Functor),
   {ok, Db}.
 
-findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
+db_findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
   Ets = erlog_db_storage:get_db(ets, Collection),
   case dict:find(Functor, StdLib) of %search built-in first
     {ok, StFun} -> {StFun, Db};
@@ -101,8 +114,9 @@ findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
           {First, Cursor} = form_clauses(CS),
           {{cursor, Cursor, result, {clauses, First}}, Db}
       end
-  end;
-findall({StdLib, ExLib, Db}, {Functor}) ->
+  end.
+
+findall({StdLib, ExLib, Db}, Functor) ->
   case dict:find(Functor, StdLib) of %search built-in first
     {ok, StFun} -> {StFun, Db};
     error ->
@@ -130,10 +144,11 @@ next(Ets, Queue) ->
     {empty, UQ} -> {{cursor, UQ, result, []}, Ets}  %nothing to return
   end.
 
-get_procedure({StdLib, ExLib, _}, {Collection, Functor}) ->
+get_db_procedure({StdLib, ExLib, _}, {Collection, Functor}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
-  get_procedure({StdLib, ExLib, Ets}, {Functor});
-get_procedure({StdLib, ExLib, Db}, {Functor}) ->
+  get_procedure({StdLib, ExLib, Ets}, {Functor}).
+
+get_procedure({StdLib, ExLib, Db}, Functor) ->
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
@@ -150,7 +165,7 @@ get_procedure({StdLib, ExLib, Db}, {Functor}) ->
         end,
   {Res, Db}.
 
-get_procedure_type({StdLib, ExLib, Db}, {Functor}) ->
+get_procedure_type({StdLib, ExLib, Db}, Functor) ->
   Res = case dict:is_key(Functor, StdLib) of %search built-in first
           true -> built_in;
           false ->
@@ -173,10 +188,11 @@ get_interp_functors({_, ExLib, Db}) ->
   end, Library, Db),
   {Res, Db}.
 
-listing({StdLib, ExLib, Db}, {Collection, Params}) ->
+db_listing({StdLib, ExLib, Db}, {Collection, Params}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
   {Res, _} = listing({StdLib, ExLib, Ets}, {Params}),
-  {Res, Db};
+  {Res, Db}.
+
 listing({_, _, Db}, {[Functor, Arity]}) ->
   {ets:foldl(
     fun({{F, A} = Res, _}, Acc) when F == Functor andalso A == Arity ->

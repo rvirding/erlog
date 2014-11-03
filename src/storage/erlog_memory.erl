@@ -73,7 +73,7 @@
 load_kernel_space(Database, Module, Functor) -> gen_server:call(Database, {load_kernel_space, {Module, Functor}}).
 
 %% libraryspace predicate loading
-load_library_space(Database, Proc) -> gen_server:call(Database, {load_library_space, {Proc}}).
+load_library_space(Database, Proc) -> gen_server:call(Database, {load_library_space, Proc}).
 
 %% userspace predicate loading
 assertz_clause(Database, {':-', Head, Body}) -> assertz_clause(Database, Head, Body);
@@ -83,7 +83,7 @@ assertz_clause(Database, Head, Body) -> gen_server:call(Database, {assertz_claus
 db_assertz_clause(Database, Collection, {':-', Head, Body}) -> db_assertz_clause(Database, Collection, Head, Body);
 db_assertz_clause(Database, Collection, Head) -> db_assertz_clause(Database, Collection, Head, true).
 db_assertz_clause(Database, Collection, Head, Body) ->
-  gen_server:call(Database, {assertz_clause, {Collection, Head, Body}}).
+  gen_server:call(Database, {db_assertz_clause, {Collection, Head, Body}}).
 
 asserta_clause(Database, {':-', H, B}) -> asserta_clause(Database, H, B);
 asserta_clause(Database, H) -> asserta_clause(Database, H, true).
@@ -92,39 +92,38 @@ asserta_clause(Database, Head, Body) -> gen_server:call(Database, {asserta_claus
 db_asserta_clause(Database, Collection, {':-', H, B}) -> db_asserta_clause(Database, Collection, H, B);
 db_asserta_clause(Database, Collection, H) -> db_asserta_clause(Database, Collection, H, true).
 db_asserta_clause(Database, Collection, Head, Body) ->
-  gen_server:call(Database, {asserta_clause, {Collection, Head, Body}}).
+  gen_server:call(Database, {db_asserta_clause, {Collection, Head, Body}}).
 
-db_findall(Database, Collection, Fun) -> gen_server:call(Database, {findall, {Collection, Fun}}).
-finadll(Database, Fun) -> gen_server:call(Database, {findall, {Fun}}).
+db_findall(Database, Collection, Fun) -> gen_server:call(Database, {db_findall, {Collection, Fun}}).
+finadll(Database, Fun) -> gen_server:call(Database, {findall, Fun}).
 
 next(Database, Cursor) -> gen_server:call(Database, {next, Cursor}).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
 db_retract_clause(Database, Collection, F, Ct) ->
-  gen_server:call(Database, {retract_clause, {Collection, F, Ct}}).
+  gen_server:call(Database, {db_retract_clause, {Collection, F, Ct}}).
 
-abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, {Func}}).
+abolish_clauses(Database, Func) -> gen_server:call(Database, {abolish_clauses, Func}).
 db_abolish_clauses(Database, Collection, Func) ->
-  gen_server:call(Database, {abolish_clauses, {Collection, Func}}).
+  gen_server:call(Database, {db_abolish_clauses, {Collection, Func}}).
 
-get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, {Func}}).
-get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {get_procedure, {Collection, Func}}).
+get_procedure(Database, Func) -> gen_server:call(Database, {get_procedure, Func}).
+get_db_procedure(Database, Collection, Func) -> gen_server:call(Database, {get_db_procedure, {Collection, Func}}).
 
-get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, {Func}}).
+get_procedure_type(Database, Func) -> gen_server:call(Database, {get_procedure_type, Func}).
 
 get_interp_functors(Database) -> gen_server:call(Database, get_interp_functors).
 
 raw_store(Database, Key, Value) -> gen_server:call(Database, {raw_store, {Key, Value}}).
 
-raw_fetch(Database, Key) -> gen_server:call(Database, {raw_fetch, {Key}}).
+raw_fetch(Database, Key) -> gen_server:call(Database, {raw_fetch, Key}).
 
 raw_append(Database, Key, Value) -> gen_server:call(Database, {raw_append, {Key, Value}}).
 
-raw_erase(Database, Key) -> gen_server:call(Database, {raw_erase, {Key}}).
+raw_erase(Database, Key) -> gen_server:call(Database, {raw_erase, Key}).
 
-listing(Database, Args) -> gen_server:call(Database, {listing, {Args}}).
-
-db_listing(Database, Collection, Args) -> gen_server:call(Database, {listing, {Collection, Args}}).
+listing(Database, Args) -> gen_server:call(Database, {listing, Args}).
+db_listing(Database, Collection, Args) -> gen_server:call(Database, {db_listing, {Collection, Args}}).
 
 close(Database, Cursor) -> gen_server:call(Database, {close, Cursor}).
 
@@ -188,7 +187,7 @@ init([Database, Params]) when is_atom(Database) ->
 handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib = StdLib}) ->  %load kernel space into memory
   UStdlib = dict:store(Functor, {built_in, Module}, StdLib),
   {reply, ok, State#state{stdlib = UStdlib}};
-handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+handle_call({load_library_space, {Functor, M, F}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
   case dict:is_key(Functor, StdLib) of
     true ->
       {reply, {erlog_error, {modify, static_procedure, erlog_ec_support:pred_ind(Functor)}}, State};
@@ -198,30 +197,20 @@ handle_call({load_library_space, {{Functor, M, F}}}, _From, State = #state{stdli
 handle_call({raw_store, {Key, Value}}, _From, State = #state{in_mem = InMem}) ->  %findall store
   Umem = store(Key, Value, InMem),
   {reply, ok, State#state{in_mem = Umem}};
-handle_call({raw_fetch, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall fetch
+handle_call({raw_fetch, Key}, _From, State = #state{in_mem = InMem}) ->  %findall fetch
   Res = fetch(Key, InMem),
   {reply, Res, State};
 handle_call({raw_append, {Key, AppendValue}}, _From, State = #state{in_mem = InMem}) ->  %findall append
   Value = fetch(Key, InMem),
   Umem = store(Key, lists:concat([Value, [AppendValue]]), InMem),
   {reply, ok, State#state{in_mem = Umem}};
-handle_call({raw_erase, {Key}}, _From, State = #state{in_mem = InMem}) ->  %findall erase
+handle_call({raw_erase, Key}, _From, State = #state{in_mem = InMem}) ->  %findall erase
   Umem = dict:erase(Key, InMem),
   {reply, ok, State#state{in_mem = Umem}};
-handle_call({abolish_clauses, {Func}}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  try
-    {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, {Func}),
-    {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
-  catch
-    throw:E -> {reply, E, State}
-  end;
-handle_call({abolish_clauses, {_, Func} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  try
-    {UpdExlib, NewState, Res} = check_abolish(Func, StdLib, ExLib, Db, DbState, Params),
-    {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
-  catch
-    throw:E -> {reply, E, State}
-  end;
+handle_call({abolish_clauses, Func}, _From, State) ->  %call third-party db module
+  do_abolish(abolish_clauses, Func, Func, State);
+handle_call({db_abolish_clauses, {_, Func} = Params}, _From, State) ->  %call third-party db module
+  do_abolish(db_abolish_clauses, Func, Params, State);
 handle_call({next, Cursor}, _From, State = #state{state = DbState, database = Db}) ->  %get next result by cursor
   {Res, UState} = Db:next(DbState, Cursor),
   Ans = case Res of
@@ -334,10 +323,19 @@ store(Key, Value, Memory) ->
   dict:store(Key, Value, Memory).
 
 %% @private
-check_abolish(Func, StdLib, ExLib, Db, DbState, Params) ->
+do_abolish(F, Func, Params, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
+  try
+    {UpdExlib, NewState, Res} = check_abolish(F, Func, StdLib, ExLib, Db, DbState, Params),
+    {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
+  catch
+    throw:E -> {reply, E, State}
+  end.
+
+%% @private
+check_abolish(F, Func, StdLib, ExLib, Db, DbState, Params) ->
   case dict:erase(Func, ExLib) of
     ExLib ->  %dict not changed - was not deleted. Search userspace
-      {Res, NewState} = Db:abolish_clauses({StdLib, ExLib, DbState}, Params),
+      {Res, NewState} = Db:F({StdLib, ExLib, DbState}, Params),
       {ExLib, NewState, Res};
     UExlib -> %dict changed -> was deleted
       {UExlib, DbState, ok}
