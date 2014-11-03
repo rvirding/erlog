@@ -192,23 +192,23 @@ get_interp_functors({_, ExLib, Db}) ->
 
 db_listing({StdLib, ExLib, Db}, {Collection, Params}) ->
   Dict = erlog_db_storage:get_db(dict, Collection),
-  {Res, Udict} = listing({StdLib, ExLib, Dict}, {Params}),
+  {Res, Udict} = listing({StdLib, ExLib, Dict}, Params),
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db}.
 
-listing({_, _, Db}, {[Functor, Arity]}) ->
+listing({_, _, Db}, [Functor, Arity]) ->
   {dict:fold(
     fun({F, A} = Res, _, Acc) when F == Functor andalso A == Arity ->
       [Res | Acc];
       (_, _, Acc) -> Acc
     end, [], Db), Db};
-listing({_, _, Db}, {[Functor]}) ->
+listing({_, _, Db}, [Functor]) ->
   {dict:fold(
     fun({F, Arity}, _, Acc) when F == Functor ->
       [{Functor, Arity} | Acc];
       (_, _, Acc) -> Acc
     end, [], Db), Db};
-listing({_, _, Db}, {[]}) ->
+listing({_, _, Db}, []) ->
   {dict:fetch_keys(Db), Db}.
 
 %% @private
