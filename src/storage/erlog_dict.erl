@@ -106,7 +106,8 @@ abolish_clauses({StdLib, _, Db}, Functor) ->
         end,
   {ok, Udb}.
 
-db_findall({StdLib, ExLib, Db}, {Collection, Functor}) ->  %for db_call
+db_findall({StdLib, ExLib, Db}, {Collection, Goal}) ->  %for db_call
+  Functor = erlog_ec_support:functor(Goal),
   Dict = erlog_db_storage:get_db(dict, Collection),
   case dict:find(Functor, StdLib) of %search built-in first
     {ok, StFun} -> {StFun, Db};

@@ -32,7 +32,7 @@ load(Db) ->
 
 db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindings = Bs, database = Db}) ->
   {db_call, Table, G} = erlog_ec_support:dderef(Goal, Bs),
-  case erlog_memory:db_findall(Db, Table, erlog_ec_support:functor(G)) of
+  case erlog_memory:db_findall(Db, Table, G) of
     {cursor, Cursor, result, Result} ->
       Fun = fun(Params) -> check_call_result(Result, Params, G, Next0) end,
       erlog_ec_core:run_n_close(Fun, Param#param{cursor = Cursor});
