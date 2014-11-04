@@ -99,7 +99,7 @@ db_findall(Database, Collection, Fun) -> gen_server:call(Database, {db_findall, 
 finadll(Database, Fun) -> gen_server:call(Database, {findall, Fun}).
 
 next(Database, Cursor) -> gen_server:call(Database, {next, Cursor}).
-db_next(Database, Cursor, Table) -> gen_server:call(Database, {db_next, Cursor, Table}).
+db_next(Database, Cursor, Table) -> gen_server:call(Database, {db_next, {Cursor, Table}}).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
 db_retract_clause(Database, Collection, F, Ct) ->
