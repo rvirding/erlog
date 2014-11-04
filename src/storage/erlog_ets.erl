@@ -34,7 +34,8 @@
   db_abolish_clauses/2,
   db_findall/2,
   get_db_procedure/2,
-  db_listing/2]).
+  db_listing/2,
+  db_next/3]).
 
 new() -> {ok, ets:new(eets, [bag, private])}.
 
@@ -145,6 +146,8 @@ next(Ets, Queue) ->
       {{cursor, UQ, result, Val}, Ets};  %return it
     {empty, UQ} -> {{cursor, UQ, result, []}, Ets}  %nothing to return
   end.
+
+db_next(Db, Queue, _Table) -> next(Db, Queue).
 
 get_db_procedure({StdLib, ExLib, _}, {Collection, Goal}) ->
   Functor = erlog_ec_support:functor(Goal),

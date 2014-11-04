@@ -50,6 +50,7 @@
 
 %% get next result by cursor
 -callback next(State :: any(), Pid :: any()) -> {[] | any(), NewState :: any()}.
+-callback db_next(State :: any(), Pid :: any(), Table :: any()) -> {[] | any(), NewState :: any()}.
 
 -callback get_procedure({Stdlib :: ets:tid(), ExLib :: ets:tid(), State :: any()}, Func :: term()) -> {atom, NewState :: any()}  | {term(), NewState :: any()}.
 %% same as get_procedure, but work with specified database

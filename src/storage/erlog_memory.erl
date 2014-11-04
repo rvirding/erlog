@@ -43,7 +43,8 @@
   db_abolish_clauses/3,
   get_db_procedure/3,
   db_findall/3,
-  db_listing/3]).
+  db_listing/3,
+  db_next/3]).
 
 -export([load_kernel_space/3]).
 
@@ -98,6 +99,7 @@ db_findall(Database, Collection, Fun) -> gen_server:call(Database, {db_findall, 
 finadll(Database, Fun) -> gen_server:call(Database, {findall, Fun}).
 
 next(Database, Cursor) -> gen_server:call(Database, {next, Cursor}).
+db_next(Database, Cursor, Table) -> gen_server:call(Database, {db_next, Cursor, Table}).
 
 retract_clause(Database, F, Ct) -> gen_server:call(Database, {retract_clause, {F, Ct}}).
 db_retract_clause(Database, Collection, F, Ct) ->
