@@ -213,8 +213,8 @@ handle_call({abolish_clauses, Func}, _From, State) ->  %call third-party db modu
   do_abolish(abolish_clauses, Func, Func, State);
 handle_call({db_abolish_clauses, {_, Func} = Params}, _From, State) ->  %call third-party db module
   do_abolish(db_abolish_clauses, Func, Params, State);
-handle_call({next, Cursor}, _From, State = #state{state = DbState, database = Db}) ->  %get next result by cursor
-  {Res, UState} = Db:next(DbState, Cursor),
+handle_call({Fun, Cursor}, _From, State = #state{state = DbState, database = Db}) when Fun == next; Fun == db_next ->  %get next result by cursor
+  {Res, UState} = Db:Fun(DbState, Cursor),
   Ans = case Res of
           {cursor, After, result, Result} -> {After, Result}; %got new (or same cursor) and result. Form and return
           [] -> {Cursor, []}  %no result got - return old cursor and empty result
