@@ -106,19 +106,20 @@ prove_call(G, Cs, Next0, Param = #param{bindings = Bs, choice = Cps, database = 
 
 %% @private
 prove_retract(H, B, Table, Params = #param{database = Db}) ->
-  Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_db_procedure(Db, Table, Functor) of
+  case erlog_memory:get_db_procedure(Db, Table, H) of
     {cursor, Cursor, result, {clauses, Cs}} ->
       erlog_ec_core:run_n_close(fun(Param) ->
         retract_clauses(H, B, Cs, Param, Table) end, Params#param{cursor = Cursor});
     undefined -> erlog_errors:fail(Params);
-    _ -> erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor))
+    _ ->
+      Functor = erlog_ec_support:functor(H),
+      erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor))
   end.
 
 %% @private
 prove_retractall(H, B, Table, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_db_procedure(Db, Table, Functor) of
+  case erlog_memory:get_db_procedure(Db, Table, H) of
     {cursor, Cursor, result, Res} ->
       check_retractall_result(Res, H, B, Functor, Table, Params#param{cursor = Cursor});
     Res ->

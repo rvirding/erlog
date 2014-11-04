@@ -91,7 +91,7 @@ retract_clause({StdLib, ExLib, Db}, {Functor, Ct}) ->
 
 db_abolish_clauses({StdLib, ExLib, Db}, {Collection, Functor}) ->
   Ets = erlog_db_storage:get_db(ets, Collection),
-  {Res, _} = abolish_clauses({StdLib, ExLib, Ets}, {Functor}),
+  {Res, _} = abolish_clauses({StdLib, ExLib, Ets}, Functor),
   {Res, Db}.
 
 abolish_clauses({StdLib, _, Db}, Functor) ->
@@ -117,7 +117,8 @@ db_findall({StdLib, ExLib, Db}, {Collection, Goal}) ->  %for db_call
       end
   end.
 
-findall({StdLib, ExLib, Db}, Functor) ->
+findall({StdLib, ExLib, Db}, Goal) ->
+  Functor = erlog_ec_support:functor(Goal),
   case dict:find(Functor, StdLib) of %search built-in first
     {ok, StFun} -> {StFun, Db};
     error ->
@@ -145,11 +146,13 @@ next(Ets, Queue) ->
     {empty, UQ} -> {{cursor, UQ, result, []}, Ets}  %nothing to return
   end.
 
-get_db_procedure({StdLib, ExLib, _}, {Collection, Functor}) ->
+get_db_procedure({StdLib, ExLib, _}, {Collection, Goal}) ->
+  Functor = erlog_ec_support:functor(Goal),
   Ets = erlog_db_storage:get_db(ets, Collection),
-  get_procedure({StdLib, ExLib, Ets}, {Functor}).
+  get_procedure({StdLib, ExLib, Ets}, Functor).
 
-get_procedure({StdLib, ExLib, Db}, Functor) ->
+get_procedure({StdLib, ExLib, Db}, Goal) ->
+  Functor = erlog_ec_support:functor(Goal),
   Res = case dict:find(Functor, StdLib) of %search built-in first
           {ok, StFun} -> StFun;
           error ->
