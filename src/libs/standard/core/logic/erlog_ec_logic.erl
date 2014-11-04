@@ -65,7 +65,7 @@ prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings =
 %% Unify clauses matching with functor from Head with both Head and Body.
 prove_clause(H, B, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_procedure(Db, Functor) of
+  case erlog_memory:get_procedure(Db, H) of
     {cursor, Cursor, result, {clauses, Cs}} ->
       erlog_ec_core:run_n_close(fun(Param) -> erlog_ec_unify:unify_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
     {code, _} ->
@@ -226,7 +226,7 @@ partial_list(Other, _) -> erlog_errors:type_error(list, Other).
 %% @private
 prove_retract(H, B, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_procedure(Db, Functor) of
+  case erlog_memory:get_procedure(Db, H) of
     {cursor, Cursor, result, {clauses, Cs}} ->
       erlog_ec_core:run_n_close(fun(Param) -> retract_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
     {code, _} ->
@@ -239,7 +239,7 @@ prove_retract(H, B, Params = #param{database = Db}) ->
 %% @private
 prove_retractall(H, B, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_procedure(Db, Functor) of
+  case erlog_memory:get_procedure(Db, H) of
     {cursor, Cursor, result, Result} ->
       Fun = fun(Param) -> check_result(Result, H, B, Functor, Param) end,
       erlog_ec_core:run_n_close(Fun, Params#param{cursor = Cursor});

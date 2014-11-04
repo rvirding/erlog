@@ -77,7 +77,7 @@ prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bi
   prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Param = #param{goal = G, database = Db}) ->
 %% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
-  case catch erlog_memory:get_procedure(Db, erlog_ec_support:functor(G)) of
+  case catch erlog_memory:get_procedure(Db, G) of
     {cursor, Cursor, result, Result} ->
       Fun = fun(Params) -> check_result(Result, Params) end,
       run_n_close(Fun, Param#param{cursor = Cursor});
