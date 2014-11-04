@@ -171,7 +171,8 @@ get_procedure({StdLib, ExLib, Db}, Functor) ->
         end,
   {Res, Db}.
 
-get_procedure_type({StdLib, ExLib, Db}, Functor) ->
+get_procedure_type({StdLib, ExLib, Db}, Goal) ->
+  Functor = erlog_ec_support:functor(Goal),
   Res = case dict:is_key(Functor, StdLib) of %search built-in first
           true -> built_in;
           false ->

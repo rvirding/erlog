@@ -109,7 +109,8 @@ prove_retract(H, B, Table, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
   case erlog_memory:get_db_procedure(Db, Table, Functor) of
     {cursor, Cursor, result, {clauses, Cs}} ->
-      erlog_ec_core:run_n_close(fun(Param) -> retract_clauses(H, B, Cs, Param, Table) end, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(fun(Param) ->
+        retract_clauses(H, B, Cs, Param, Table) end, Params#param{cursor = Cursor});
     undefined -> erlog_errors:fail(Params);
     _ -> erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor))
   end.
@@ -156,7 +157,8 @@ check_call_result({clauses, Cs}, Param, G, Next) -> prove_call(G, Cs, Next, Para
 check_call_result({erlog_error, E}, #param{database = Db}, _, _) -> erlog_errors:erlog_error(E, Db);
 check_call_result(Cs, Param, G, Next) -> prove_call(G, Cs, Next, Param).
 
-retractall_clauses(_, [], _, _, Params = #param{next_goal = Next}) -> erlog_ec_core:prove_body(Params#param{goal = Next});
+retractall_clauses(_, [], _, _, Params = #param{next_goal = Next}) ->
+  erlog_ec_core:prove_body(Params#param{goal = Next});
 retractall_clauses(Table, [Clause], H, B, Params) -> retractall_clauses(Table, Clause, H, B, Params);
 retractall_clauses(Table, Clause, H, B, Params = #param{bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}) ->
   case erlog_ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of

@@ -100,7 +100,7 @@ prove_goal(Param = #param{goal = {current_predicate, Pi0}, bindings = Bs}) ->
   erlog_ec_logic:prove_current_predicate(Pi, Param);
 prove_goal(Param = #param{goal = {predicate_property, H0, P}, bindings = Bs, database = Db}) ->
   H = erlog_ec_support:dderef(H0, Bs),
-  case catch erlog_memory:get_procedure_type(Db, erlog_ec_support:functor(H)) of
+  case catch erlog_memory:get_procedure_type(Db, H) of
     built_in -> erlog_ec_body:unify_prove_body(P, built_in, Param);
     compiled -> erlog_ec_body:unify_prove_body(P, compiled, Param);
     interpreted -> erlog_ec_body:unify_prove_body(P, interpreted, Param);
