@@ -1,0 +1,16 @@
+{application, erlog,
+	[
+		{description, "Erlog , Prolog in Erlang"},
+		{vsn, "2.0"},
+		{registered, []},
+		{applications, [
+			kernel,
+			stdlib,
+			inets
+		]},
+		{mod, {erlog_app, []}},
+		{env,
+			[
+				{console_port, 8080}
+			]}
+	]}.
