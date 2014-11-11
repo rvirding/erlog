@@ -28,7 +28,7 @@
   db_listing_4/1]).
 
 load(Db) ->
-  lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
+  lists:foreach(fun(Proc) -> erlog_memory:load_native_library(Db, Proc) end, ?ERLOG_DB).
 
 db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindings = Bs, database = Db}) ->
   {db_call, Table, G} = erlog_ec_support:dderef(Goal, Bs),

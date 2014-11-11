@@ -33,8 +33,13 @@ everywhere in your code. Just add param `{libraries, [my_first_lib, my second_li
 
     ConfList = [{libraries, [my_first_lib, my second_lib]}],
     erlog:start_link(ConfList).
-All libraries from array will be loaded.
+All libraries from array will be loaded.  
+You can load native libraries - just pass name of your module where library is implemented to ConfList as an atom. Or you
+can load library, written in prolog. In that case you should pass full path to library as a string:
     
+    ConfList = [{libraries, [my_first_lib, my second_lib, "/home/user/testlib.pl"]}],
+    erlog:start_link(ConfList).
+   
 ### Writing your own libraries
 You can write your own external libraries. For doing so - just setup behaviour `erlog_exlib`. It has one callback function
 `load(Db)` for initialisation library. Then you should define your execution functions. See __External libraries__ for 
@@ -60,3 +65,21 @@ _File `erlog_uid.erl`_
     id_1(Params = #param{goal = {id, Res}, next_goal = Next, bindings = Bs0}) ->
 	    Bs = ec_support:add_binding(Res, binary_to_list(uuid:generate()), Bs0),
 	    ec_core:prove_body(Params#param{goal = Next, bindings = Bs}).
+	    
+### Prolog libraries
+You can also write prolog libraries, which you can load manually of automatically. All this libraries will be loaded to 
+library space. For automatic loading libraries - move them to `lib/autoload` directory, or use library autoload standard method.
+Note, that if you create a functor in prolog library and load this library - you won't create same functor in userspace with
+the help of `assert`. Also - if you have same functors in different libraries - they will be rewritten by last loaded.
+
+#### When prefer autoloading?
+You may noticed, that `use/1` and `consult/1` share same functionality. The only difference is that `consult` loads predicates
+to __userspace__, while `use` loads predicates to __library space__ (Extended). When is it optional to select each?  
+If you work locally, without your own storage implementation - it doesnt' matter, as default erlog storage model for userspace is
+same as for library space - dict. But when you have your own memory implementation - you should understand:
+   
+* library space is dict, stored in local memory. It can be faster, than your remote database.
+* when your system has many users, who shares some code (library) - consulting this library leads to copying it to user's 
+tables/collections/namespaces, while using library will make copy only in memory of user's thread.
+* if you store huge number of facts into library - dict implementation of library space can show worse performance, than 
+your database.

@@ -16,7 +16,9 @@
 %% API
 -export([start_link/1,
   start_link/2,
-  load_library_space/2,
+  load_native_library/2,
+  load_extended_library/2,
+  load_extended_library/3,
   assertz_clause/3,
   asserta_clause/3,
   retract_clause/3,
@@ -58,7 +60,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state,
+-record(state,  %TODO move to erlog, remove this process as separate
 {
   stdlib :: dict,  %kernel-space memory
   exlib :: dict, %library-space memory
@@ -74,7 +76,12 @@
 load_kernel_space(Database, Module, Functor) -> gen_server:call(Database, {load_kernel_space, {Module, Functor}}).
 
 %% libraryspace predicate loading
-load_library_space(Database, Proc) -> gen_server:call(Database, {load_library_space, Proc}).
+load_native_library(Database, Proc) -> gen_server:call(Database, {load_native, Proc}).
+
+%% add prolog functor to libraryspace
+load_extended_library(Database, {':-', Head, Body}) -> load_extended_library(Database, Head, Body);
+load_extended_library(Database, Head) -> load_extended_library(Database, Head, true).
+load_extended_library(Database, Head, Body) -> gen_server:call(Database, {load_extended, {Head, Body}}).
 
 %% userspace predicate loading
 assertz_clause(Database, {':-', Head, Body}) -> assertz_clause(Database, Head, Body);
@@ -178,7 +185,7 @@ init([Database, Params]) when is_atom(Database) ->
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(handle_call(Request :: term(), From :: {pid(), Tag :: term()},
+-spec(handle_call(Request :: term(), From :: {pid(), Tag :: term()},  %TODO refactor me, get rid of gen_server and its callbacks
     State :: #state{}) ->
   {reply, Reply :: term(), NewState :: #state{}} |
   {reply, Reply :: term(), NewState :: #state{}, timeout() | hibernate} |
@@ -189,13 +196,13 @@ init([Database, Params]) when is_atom(Database) ->
 handle_call({load_kernel_space, {Module, Functor}}, _From, State = #state{stdlib = StdLib}) ->  %load kernel space into memory
   UStdlib = dict:store(Functor, {built_in, Module}, StdLib),
   {reply, ok, State#state{stdlib = UStdlib}};
-handle_call({load_library_space, {Functor, M, F}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
-  case dict:is_key(Functor, StdLib) of
-    true ->
-      {reply, {erlog_error, {modify, static_procedure, erlog_ec_support:pred_ind(Functor)}}, State};
-    false ->
-      {reply, ok, State#state{exlib = dict:store(Functor, {code, {M, F}}, ExLib)}}
-  end;
+handle_call({load_native, {Functor, M, F}}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+  check_immutable(StdLib, Functor),
+  {reply, ok, State#state{exlib = dict:store(Functor, {code, {M, F}}, ExLib)}};
+handle_call({load_extended, {H, _} = F}, _From, State = #state{stdlib = StdLib, exlib = ExLib}) ->  %load library space into memory
+  check_immutable(StdLib, erlog_ec_support:functor(H)),
+  {Res, UExLib} = erlog_dict:assertz_clause({StdLib, ExLib, ExLib}, F), %use erlog_dict module to assert library to exlib dict
+  {reply, Res, State#state{exlib = UExLib}};
 handle_call({raw_store, {Key, Value}}, _From, State = #state{in_mem = InMem}) ->  %findall store
   Umem = store(Key, Value, InMem),
   {reply, ok, State#state{in_mem = Umem}};
@@ -209,10 +216,21 @@ handle_call({raw_append, {Key, AppendValue}}, _From, State = #state{in_mem = InM
 handle_call({raw_erase, Key}, _From, State = #state{in_mem = InMem}) ->  %findall erase
   Umem = dict:erase(Key, InMem),
   {reply, ok, State#state{in_mem = Umem}};
-handle_call({abolish_clauses, Func}, _From, State) ->  %call third-party db module
-  do_abolish(abolish_clauses, Func, Func, State);
-handle_call({db_abolish_clauses, {_, Func} = Params}, _From, State) ->  %call third-party db module
-  do_abolish(db_abolish_clauses, Func, Params, State);
+handle_call({abolish_clauses, Func}, _From, State = #state{stdlib = StdLib}) ->  %call third-party db module
+  check_immutable(StdLib, Func),
+  check_abolish(abolish_clauses, Func, Func, State);
+handle_call({db_abolish_clauses, {_, Func} = Params}, _From, State = #state{stdlib = StdLib}) ->  %call third-party db module
+  check_immutable(StdLib, Func),  %abolishing fact from default memory need to be checked
+  check_abolish(db_abolish_clauses, Func, Params, State);
+handle_call({Fun, {F, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib})
+  when Fun == asserta_clause; Fun == assertz_clause ->
+  check_immutable(StdLib, erlog_ec_support:functor(F)),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, erlog_ec_support:functor(F)),
+  do_action(Db, Fun, {StdLib, ExLib, DbState}, Params, State);
+handle_call({retract_clause, {Func, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
+  check_immutable(StdLib, Func),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, Func),
+  do_action(Db, retract_clause, {StdLib, ExLib, DbState}, Params, State);
 handle_call({Fun, Cursor}, _From, State = #state{state = DbState, database = Db}) when Fun == next; Fun == db_next ->  %get next result by cursor
   {Res, UState} = Db:Fun(DbState, Cursor),
   Ans = case Res of
@@ -224,12 +242,7 @@ handle_call({close, Cursor}, _From, State = #state{state = DbState, database = D
   {Res, UState} = Db:close(DbState, Cursor),
   {reply, Res, State#state{state = UState}};
 handle_call({Fun, Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
-  try
-    {Res, UState} = Db:Fun({StdLib, ExLib, DbState}, Params),
-    {reply, Res, State#state{state = UState}}
-  catch
-    throw:E -> {reply, E, State}
-  end;
+  do_action(Db, Fun, {StdLib, ExLib, DbState}, Params, State);
 handle_call(Fun, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->  %call third-party db module
   try
     {Res, NewState} = Db:Fun({StdLib, ExLib, DbState}),
@@ -325,20 +338,27 @@ store(Key, Value, Memory) ->
   dict:store(Key, Value, Memory).
 
 %% @private
-do_abolish(F, Func, Params, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
+check_abolish(F, Func, Params, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
+  case dict:erase(Func, ExLib) of
+    ExLib ->  %dict not changed - was not deleted. Search userspace
+      do_action(Db, F, {StdLib, ExLib, DbState}, Params, State);
+    UExlib -> %dict changed -> was deleted
+      {reply, ok, State#state{exlib = UExlib}}
+  end.
+
+%% @private
+do_action(Db, Fun, Memory, Params, State) ->
   try
-    {UpdExlib, NewState, Res} = check_abolish(F, Func, StdLib, ExLib, Db, DbState, Params),
-    {reply, Res, State#state{state = NewState, exlib = UpdExlib}}
+    {Res, UState} = Db:Fun(Memory, Params),
+    {reply, Res, State#state{state = UState}}
   catch
     throw:E -> {reply, E, State}
   end.
 
 %% @private
-check_abolish(F, Func, StdLib, ExLib, Db, DbState, Params) ->
-  case dict:erase(Func, ExLib) of
-    ExLib ->  %dict not changed - was not deleted. Search userspace
-      {Res, NewState} = Db:F({StdLib, ExLib, DbState}, Params),
-      {ExLib, NewState, Res};
-    UExlib -> %dict changed -> was deleted
-      {UExlib, DbState, ok}
+check_immutable(Dict, Functor) ->
+  case dict:is_key(Functor, Dict) of
+    false -> ok;
+    true ->
+      erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor)) %TODO will crash db process, but not erlog
   end.

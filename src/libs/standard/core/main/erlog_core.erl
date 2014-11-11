@@ -132,27 +132,32 @@ prove_goal(Param = #param{goal = {writeln, T}, next_goal = Next, bindings = Bs, 
   gen_event:notify(Evman, Res),
   erlog_ec_core:prove_body(Param#param{goal = Next});
 %% File utils
-prove_goal(Param = #param{goal = {consult, Name}, next_goal = Next, bindings = Bs, f_consulter = Fcon, database = Db}) ->
-  case erlog_file:consult(Fcon, erlog_ec_support:dderef(Name, Bs), Db) of
+prove_goal(Param = #param{goal = {consult, Name}, next_goal = Next, bindings = Bs, f_consulter = Consulter, database = Db}) ->
+  case erlog_file:consult(Consulter, erlog_ec_support:dderef(Name, Bs), Db) of
     ok -> ok;
     {Err, Error} when Err == erlog_error; Err == error ->
       erlog_errors:erlog_error(Error, Db)
   end,
   erlog_ec_core:prove_body(Param#param{goal = Next});
-prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulter = Fcon, database = Db}) ->
-  case erlog_file:reconsult(Fcon, Name, Db) of
+prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulter = Consulter, database = Db}) ->
+  case erlog_file:reconsult(Consulter, Name, Db) of
     ok -> ok;
     {Err, Error} when Err == erlog_error; Err == error ->
       erlog_errors:erlog_error(Error, Db)
   end,
   erlog_ec_core:prove_body(Param#param{goal = Next});
-prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db}) ->
+prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db}) when is_atom(Library) ->
   try Library:load(Db)
   catch
     _:Error ->
       erlog_errors:erlog_error(Error, Db)
   end,
   erlog_ec_core:prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db, f_consulter = Consulter, libs_dir = LD}) when is_list(Library) ->
+  case erlog_file:load_library(Consulter, lists:concat([LD, "/", Library]), Db) of
+    ok -> erlog_ec_core:prove_body(Param#param{goal = Next});
+    _ -> erlog_errors:fail(Param)
+  end;
 prove_goal(Param = #param{goal = {listing, Res}, next_goal = Next, bindings = Bs0, database = Db}) ->
   Content = erlog_memory:listing(Db, []),
   Bs = erlog_ec_support:add_binding(Res, Content, Bs0),

@@ -89,27 +89,31 @@ Erlog also supports calling `consult/1` and `reconsult/1` from prolog code:
 __Remember!__ For proper consulting files with default consulter, files should end with empty line!  
 
 #### Custom file consulter:
-Basic file consulting takes `FileName` as argument and loads file from your filesystem.  
-But if your production-system needs to consult files from database, of shared filesystem, or something else - you can create
-your own function for consulting files and pass it to erlog.  
-Just add your function to configuration list as __f_consulter__:
+File consulter is a module, used to operate with files. It's behaviour is described in `erlog_file_consulter`. It should
+implement two functions: `lookup` and `load`. Lookup returns list of all prolog libraries from selected directory and load
+reads selected file and parse it to prolog terms.  
+Default implementation use files and directories for libraries search and loading. If you implement your own file consulter,
+f.e. if you use database filesystem or smth else - implement `erlog_file_consulter` behaviour in your module and pass its
+name in erlog configuration as __f_consulter__: 
 
-    F = fun(Filename) -> my_hadoop_server:get_file(Filename) end,
-    ConfList = [{f_consulter, F}],
+    ConfList = [{f_consulter, my_hadoop_consulter}],
     erlog:start_link(ConfList).
     
 #### Custom debugger handler:
 If you wan't to use functions from debug library - you should define your own gen_event handler and pass it to erlog.
 All debug events from such debug functions as `writeln/1` will be passed there.  
-See `erlog_simple_printer` as a default implementation of console printer as an example, or `erlog_remote_eh`, which is intended to print debug to remote client.  
+See `erlog_simple_printer` as a default implementation of console printer as an example, or `erlog_remote_eh`, which is 
+intended to print debug to remote client.  
 To configure your gen_event module - just pass module and arguments as __event_h__ in configuration:
 
     ConfList = [{event_h, {my_event_handler, Args}}],
     erlog:start_link(ConfList).
     
 #### Working with libraries:
-Erlog is implemented in erlang modules, called libraries. They can be standard and external. 
-All predicates from standard functions are loaded to memory when you start erlog core.  
+Erlog supports two kinds of libraries: native (written in Erlang) and extended (written in Prolog). Native libraries can 
+be standard and external. 
+All predicates from standard libraries are loaded to memory when you start erlog core.    
+All prolog libraries from `lib/autoload` are also loaded to memory when you start erlog core.
 ##### Manual loading external libraries
 But to use predicates from external functions - you should manually load them to memory with the help of `use/1` command:
 
@@ -130,5 +134,23 @@ remember, that two execution requests can be processed on different erlog instan
     some_lib_fun(some_val). %returns false
 In this example system erlog gen server is created one per one separate command (F.e. http request). Firstly - library
 `some_lib` is loaded. Than erlog server with loaded library is destroyed (as request is complete) and for another request
-`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.  
+`some_lib_fun(some_val)` another erlog server is created, but, without loaded library.
+##### Automatic libraries loading
+For convenient libraries usage you can load all libraries you need when creating a core. It will let you not to call `use/1`
+everywhere in your code. Just add param `{libraries, [my_first_lib, my second_lib]}` in your params when starting a core:
+
+    ConfList = [{libraries, [Lib1, Lib2]}],
+    erlog:start_link(ConfList).
+All libraries from array will be loaded.
 More in [docs](https://github.com/comtihon/erlog/blob/master/doc/libraries.md "libraries").  
+##### Loading Prolog libraries
+When configuring erlog you should set default library directory as __libs_dir__:
+    
+    ConfList = [{libs_dir, "/usr/share/prolog/lib/"}],
+    erlog:start_link(ConfList).
+If you don't set this - erlog will use `../lib` directory, assuming it was run from `ebin`.   
+For manual loading prolog library - also try `use`, but instead of __atom__ name call it with __string__ library name:
+
+    use(erlog_cache). %use extended native library
+    use("proc/cuda/driver.pl"). %use prolog library, from /usr/share/prolog/lib/proc/cuda/
+__Important!__ To avoid `erlog_parse,{operator_expected,'.'}` error - sure, that last character in your prolog file is `\n`.

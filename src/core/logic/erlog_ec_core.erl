@@ -12,20 +12,20 @@
 -include("erlog_core.hrl").
 
 %% API
--export([prove_body/1, prove_goal/1, prove_goal/5, prove_goal_clauses/2, run_n_close/2]).
+-export([prove_body/1, prove_goal/1, prove_goal/6, prove_goal_clauses/2, run_n_close/2]).
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
 %% everything is consistent then prove the goal as a call.
--spec prove_goal(Goal0 :: term(), Db :: pid(), Fcon :: fun(), Event :: pid(), Deb :: fun()) -> term().
-prove_goal(Goal0, Db, Fcon, Event, Deb) ->
+-spec prove_goal(Goal0 :: term(), Db :: pid(), Consuter :: atom(), Event :: pid(), Deb :: fun(), LibsDir :: string()) -> term().
+prove_goal(Goal0, Db, Consulter, Event, Deb, LibsDir) ->
   %% put(erlog_cut, orddict:new()),
   %% put(erlog_cps, orddict:new()),
   %% put(erlog_var, orddict:new()),
   %% Check term and build new instance of term with bindings.
   {Goal1, Bs, Vn} = erlog_ec_logic:initial_goal(Goal0),
   Params = #param{goal = [{call, Goal1}], choice = [], bindings = Bs, var_num = Vn,
-    event_man = Event, database = Db, f_consulter = Fcon, debugger = Deb},
+    event_man = Event, database = Db, f_consulter = Consulter, debugger = Deb, libs_dir = LibsDir},
   erlog_ec_core:prove_body(Params). %TODO use lists:foldr instead!
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
