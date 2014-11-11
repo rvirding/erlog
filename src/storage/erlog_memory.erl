@@ -222,15 +222,17 @@ handle_call({abolish_clauses, Func}, _From, State = #state{stdlib = StdLib}) -> 
 handle_call({db_abolish_clauses, {_, Func} = Params}, _From, State = #state{stdlib = StdLib}) ->  %call third-party db module
   check_immutable(StdLib, Func),  %abolishing fact from default memory need to be checked
   check_abolish(db_abolish_clauses, Func, Params, State);
-handle_call({Fun, {F, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib})
+handle_call({Fun, {H, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib})
   when Fun == asserta_clause; Fun == assertz_clause ->
-  check_immutable(StdLib, erlog_ec_support:functor(F)),  %modifying fact in default memory need to be checked
-  check_immutable(ExLib, erlog_ec_support:functor(F)),
+  F = erlog_ec_support:functor(H),
+  check_immutable(StdLib, F),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, F),
   do_action(Db, Fun, {StdLib, ExLib, DbState}, Params, State);
 handle_call({Fun, {_, H, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib})
   when Fun == db_asserta_clause; Fun == db_assertz_clause ->
-  check_immutable(StdLib, erlog_ec_support:functor(H)),  %modifying fact in default memory need to be checked
-  check_immutable(ExLib, erlog_ec_support:functor(H)),
+  F = erlog_ec_support:functor(H),
+  check_immutable(StdLib, F),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, F),
   do_action(Db, Fun, {StdLib, ExLib, DbState}, Params, State);
 handle_call({retract_clause, {Func, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
   check_immutable(StdLib, Func),  %modifying fact in default memory need to be checked
