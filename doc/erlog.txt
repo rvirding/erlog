@@ -38,7 +38,7 @@ erlog:new(DbModule, DbInitArg) -> {ok,Estate}.
         by calling DbModule(DbInitArg). If DbModule and DbInitArg are
         not given then the default database will be used.
 
-erlog:prove(Estate1, Goal) -> {Solution,Estate2}.
+erlog:prove(Goal, Estate1) -> {Solution,Estate2}.
 
         Types
             Estate1 = Estate2 = erlog()
@@ -58,14 +58,14 @@ erlog:next_solution(Estate1) -> {Solution,Estate2}.
 
         Try to find the next solution of the last goal.
 
-erlog:consult(Estate1, FileName) -> {ok,Estate2} | {error,Error}.
-erlog:reconsult(Estate1, FileName) -> {ok,Estate2} | {error,Error}.
+erlog:consult(FileName, Estate1) -> {ok,Estate2} | {error,Error}.
+erlog:reconsult(FileName, Estate1) -> {ok,Estate2} | {error,Error}.
 
         Types
             Estate1 = Estate2 = erlog()
             FileName = string()
 
-erlog:load(Estate1, Module) -> {ok,Estate2}.
+erlog:load(Module, Estate1) -> {ok,Estate2}.
 
         Types
             Estate1 = Estate2 = erlog()
@@ -77,8 +77,8 @@ erlog:get_db(Estate) -> {ok,Database}.
             Estate = erlog()
             Database = term()
 
-erlog:set_db(Estate1, Database) -> {ok,Estate2}.
-erlog:set_db(Estate1, DbModule, Database) -> {ok,Estate2}.
+erlog:set_db(Database, Estate1) -> {ok,Estate2}.
+erlog:set_db(DbModule, Database, Estate1) -> {ok,Estate2}.
 
         Types
             Estate1 = Estate2 = erlog()

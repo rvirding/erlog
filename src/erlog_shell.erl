@@ -49,29 +49,29 @@ server_loop(Erl0) ->
 		{erlog_error,Error} ->
 		    io:fwrite("Error: ~s\n", [erlog_io:write1(Error)]),
 		    server_loop(Erl0);
-		{error,{L,Pm,Pe}} ->
-		    io:fwrite("Error: ~w: ~s\n", [L,Pm:format_error(Pe)]),
-		    server_loop(Erl0);
+		%% {error,{L,Pm,Pe}} ->
+		%%     io:fwrite("Error: ~w: ~s\n", [L,Pm:format_error(Pe)]),
+		%%     server_loop(Erl0);
 		{error,Error} ->
 		    io:fwrite("Error: ~p\n", [Error]),
 		    server_loop(Erl0)
 	    end;
 	{ok,{load,Mod}} ->
-	    case erlog:load(Erl0, Mod) of
+	    case erlog:load(Mod, Erl0) of
 		{ok,Erl1} -> show_bindings([], Erl1);
 		{error,Error} ->
 		    io:fwrite("Error: ~s\n", [erlog_io:write1(Error)]),
 		    server_loop(Erl0)
 	    end;
 	{ok,Goal} ->
-	    shell_prove_result(erlog:prove(Erl0, Goal));
+	    shell_prove_result(erlog:prove(Goal, Erl0));
 	{error,{_,Em,E}} ->
 	    io:fwrite("Error: ~s\n", [Em:format_error(E)]),
 	    server_loop(Erl0)
     end.
 
 reconsult_files([F|Fs], Erl0) ->
-    case erlog:reconsult(Erl0, F) of
+    case erlog:reconsult(F, Erl0) of
 	{ok,Erl1} -> reconsult_files(Fs, Erl1);
 	{error,Error} -> {error,Error}
     end;

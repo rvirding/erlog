@@ -837,6 +837,8 @@ make_var_list(I, Vn) ->
 -spec instantiation_error(_) -> no_return().
 -spec permission_error(_, _, _) -> no_return().
 -spec permission_error(_, _, _, _) -> no_return().
+-spec existence_error(_, _, _) -> no_return().
+-spec domain_error(_, _, _) -> no_return().
 -spec erlog_error(_) -> no_return().
 -spec erlog_error(_, _) -> no_return().
 

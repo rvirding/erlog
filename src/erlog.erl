@@ -60,40 +60,40 @@ new(DbMod, DbArg) ->
 		]),
     {ok,#erlog{vs=[],est=St#est{db=Db1}}}.
 
-prove(#erlog{}=Erl, Goal) ->
+prove(Goal, #erlog{}=Erl) ->
     prove_goal(Goal, Erl).
 
 next_solution(#erlog{vs=Vs,est=St}=Erl) ->
     %% This generates a completely new #est{}.
     prove_result(catch erlog_int:fail(St), Vs, Erl).
 
-consult(#erlog{est=St0}=Erl, File) ->
+consult(File, #erlog{est=St0}=Erl) ->
     case erlog_file:consult(File, St0) of
 	{ok,St1} -> {ok,Erl#erlog{est=St1}};
 	{erlog_error,Error} -> {error,Error};
 	{error,Error} -> {error,Error}
     end.
 
-reconsult(#erlog{est=St0}=Erl, File) ->
+reconsult(File, #erlog{est=St0}=Erl) ->
     case erlog_file:reconsult(File, St0) of
   	{ok,St1} -> {ok,Erl#erlog{est=St1}};
 	{erlog_error,Error} -> {error,Error};
 	{error,Error} -> {error,Error}
     end.
 
-load(#erlog{est=St}=Erl, Mod) ->
+load(Mod, #erlog{est=St}=Erl) ->
     Db1 = Mod:load(St#est.db),
     {ok,Erl#erlog{est=St#est{db=Db1}}}.
 
 get_db(#erlog{est=St}) ->
     (St#est.db)#db.ref.
 
-set_db(#erlog{est=St}=Erl, Ref) ->
+set_db(Ref, #erlog{est=St}=Erl) ->
     #est{db=Db0} = St,
     Db1 = Db0#db{ref=Ref},
     Erl#erlog{est=St#est{db=Db1}}.
 
-set_db(#erlog{est=St}=Erl, Mod, Ref) ->
+set_db(Mod, Ref, #erlog{est=St}=Erl) ->
     #est{db=Db0} = St,
     Db1 = Db0#db{mod=Mod,ref=Ref},
     Erl#erlog{est=St#est{db=Db1}}.
