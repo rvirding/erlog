@@ -141,12 +141,11 @@ next(Ets, Queue) ->
     {empty, UQ} -> {{cursor, UQ, result, []}, Ets}  %nothing to return
   end.
 
-db_next(Db, Queue) -> next(Db, Queue).
+db_next(Db, {Queue, _Table}) -> next(Db, Queue).
 
 get_db_procedure({StdLib, ExLib, _}, {Collection, Goal}) ->
-  Functor = erlog_ec_support:functor(Goal),
   Ets = erlog_db_storage:get_db(ets, Collection),
-  get_procedure({StdLib, ExLib, Ets}, Functor).
+  get_procedure({StdLib, ExLib, Ets}, Goal).
 
 get_procedure({StdLib, ExLib, Db}, Goal) ->
   Functor = erlog_ec_support:functor(Goal),

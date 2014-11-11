@@ -227,10 +227,19 @@ handle_call({Fun, {F, _} = Params}, _From, State = #state{state = DbState, datab
   check_immutable(StdLib, erlog_ec_support:functor(F)),  %modifying fact in default memory need to be checked
   check_immutable(ExLib, erlog_ec_support:functor(F)),
   do_action(Db, Fun, {StdLib, ExLib, DbState}, Params, State);
+handle_call({Fun, {_, H, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib})
+  when Fun == db_asserta_clause; Fun == db_assertz_clause ->
+  check_immutable(StdLib, erlog_ec_support:functor(H)),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, erlog_ec_support:functor(H)),
+  do_action(Db, Fun, {StdLib, ExLib, DbState}, Params, State);
 handle_call({retract_clause, {Func, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
   check_immutable(StdLib, Func),  %modifying fact in default memory need to be checked
   check_immutable(ExLib, Func),
   do_action(Db, retract_clause, {StdLib, ExLib, DbState}, Params, State);
+handle_call({db_retract_clause, {_, Func, _} = Params}, _From, State = #state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
+  check_immutable(StdLib, Func),  %modifying fact in default memory need to be checked
+  check_immutable(ExLib, Func),
+  do_action(Db, db_retract_clause, {StdLib, ExLib, DbState}, Params, State);
 handle_call({Fun, Cursor}, _From, State = #state{state = DbState, database = Db}) when Fun == next; Fun == db_next ->  %get next result by cursor
   {Res, UState} = Db:Fun(DbState, Cursor),
   Ans = case Res of

@@ -47,7 +47,7 @@ db_assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
 
 assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
   Udb = clause(Head, Body0, Memory,
-    fun(Functor, Cs, Body) ->
+      fun(Functor, Cs, Body) ->
       case check_duplicates(Cs, Head, Body) of
         true -> Db;  %found - do nothing
         _ -> dict:append(Functor, {length(Cs), Head, Body}, Db) %not found - insert new
@@ -145,12 +145,11 @@ next(Db, Queue) ->
     {empty, UQ} -> {{cursor, UQ, result, []}, Db}  %nothing to return
   end.
 
-db_next(Db, Queue) -> next(Db, Queue).
+db_next(Db, {Queue, _Table}) -> next(Db, Queue).
 
 get_db_procedure({StdLib, ExLib, Db}, {Collection, Goal}) ->
-  Functor = erlog_ec_support:functor(Goal),
   Dict = erlog_db_storage:get_db(dict, Collection),
-  {Res, Udict} = get_procedure({StdLib, ExLib, Dict}, Functor),
+  {Res, Udict} = get_procedure({StdLib, ExLib, Dict}, Goal),
   erlog_db_storage:update_db(Collection, Udict),
   {Res, Db}.
 
