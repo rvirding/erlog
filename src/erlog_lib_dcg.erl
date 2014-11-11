@@ -12,23 +12,23 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : erlog_dcg.erl
+%% File    : erlog_lib_dcg.erl
 %% Author  : Robert Virding
 %% Purpose : DCG conversion and procedures.
 
--module(erlog_dcg).
+-module(erlog_lib_dcg).
 
 -include("erlog_int.hrl").
 
 -export([expand_term/1,expand_term/2]).
--export([expand_term_2/6,phrase_3/6]).
+-export([expand_term_2/3,phrase_3/3]).
 -export([load/1]).
 
 -import(lists, [foldl/3]).
 
 %% We use these a lot so we import them for cleaner code.
--import(erlog_int, [prove_body/5,unify_prove_body/7,unify_prove_body/9,fail/2,
-		    add_binding/3,make_vars/2,
+-import(erlog_int, [prove_body/2,unify_prove_body/4,unify_prove_body/6,fail/1,
+		    add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
@@ -39,8 +39,8 @@ load(Db0) ->
     Db1 = foldl(fun ({Head,M,F}, Db) -> add_compiled_proc(Head, M, F, Db) end,
 		Db0,
 		[
-		 {{expand_term,2},erlog_dcg,expand_term_2},
-		 {{phrase,3},erlog_dcg,phrase_3}
+		 {{expand_term,2},?MODULE,expand_term_2},
+		 {{phrase,3},?MODULE,phrase_3}
 		]),
     %% Interpreted DCG predicates.
     foldl(fun (Clause, Db) -> assertz_clause(Clause, Db) end, Db1,
@@ -56,27 +56,27 @@ load(Db0) ->
 	   %% 			{',',{'=..',{6},{5}},{6}}}}}
 	  ]).
 
-%% expand_term_2(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
+%% expand_term_2(Goal, NextGoal, State) ->
 %%     void
 %%  Call the expand_term/2 predicate.
 
-expand_term_2(Goal, Next, Cps, Bs, Vn0, Db) ->
+expand_term_2(Goal, Next, #est{bs=Bs,vn=Vn0}=St) ->
     {expand_term,DCGRule,A2} = dderef(Goal, Bs),
     {Exp,Vn1} = expand_term(DCGRule, Vn0),
-    unify_prove_body(A2, Exp, Next, Cps, Bs, Vn1, Db).
+    unify_prove_body(A2, Exp, Next, St#est{vn=Vn1}).
 
-%% phrase_3(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) -> void.
+%% phrase_3(Goal, NextGoal, State) -> void.
 %%  Call the phrase/3 preidicate. We could easily do this in prolog
 %%  except for that it calls dcg_body/4 which is not exported.
 %%
 %%  phrase(GRBody, S0, S) -> dcg_body(GRBody, S0, S, Goal), call(Goal).
 
-phrase_3(Goal, Next0, Cps, Bs, Vn0, Db) ->
+phrase_3(Goal, Next0, #est{bs=Bs,vn=Vn0}=St) ->
     {phrase,GRBody,S0,S} = dderef(Goal, Bs),
     {Body,Vn1} = dcg_body(GRBody, S0, S, Vn0),
     %% io:format("~p\n", [Body]),
     Next1 = [{call,Body}|Next0],		%Evaluate body
-    prove_body(Next1, Cps, Bs, Vn1, Db).
+    prove_body(Next1, St#est{vn=Vn1}).
 
 %% expand_term(Term) -> {ExpTerm}.
 %% expand_term(Term, VarNum) -> {ExpTerm,NewVarNum}.
