@@ -15,7 +15,7 @@
 -export([new_bindings/0, get_binding/2, add_binding/3,
   functor/1, cut/3, collect_alternatives/3,
   update_result/4, update_vars/4, deref/2, dderef_list/2,
-  make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1, try_add/3]).
+  make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1, try_add/3, check_var/2]).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
@@ -83,6 +83,15 @@ functor(T) when ?IS_FUNCTOR(T) ->
   {element(1, T), tuple_size(T) - 1};
 functor(T) when is_atom(T) -> {T, 0};
 functor(T) -> erlog_errors:type_error(callable, T).
+
+%% Checks - if var is normal, or binded, or < 0 (if int). Returns var's value.
+check_var({'-', Var}, Bs) ->
+  case check_var(Var, Bs) of
+    Res when is_integer(Res) -> -1 * Res;
+    Res -> Res
+  end;
+check_var({Var}, Bs) -> check_var(erlog_ec_support:deref({Var}, Bs), Bs);
+check_var(Var, _) -> Var.
 
 pred_ind({N, A}) -> {'/', N, A}.
 

@@ -12,7 +12,7 @@
 -include("erlog_time.hrl").
 
 %% API
--export([date_to_ts/1, date_string_to_data/1, check_var/2, data_to_ts/1, date_to_seconds/2, seconds_to_date/2, date_to_data/1, ts_to_date/1]).
+-export([date_to_ts/1, date_string_to_data/1, data_to_ts/1, date_to_seconds/2, seconds_to_date/2, date_to_data/1, ts_to_date/1]).
 
 %% Time in microseconds, atom for output format
 -spec seconds_to_date(Time :: integer(), atom()) -> integer().
@@ -58,12 +58,3 @@ ts_to_date(Timestamp) ->
 	TSStr = integer_to_list(Timestamp),
 	{M1, S1} = lists:split(4, TSStr),
 	{list_to_integer(M1), list_to_integer(S1), 0}.
-
-%% Checks - if var is normal, or binded, or < 0 (if int). Returns var's value.
-check_var({'-', Var}, Bs) ->
-	case check_var(Var, Bs) of
-		Res when is_integer(Res) -> -1 * Res;
-		Res -> Res
-	end;
-check_var({Var}, Bs) -> check_var(erlog_ec_support:deref({Var}, Bs), Bs);
-check_var(Var, _) -> Var.
