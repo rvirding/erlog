@@ -25,7 +25,7 @@
   db_call_2/1,
   db_listing_2/1,
   db_listing_3/1,
-  db_listing_4/1]).
+  db_listing_4/1, prove_call/4]).
 
 load(Db) ->
   lists:foreach(fun(Proc) -> erlog_memory:load_library_space(Db, Proc) end, ?ERLOG_DB).
@@ -94,7 +94,6 @@ prove_retractall({':-', H, B}, Table, Params) ->
 prove_retractall(H, Table, Params) ->
   prove_retractall(H, true, Table, Params).
 
-%% @private
 prove_call(G, Cs, Next0, Param = #param{bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
   case erlog_ec_logic:check_goal(G, Next0, Bs, Db, false, Vn) of
     {[Next1 | _], true} ->
@@ -103,6 +102,7 @@ prove_call(G, Cs, Next0, Param = #param{bindings = Bs, choice = Cps, database = 
       erlog_ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
     {[Next1 | _], false} -> erlog_ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
   end.
+
 
 %% @private
 prove_retract(H, B, Table, Params = #param{database = Db}) ->

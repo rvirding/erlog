@@ -35,7 +35,7 @@
   db_findall/2,
   get_db_procedure/2,
   db_listing/2,
-  db_next/3]).
+  db_next/2]).
 
 new() -> {ok, dict:new()}.
 
@@ -150,7 +150,7 @@ next(Db, Queue) ->
     {empty, UQ} -> {{cursor, UQ, result, []}, Db}  %nothing to return
   end.
 
-db_next(Db, Queue, _Table) -> next(Db, Queue).
+db_next(Db, {Queue, _Table}) -> next(Db, Queue).
 
 get_db_procedure({StdLib, ExLib, Db}, {Collection, Goal}) ->
   Functor = erlog_ec_support:functor(Goal),
