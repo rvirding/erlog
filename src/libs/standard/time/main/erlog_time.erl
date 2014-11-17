@@ -55,10 +55,18 @@ prove_goal(Params = #param{goal = {time, H, M, S, Res}, next_goal = Next, bindin
   Bs = erlog_ec_support:add_binding(Res, TS, Bs0),
   erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs});
 %% Calculates differense between two timestamps. Returns the result in specifyed format
-prove_goal(Params = #param{goal = {date_diff, TS1, TS2, Format, Res}, next_goal = Next, bindings = Bs0}) ->
-  Diff = timer:now_diff(erlog_et_logic:ts_to_date(erlog_et_logic:check_var(TS1, Bs0)), erlog_et_logic:ts_to_date(erlog_et_logic:check_var(TS2, Bs0))) / 1000000,
-  Bs = erlog_ec_support:add_binding(Res, erlog_et_logic:seconds_to_date(Diff, erlog_et_logic:check_var(Format, Bs0)), Bs0),
-  erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs});
+prove_goal(Params = #param{goal = {date_diff, _, _, _, _} = Goal, next_goal = Next, bindings = Bs0}) ->
+  {date_diff, TS1, TS2, Format, Res} = erlog_ec_support:deref(Goal, Bs0),
+  case check_bound([TS1, TS2, Format]) of
+    ok ->
+      Diff = timer:now_diff(erlog_et_logic:ts_to_date(erlog_et_logic:check_var(TS1, Bs0)), erlog_et_logic:ts_to_date(erlog_et_logic:check_var(TS2, Bs0))) / 1000000,
+      Time = erlog_et_logic:seconds_to_date(Diff, erlog_et_logic:check_var(Format, Bs0)),
+      case erlog_ec_support:try_add(Res, Time, Bs0) of
+        error -> erlog_errors:fail(Params);
+        Bs -> erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs})
+      end;
+    no -> erlog_errors:fail(Params)
+  end;
 %% Adds number of seconds T2 in Type format to Time1. Returns timestamp
 prove_goal(Params = #param{goal = {add_time, Time1, Type, T2, Res}, next_goal = Next, bindings = Bs0}) ->
   Diff = erlog_et_logic:check_var(Time1, Bs0) + erlog_et_logic:date_to_seconds(erlog_et_logic:check_var(T2, Bs0), erlog_et_logic:check_var(Type, Bs0)),
@@ -80,3 +88,14 @@ prove_goal(Params = #param{goal = {date_parse, DataStr, Res}, next_goal = Next, 
 to_integer(V) when is_binary(V) -> binary_to_integer(V);
 to_integer(V) when is_list(V) -> list_to_integer(V);
 to_integer(V) -> V.
+
+%% @private
+-spec check_bound(VarList :: list()) -> ok | no.
+check_bound(VarList) ->
+  catch lists:foreach(
+    fun(Var) ->
+      case erlog_ec_support:is_bound(Var) of
+        true -> ok;
+        false -> throw(no)
+      end
+    end, VarList).
