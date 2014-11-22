@@ -33,62 +33,63 @@
 %% record for passing arguments to erlog_core:prove_goal
 -record(param,
 {
-	goal,
-	next_goal,
-	choice,
-	bindings,
-	var_num,
-	database,
-	event_man,
-	f_consulter :: atom(),
+  goal,
+  next_goal,
+  choice,
+  bindings,
+  var_num,
+  database,
+  event_man,
+  f_consulter :: atom(),
   debugger,
   cursor,
   libs_dir
 }).
 
 -define(ERLOG_CORE,
-	[
-		%% Logic and control.
-		{call, 1},
-		{',', 2},
-		{'!', 0},
-		{';', 2},
-		{fail, 0},
-		{'->', 2},
-		{'\\+', 1},
-		{once, 1},
-		{repeat, 0},
-		{true, 0},
-		%% Clause creation and destruction.
-		{abolish, 1},
-		{assert, 1},
-		{asserta, 1},
-		{assertz, 1},
-		{retract, 1},
-		{retractall, 1},
-		%% Clause retrieval and information.
-		{clause, 2},
-		{current_predicate, 1},
-		{predicate_property, 2},
-		%% All solutions
-		%% External interface
-		{ecall, 2},
-		%% File utils
-		{consult, 1},
-		{reconsult, 1},
-		%% Debug functions
-		{writeln, 1},
-		%% Searching functions
-		{findall, 3},
-		{findall, 2}, %support for findall
-		{bagof, 3},
-		{setof, 3},
-		{listing, 1},
-		{listing, 2},
-		{listing, 3},
-		%% Non standart functions
-		{use, 1}, %load erlang library module
-		{to_integer, 2},
-		{to_string, 2}
-	]
+  [
+    %% Logic and control.
+    {call, 1},
+    {',', 2},
+    {'!', 0},
+    {';', 2},
+    {fail, 0},
+    {'->', 2},
+    {'\\+', 1},
+    {once, 1},
+    {repeat, 0},
+    {true, 0},
+    %% Clause creation and destruction.
+    {abolish, 1},
+    {assert, 1},
+    {asserta, 1},
+    {assertz, 1},
+    {retract, 1},
+    {retractall, 1},
+    %% Clause retrieval and information.
+    {clause, 2},
+    {current_predicate, 1},
+    {predicate_property, 2},
+    %% All solutions
+    %% External interface
+    {ecall, 2},
+    %% File utils
+    {consult, 1},
+    {reconsult, 1},
+    {deconsult, 1}, %remove functors in file from memory
+    %% Debug functions
+    {writeln, 1},
+    %% Searching functions
+    {findall, 3},
+    {findall, 2}, %support for findall
+    {bagof, 3},
+    {setof, 3},
+    {listing, 1},
+    {listing, 2},
+    {listing, 3},
+    %% Non standart functions
+    {use, 1}, %load erlang library module
+    {to_integer, 2},
+    {to_string, 2}
+  ]
 ).

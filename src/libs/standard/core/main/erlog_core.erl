@@ -146,6 +146,13 @@ prove_goal(Param = #param{goal = {reconsult, Name}, next_goal = Next, f_consulte
       erlog_errors:erlog_error(Error, Db)
   end,
   erlog_ec_core:prove_body(Param#param{goal = Next});
+prove_goal(Param = #param{goal = {deconsult, Name}, next_goal = Next, f_consulter = Consulter, database = Db}) ->
+  case erlog_file:deconsult(Consulter, Name, Db) of
+    ok -> ok;
+    {Err, Error} when Err == erlog_error; Err == error ->
+      erlog_errors:erlog_error(Error, Db)
+  end,
+  erlog_ec_core:prove_body(Param#param{goal = Next});
 prove_goal(Param = #param{goal = {use, Library}, next_goal = Next, database = Db}) when is_atom(Library) ->
   try Library:load(Db)
   catch

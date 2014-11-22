@@ -18,7 +18,7 @@
 
 -module(erlog_file).
 
--export([consult/3, reconsult/3, load_library/3]).
+-export([consult/3, reconsult/3, deconsult/3, load_library/3]).
 
 
 %% consult(File, Database) ->
@@ -30,7 +30,7 @@
 -spec consult(atom(), File :: string(), Db :: pid()) -> ok | tuple().
 consult(Consulter, File, Db) ->
   case Consulter:load(File) of %call erlog_file_consulter implementation
-    {ok, Terms} -> consult_terms(fun consult_assert/2, Db, Terms);
+    {ok, Terms} -> iterate_terms(fun consult_assert/2, Db, Terms);
     Error -> Error
   end.
 
@@ -38,7 +38,7 @@ consult(Consulter, File, Db) ->
 -spec load_library(atom(), File :: string(), Db :: pid()) -> ok | tuple().
 load_library(Consulter, File, Db) ->
   case Consulter:load(File) of %call erlog_file_consulter implementation
-    {ok, Terms} -> consult_terms(fun consult_lib/2, Db, Terms);
+    {ok, Terms} -> iterate_terms(fun consult_lib/2, Db, Terms);
     Error -> Error
   end.
 
@@ -46,7 +46,18 @@ load_library(Consulter, File, Db) ->
 reconsult(Consulter, File, Db) ->
   case Consulter:load(File) of %call erlog_file_consulter implementation
     {ok, Terms} ->
-      case consult_terms(fun reconsult_assert/2, {Db, []}, Terms) of
+      case iterate_terms(fun reconsult_assert/2, {Db, []}, Terms) of
+        ok -> ok;
+        Error -> Error
+      end;
+    Error -> Error
+  end.
+
+-spec deconsult(atom(), File :: string(), Db :: pid()) -> ok | tuple().
+deconsult(Consulter, File, Db) ->
+  case Consulter:load(File) of %call erlog_file_consulter implementation
+    {ok, Terms} ->
+      case iterate_terms(fun deconsult_assert/2, {Db, []}, Terms) of
         ok -> ok;
         Error -> Error
       end;
@@ -84,22 +95,36 @@ reconsult_assert(Term0, {Db, Seen}) ->
   end.
 
 %% @private
+-spec deconsult_assert(Term0 :: term(), {Db :: pid(), Seen :: list()}) -> {ok, {Db :: pid(), list()}}.
+deconsult_assert(Term0, {Db, Seen}) ->
+  Term1 = erlog_ed_logic:expand_term(Term0),
+  Func = functor(Term1),
+  case lists:member(Func, Seen) of
+    true ->
+      {ok, {Db, Seen}};  %TODO refactor iterate_terms not to pass DB everywhere!
+    false ->
+      check_abolish(Db, Func),
+      check_assert(Db, Term1),
+      {ok, {Db, [Func | Seen]}}
+  end.
+
+%% @private
 %% consult_terms(InsertFun, Database, Terms) ->
 %%      {ok,NewDatabase} | {erlog_error,Error}.
 %% Add terms to the database using InsertFun. Ignore directives and
 %% queries.
--spec consult_terms(fun(), any(), list()) -> ok | tuple().
-consult_terms(Ifun, Params, [{':-', _} | Ts]) ->  %TODO refactor me to make interface for Params unifyed! (or may be lists:foreach will be better this hand made recursion)
-  consult_terms(Ifun, Params, Ts);
-consult_terms(Ifun, Params, [{'?-', _} | Ts]) ->
-  consult_terms(Ifun, Params, Ts);
-consult_terms(Ifun, Params, [Term | Ts]) ->
+-spec iterate_terms(fun(), any(), list()) -> ok | tuple().
+iterate_terms(Ifun, Params, [{':-', _} | Ts]) ->  %TODO refactor me to make interface for Params unifyed! (or may be lists:foreach will be better this hand made recursion)
+  iterate_terms(Ifun, Params, Ts);
+iterate_terms(Ifun, Params, [{'?-', _} | Ts]) ->
+  iterate_terms(Ifun, Params, Ts);
+iterate_terms(Ifun, Params, [Term | Ts]) ->
   case catch Ifun(Term, Params) of
-    {ok, UpdParams} -> consult_terms(Ifun, UpdParams, Ts);
+    {ok, UpdParams} -> iterate_terms(Ifun, UpdParams, Ts);
     {erlog_error, E, _} -> {erlog_error, E};
     {erlog_error, E} -> {erlog_error, E}
   end;
-consult_terms(_, _, []) -> ok.
+iterate_terms(_, _, []) -> ok.
 
 %% @private
 functor({':-', H, _B}) -> erlog_ec_support:functor(H);

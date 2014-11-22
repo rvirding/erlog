@@ -47,7 +47,7 @@ db_assertz_clause({StdLib, ExLib, Db}, {Collection, Head, Body0}) ->
 
 assertz_clause({_, _, Db} = Memory, {Head, Body0}) ->
   Udb = clause(Head, Body0, Memory,
-      fun(Functor, Cs, Body) ->
+    fun(Functor, Cs, Body) ->
       case check_duplicates(Cs, Head, Body) of
         true -> Db;  %found - do nothing
         _ -> dict:append(Functor, {length(Cs), Head, Body}, Db) %not found - insert new
