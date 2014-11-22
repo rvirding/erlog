@@ -145,7 +145,7 @@ load_built_in(Database) ->
 %% @private
 load_prolog_libraries(Fcon, LibsDir, Db) ->
   Autoload = Fcon:lookup(LibsDir ++ "/autoload"),
-  lists:foreach(fun(Lib) -> erlog_file:consult(Fcon, LibsDir ++ "/autoload/" ++ Lib, Db) end, Autoload),
+  lists:foreach(fun(Lib) -> erlog_file:load_library(Fcon, LibsDir ++ "/autoload/" ++ Lib, Db) end, Autoload),
   ok.
 
 %% @private
@@ -157,7 +157,7 @@ load_external_libraries(Params, FileCon, Database) ->
         fun(Mod) when is_atom(Mod) -> %autoload native library
           Mod:load(Database);
           (PrologLib) when is_list(PrologLib) ->  %autoload external library
-            erlog_file:consult(FileCon, PrologLib, Database)
+            erlog_file:load_library(FileCon, PrologLib, Database)
         end, Libraries)
   end.
 
