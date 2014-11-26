@@ -27,8 +27,8 @@
   db_listing_3/1,
   db_listing_4/1, prove_call/4]).
 
-load(Db) ->
-  lists:foreach(fun(Proc) -> erlog_memory:load_native_library(Db, Proc) end, ?ERLOG_DB).
+load(DbState) ->
+  lists:foldl(fun(Proc, UDBState) -> erlog_memory:load_native_library(UDBState, Proc) end, DbState, ?ERLOG_DB).
 
 db_call_2(Param = #param{goal = {db_call, _, _} = Goal, next_goal = Next0, bindings = Bs, database = Db}) ->
   {db_call, Table, G} = erlog_ec_support:dderef(Goal, Bs),

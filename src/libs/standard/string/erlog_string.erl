@@ -17,8 +17,9 @@
 %% API
 -export([load/1, prove_goal/1]).
 
-load(Db) ->
-  lists:foreach(fun(Proc) -> erlog_memory:load_kernel_space(Db, ?MODULE, Proc) end, ?ERLOG_STRING).
+
+load(DbState) ->
+  lists:foldl(fun(Head, UDBState) -> erlog_memory:load_kernel_space(UDBState, ?MODULE, Head) end, DbState, ?ERLOG_STRING).
 
 prove_goal(Params = #param{goal = {concat, Strings, Res}, next_goal = Next, bindings = Bs0}) ->
   case erlog_ec_support:dderef_list(Strings, Bs0) of

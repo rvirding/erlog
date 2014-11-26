@@ -26,8 +26,8 @@
 -export([load/1]).
 -export([prove_goal/1]).
 
-load(Db) ->
-	lists:foreach(fun(Proc) -> erlog_memory:load_kernel_space(Db, ?MODULE, Proc) end, ?ERLOG_DCG).
+load(DbState) ->
+  lists:foldl(fun(Head, UDBState) -> erlog_memory:load_kernel_space(UDBState, ?MODULE, Head) end, DbState, ?ERLOG_DCG).
 
 prove_goal(Params = #param{goal = {expand_term, _, _} = Goal, bindings = Bs, var_num = Vn0}) ->
 	{expand_term, DCGRule, A2} = erlog_ec_support:dderef(Goal, Bs),

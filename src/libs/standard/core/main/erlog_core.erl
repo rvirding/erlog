@@ -31,9 +31,8 @@
 %% built_in_db(Db) -> Database.
 %% Create an initial clause database containing the built-in
 %% predicates and predefined library predicates.
-load(Db) ->
-  lists:foreach(fun(Head) ->
-    erlog_memory:load_kernel_space(Db, ?MODULE, Head) end, ?ERLOG_CORE). %% Add the Erlang built-ins.
+load(DbState) ->
+  lists:foldl(fun(Head, UDBState) -> erlog_memory:load_kernel_space(UDBState, ?MODULE, Head) end, DbState, ?ERLOG_CORE).
 
 %% prove_goal(Goal, NextGoal, ChoicePoints, Bindings, VarNum, Database) ->
 %%	{succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase} |

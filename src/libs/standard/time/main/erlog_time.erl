@@ -18,8 +18,8 @@
 -export([load/1]).
 -export([prove_goal/1]).
 
-load(Db) ->
-  lists:foreach(fun(Proc) -> erlog_memory:load_kernel_space(Db, ?MODULE, Proc) end, ?ERLOG_TIME).
+load(DbState) ->
+  lists:foldl(fun(Head, UDBState) -> erlog_memory:load_kernel_space(UDBState, ?MODULE, Head) end, DbState, ?ERLOG_TIME).
 
 %% Returns current timestamp.
 prove_goal(Params = #param{goal = {localtime, Var}, next_goal = Next, bindings = Bs0}) ->

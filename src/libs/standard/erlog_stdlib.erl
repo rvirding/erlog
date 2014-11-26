@@ -9,10 +9,11 @@
 -module(erlog_stdlib).
 -author("tihon").
 
+-include("erlog.hrl").
 -include("erlog_core.hrl").
 
 %% load database to kernel space
--callback load(Db :: pid() | atom()) -> ok.
+-callback load(Db :: #db_state{}) -> #db_state{}.
 
 %% proves goal Goal
 -callback prove_goal(Params :: #param{}) -> ok. %TODO what return value?

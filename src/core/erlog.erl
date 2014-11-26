@@ -28,8 +28,9 @@
 
 -module(erlog).
 -behaviour(gen_server).
--vsn('2.0').
+-vsn('3.0').
 
+-include("erlog.hrl").
 -include("erlog_core.hrl").
 
 %% Interface to server.
@@ -37,17 +38,6 @@
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-
-%% Erlang server code.
--record(state,
-{
-  db :: atom(), %database
-  f_consulter :: atom(), %file consulter
-  debugger :: fun(), %debugger function
-  e_man :: pid(), %event manager, used for debuging and other output (not for return)
-  state = normal :: normal | list(), %state for solution selecting.
-  libs_dir :: string()  %path for directory, where prolog libs are stored
-}).
 
 execute(Worker, Command, undefined) -> execute(Worker, Command);
 execute(Worker, Command, Timeout) -> gen_server:call(Worker, {execute, trim_command(Command)}, Timeout).
@@ -66,9 +56,9 @@ start_link(Params) ->
 
 init(Params) -> % use custom database implementation
   FileCon = init_consulter(Params),
-  {ok, Db} = init_database(Params),
+  DbState = init_database(Params),
   LibsDir = proplists:get_value(libs_dir, Params, "../lib"), %default assumes erlog is run from ebin
-  ok = load_prolog_libraries(FileCon, LibsDir, Db),
+  ok = load_prolog_libraries(FileCon, LibsDir, DbState),
   ok = load_external_libraries(Params, FileCon, Db),
   {ok, E} = gen_event:start_link(),
   Debugger = init_debugger(Params),
@@ -113,13 +103,14 @@ change_state({_, State}) -> State#state{state = normal}.
 
 %% @private
 %% Configurates database with arguments, populates it and returns.
--spec init_database(Params :: proplists:proplist()) -> {ok, Pid :: pid()}.
+-spec init_database(Params :: proplists:proplist()) -> #db_state{}.
 init_database(Params) ->
-  Module = proplists:get_value(database, Params, erlog_dict), %default database is dict module
+  Database = proplists:get_value(database, Params, erlog_dict), %default database is dict module
   Args = proplists:get_value(arguments, Params, []),
-  {ok, DbPid} = erlog_memory:start_link(Module, Args),
-  load_built_in(DbPid),
-  {ok, DbPid}.
+  {ok, State} = Database:new(Args), %create db and return its state
+  D = dict:new(), %create memory cores
+  DBState = #db_state{stdlib = D, exlib = D, in_mem = D, database = Database, state = State},
+  load_built_in(DBState). %populate memory cores
 
 %% @private
 -spec init_consulter(Params :: proplists:proplist()) -> fun() | any().
@@ -132,7 +123,7 @@ init_debugger(Params) ->
 %% @private
 load_built_in(Database) ->
   %Load basic interpreter predicates
-  lists:foreach(fun(Mod) -> Mod:load(Database) end,
+  lists:foldl(fun(Mod, UDBState) -> Mod:load(UDBState) end, Database,
     [
       erlog_core,       %Core predicates
       erlog_bips,       %Built in predicates
@@ -143,9 +134,9 @@ load_built_in(Database) ->
     ]).
 
 %% @private
-load_prolog_libraries(Fcon, LibsDir, Db) ->
+load_prolog_libraries(Fcon, LibsDir, DbState) ->
   Autoload = Fcon:lookup(LibsDir ++ "/autoload"),
-  lists:foreach(fun(Lib) -> erlog_file:load_library(Fcon, LibsDir ++ "/autoload/" ++ Lib, Db) end, Autoload),
+  lists:foreach(fun(Lib) -> erlog_file:load_library(Fcon, LibsDir ++ "/autoload/" ++ Lib, DbState) end, Autoload),
   ok.
 
 %% @private
