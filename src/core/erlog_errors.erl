@@ -75,13 +75,13 @@ fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
 
 %% @private
 fail_clause(#cp{data = {Ch, Cb, Db, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  {UCursor, Res} = erlog_memory:next(Db, Cursor),
-  erlog_ec_unify:unify_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
+  {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
+  erlog_ec_unify:unify_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
 %% @private
 fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  {UCursor, Res} = erlog_memory:next(Db, Cursor),
-  erlog_ec_logic:retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
+  {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
+  erlog_ec_logic:retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
 %% @private
 fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Param) ->
@@ -89,14 +89,15 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
 
 %% @private
 fail_goal_clauses(#cp{data = {G, Db, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  {UCursor, Res} = erlog_memory:next(Db, Cursor),
-  erlog_ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
+  {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
+  erlog_ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->
   Data = erlog_memory:raw_fetch(Db, Tag),
-  erlog_memory:raw_erase(Db, Tag),  %Clear special entry
-  {Bs1, Vn1} = lists:mapfoldl(fun(B0, V0) ->  %Create proper instances
-    {B1, _, V1} = erlog_ec_term:term_instance(erlog_ec_support:dderef(B0, Bs), V0),
-    {B1, V1}
-  end, Vn0, Data),
-  erlog_ec_body:unify_prove_body(Bag, Bs1, Param#param{next_goal = Next, var_num = Vn1}).
+  Udb = erlog_memory:raw_erase(Db, Tag),  %Clear special entry
+  {Bs1, Vn1} = lists:mapfoldl(
+    fun(B0, V0) ->  %Create proper instances
+      {B1, _, V1} = erlog_ec_term:term_instance(erlog_ec_support:dderef(B0, Bs), V0),
+      {B1, V1}
+    end, Vn0, Data),
+  erlog_ec_body:unify_prove_body(Bag, Bs1, Param#param{next_goal = Next, var_num = Vn1, database = Udb}).

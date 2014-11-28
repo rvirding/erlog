@@ -36,10 +36,10 @@ prove_findall(T, G, B0, Param = #param{bindings = Bs, choice = Cps, next_goal = 
   {Next1, _} = erlog_ec_logic:check_goal(G, [{findall, Tag, T}], Bs, Db, false, Label),
   B1 = partial_list(B0, Bs),
   Cp = #cp{type = findall, data = {Tag, B1}, next = Next, bs = Bs, vn = Vn},
-  erlog_memory:raw_store(Db, Tag, []),  %Initialise collection
+  UDb = erlog_memory:raw_store(Db, Tag, []),  %Initialise collection
   %% Catch case where an erlog error occurs when cleanup database.
   try
-    erlog_ec_core:prove_body(Param#param{goal = Next1, choice = [Cp | Cps], bindings = Bs, var_num = Vn + 1})
+    erlog_ec_core:prove_body(Param#param{goal = Next1, choice = [Cp | Cps], bindings = Bs, var_num = Vn + 1, database = UDb})
   catch
     throw:{erlog_error, E, Dba} ->
       Dbb = erlog_memory:raw_erase(Dba, Tag),  %Clear special entry
@@ -65,14 +65,16 @@ prove_ecall(Efun, Val, Param = #param{next_goal = Next, choice = Cps, bindings =
 %% Unify clauses matching with functor from Head with both Head and Body.
 prove_clause(H, B, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_procedure(Db, H) of
+  {Res, UDb} = erlog_memory:get_procedure(Db, H),
+  case Res of
     {cursor, Cursor, result, {clauses, Cs}} ->
-      erlog_ec_core:run_n_close(fun(Param) -> erlog_ec_unify:unify_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(fun(Param) -> erlog_ec_unify:unify_clauses(H, B, Cs, Param) end,
+        Params#param{cursor = Cursor, database = UDb});
     {code, _} ->
       erlog_errors:permission_error(access, private_procedure, erlog_ec_support:pred_ind(Functor));
     built_in ->
       erlog_errors:permission_error(access, private_procedure, erlog_ec_support:pred_ind(Functor));
-    undefined -> erlog_errors:fail(Params)
+    undefined -> erlog_errors:fail(Params#param{database = UDb})
   end.
 
 %% prove_current_predicate(PredInd, Next, ChoicePoints, Bindings, VarNum, DataBase) ->
@@ -84,8 +86,8 @@ prove_current_predicate(Pi, Param = #param{database = Db}) ->
     {_} -> ok;
     Other -> erlog_errors:type_error(predicate_indicator, Other)
   end,
-  Fs = erlog_memory:get_interp_functors(Db),
-  prove_predicates(Pi, Fs, Param).
+  {Fs, UDb} = erlog_memory:get_interp_functors(Db),
+  prove_predicates(Pi, Fs, Param#param{database = UDb}).
 
 prove_predicates(Pi, [F | Fs], Param = #param{next_goal = Next, choice = Cps, bindings = Bs, var_num = Vn}) ->
   Cp = #cp{type = current_predicate, data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn},
@@ -127,12 +129,12 @@ retract_clauses(Ch, Cb, C, Param = #param{next_goal = Next, choice = Cps, bindin
   case erlog_ec_unify:unify_clause(Ch, Cb, C, Bs0, Vn0) of
     {succeed, Bs1, Vn1} ->
       %% We have found a right clause so now retract it.
-      erlog_memory:retract_clause(Db, erlog_ec_support:functor(Ch), element(1, C)),
-      Cp = #cp{type = retract, data = {Ch, Cb, {Db, Cursor}}, next = Next, bs = Bs0, vn = Vn0},
-      erlog_ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1});
+      {_, UDb} = erlog_memory:retract_clause(Db, erlog_ec_support:functor(Ch), element(1, C)),
+      Cp = #cp{type = retract, data = {Ch, Cb, {UDb, Cursor}}, next = Next, bs = Bs0, vn = Vn0},
+      erlog_ec_core:prove_body(Param#param{goal = Next, choice = [Cp | Cps], bindings = Bs1, var_num = Vn1, database = UDb});
     fail ->
-      {UCursor, Res} = erlog_memory:next(Db, Cursor),
-      retract_clauses(Ch, Cb, Res, Param#param{cursor = UCursor})
+      {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
+      retract_clauses(Ch, Cb, Res, Param#param{cursor = UCursor, database = UDb})
   end.
 
 %% well_form_goal(Goal, Tail, HasCutAfter, CutLabel) -> {Body,HasCut}.
@@ -226,34 +228,37 @@ partial_list(Other, _) -> erlog_errors:type_error(list, Other).
 %% @private
 prove_retract(H, B, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_procedure(Db, H) of
+  {Res, Udb} = erlog_memory:get_procedure(Db, H),
+  case Res of
     {cursor, Cursor, result, {clauses, Cs}} ->
-      erlog_ec_core:run_n_close(fun(Param) -> retract_clauses(H, B, Cs, Param) end, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(fun(Param) -> retract_clauses(H, B, Cs, Param) end,
+        Params#param{cursor = Cursor, database = Udb});
     {code, _} ->
       erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
     built_in ->
       erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
-    undefined -> erlog_errors:fail(Params)
+    undefined -> erlog_errors:fail(Params#param{database = Udb})
   end.
 
 %% @private
 prove_retractall(H, B, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
-  case erlog_memory:get_procedure(Db, H) of
+  {Res, Udb} = erlog_memory:get_procedure(Db, H),
+  case Res of
     {cursor, Cursor, result, Result} ->
       Fun = fun(Param) -> check_result(Result, H, B, Functor, Param) end,
-      erlog_ec_core:run_n_close(Fun, Params#param{cursor = Cursor});
+      erlog_ec_core:run_n_close(Fun, Params#param{cursor = Cursor, database = Udb});
     Result ->
-      check_result(Result, H, B, Functor, Params)
+      check_result(Result, H, B, Functor, Params#param{database = Udb})
   end.
 
 retractall_clauses([], _, _, Params = #param{next_goal = Next}) -> erlog_ec_core:prove_body(Params#param{goal = Next});
 retractall_clauses(Clause, H, B, Params = #param{bindings = Bs0, var_num = Vn0, database = Db, cursor = Cursor}) ->
   case erlog_ec_unify:unify_clause(H, B, Clause, Bs0, Vn0) of
     {succeed, _, _} ->
-      erlog_memory:retract_clause(Db, erlog_ec_support:functor(H), element(1, Clause)),
-      {UCursor, Res} = erlog_memory:next(Db, Cursor),
-      retractall_clauses(Res, H, B, Params#param{cursor = UCursor});
+      {_, Udb1} = erlog_memory:retract_clause(Db, erlog_ec_support:functor(H), element(1, Clause)),
+      {{UCursor, Res}, UDb2} = erlog_memory:next(Udb1, Cursor),
+      retractall_clauses(Res, H, B, Params#param{cursor = UCursor, database = UDb2});
     fail -> retractall_clauses([], H, B, Params)
   end.
 
@@ -264,5 +269,6 @@ check_result({code, _}, _, _, Functor, _) ->
   erlog_errors:permission_error(modify, static_procedure, erlog_ec_support:pred_ind(Functor));
 check_result({clauses, Cs}, H, B, _, Params) ->
   retractall_clauses(Cs, H, B, Params);
-check_result(undefined, _, _, _, Params = #param{next_goal = Next}) -> erlog_ec_core:prove_body(Params#param{goal = Next});
+check_result(undefined, _, _, _, Params = #param{next_goal = Next}) ->
+  erlog_ec_core:prove_body(Params#param{goal = Next});
 check_result({erlog_error, E}, _, _, _, #param{database = Db}) -> erlog_errors:erlog_error(E, Db).

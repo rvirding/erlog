@@ -49,8 +49,8 @@ load(File) ->
         {ok, read_stream(Fd, 1)}
       catch
         throw:Term -> Term;
-        error:Error -> {error, einval, Error};
-        exit:Exit -> {exit, einval, Exit}
+        error:Error -> {error, {einval, Error}};
+        exit:Exit -> {exit, {einval, Exit}}
       after
         file:close(Fd)
       end;

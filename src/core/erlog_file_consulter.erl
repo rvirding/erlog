@@ -13,4 +13,4 @@
 -callback lookup(Directory :: string()) -> Files :: list().
 
 %% consult selected file
--callback load(FileLoc :: string()) -> ok.
+-callback load(FileLoc :: string()) -> {ok, [Term :: term()]} | {error, Error :: term()}.

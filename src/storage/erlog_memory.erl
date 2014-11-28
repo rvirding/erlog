@@ -161,6 +161,7 @@ close(DBState = #db_state{state = State, database = Db}, Cursor) ->
 
 
 %% @private
+-spec do_action(#db_state{}, atom(), term(), term()) -> {any(), #db_state{}}.
 do_action(DBState = #db_state{stdlib = StdLib, exlib = ExLib, database = Db, state = State}, Fun, F, Args) ->
   check_immutable(StdLib, F),  %modifying fact in default memory need to be checked
   check_immutable(ExLib, F),
@@ -168,11 +169,13 @@ do_action(DBState = #db_state{stdlib = StdLib, exlib = ExLib, database = Db, sta
   {Res, DBState#db_state{state = UState}}.
 
 %% @private
+-spec do_action(#db_state{}, atom(), term()) -> {any(), #db_state{}}.
 do_action(DBState = #db_state{stdlib = StdLib, exlib = ExLib, database = Db, state = State}, Fun, Args) ->
   {Res, UState} = Db:Fun({StdLib, ExLib, State}, Args),
   {Res, DBState#db_state{state = UState}}.
 
 %% @private
+-spec do_action(#db_state{}, atom()) -> {any(), #db_state{}}.
 do_action(DBState = #db_state{stdlib = StdLib, exlib = ExLib, database = Db, state = State}, Fun) ->
   {Res, UState} = Db:Fun({StdLib, ExLib, State}),
   {Res, DBState#db_state{state = UState}}.
@@ -201,10 +204,10 @@ store(Key, Value, Memory) ->
 check_abolish(F, Func, Params, State = #db_state{state = DbState, database = Db, stdlib = StdLib, exlib = ExLib}) ->
   case dict:erase(Func, ExLib) of
     ExLib ->  %dict not changed - was not deleted. Search userspace
-      {_, UState} = Db:F({StdLib, ExLib, DbState}, Params),
-      State#db_state{state = UState};
+      {Res, UState} = Db:F({StdLib, ExLib, DbState}, Params),
+      {Res, State#db_state{state = UState}};
     UExlib -> %dict changed -> was deleted
-      State#db_state{exlib = UExlib}
+      {ok, State#db_state{exlib = UExlib}}
   end.
 
 %% @private

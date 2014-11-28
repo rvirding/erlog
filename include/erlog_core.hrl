@@ -38,7 +38,7 @@
   choice,
   bindings,
   var_num,
-  database,
+  database, %erlog.htl db_state
   event_man,
   f_consulter :: atom(),
   debugger,

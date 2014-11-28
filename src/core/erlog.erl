@@ -58,15 +58,17 @@ init(Params) -> % use custom database implementation
   FileCon = init_consulter(Params),
   DbState = init_database(Params),
   LibsDir = proplists:get_value(libs_dir, Params, "../lib"), %default assumes erlog is run from ebin
-  ok = load_prolog_libraries(FileCon, LibsDir, DbState),
-  ok = load_external_libraries(Params, FileCon, Db),
-  {ok, E} = gen_event:start_link(),
+  UdbState1 = load_prolog_libraries(FileCon, LibsDir, DbState),
+  UdbState2 = load_external_libraries(Params, FileCon, UdbState1),
   Debugger = init_debugger(Params),
-  case proplists:get_value(event_h, Params) of  %register handler, if any
-    undefined -> ok;
-    {Module, Arguments} -> gen_event:add_handler(E, Module, Arguments)
-  end,
-  {ok, #state{db = Db, f_consulter = FileCon, e_man = E, debugger = Debugger, libs_dir = LibsDir}}.
+  EventMan = case proplists:get_value(event_h, Params) of  %register handler, if any
+               undefined -> undefined;
+               {Module, Arguments} ->
+                 {ok, E} = gen_event:start_link(),
+                 gen_event:add_handler(E, Module, Arguments),
+                 E
+             end,
+  {ok, #state{db_state = UdbState2, f_consulter = FileCon, e_man = EventMan, debugger = Debugger, libs_dir = LibsDir}}.
 
 handle_call({execute, Command}, _From, State) -> %running prolog code in normal mode
   {Res, _} = Repl = case erlog_scan:tokens([], Command, 1) of
@@ -80,9 +82,10 @@ handle_call({select, Command}, _From, State) ->  %in selection solutions mode
   NewState = change_state(Repl), % change state, depending on reply
   {reply, Res, NewState}.
 
-handle_cast(halt, St = #state{e_man = E, db = Db}) ->
+handle_cast(halt, St = #state{e_man = undefined}) ->
+  {stop, normal, St};
+handle_cast(halt, St = #state{e_man = E}) ->
   gen_event:stop(E),  %stom all handlers and event man
-  gen_server:cast(Db, halt),
   {stop, normal, St}.
 
 handle_info(_, St) ->
@@ -134,22 +137,27 @@ load_built_in(Database) ->
     ]).
 
 %% @private
+-spec load_prolog_libraries(atom(), list(), #db_state{}) -> #db_state{}.
 load_prolog_libraries(Fcon, LibsDir, DbState) ->
   Autoload = Fcon:lookup(LibsDir ++ "/autoload"),
-  lists:foreach(fun(Lib) -> erlog_file:load_library(Fcon, LibsDir ++ "/autoload/" ++ Lib, DbState) end, Autoload),
-  ok.
+  lists:foldl(
+    fun(Lib, UdbState) ->
+      {ok, UpdDbState} = erlog_file:load_library(Fcon, LibsDir ++ "/autoload/" ++ Lib, UdbState),
+      UpdDbState
+    end, DbState, Autoload).
 
 %% @private
-load_external_libraries(Params, FileCon, Database) ->
+load_external_libraries(Params, FileCon, DdState) ->
   case proplists:get_value(libraries, Params) of
-    undefined -> ok;
+    undefined -> DdState;
     Libraries ->
-      lists:foreach(
-        fun(Mod) when is_atom(Mod) -> %autoload native library
-          Mod:load(Database);
-          (PrologLib) when is_list(PrologLib) ->  %autoload external library
-            erlog_file:load_library(FileCon, PrologLib, Database)
-        end, Libraries)
+      lists:foldl(
+        fun(Mod, UDbState) when is_atom(Mod) -> %autoload native library
+          Mod:load(UDbState);
+          (PrologLib, UDbState) when is_list(PrologLib) ->  %autoload external library
+            {ok, UpdDbState} = erlog_file:load_library(FileCon, PrologLib, UDbState),
+            UpdDbState
+        end, DdState, Libraries)
   end.
 
 %% @private
@@ -164,10 +172,10 @@ run_command(Command, State) ->
 
 %% @private
 %% Preprocess command
-preprocess_command({ok, Command}, State = #state{f_consulter = Consulter, db = Db}) when is_list(Command) ->  %TODO may be remove me?
-  case erlog_logic:reconsult_files(Command, Db, Consulter) of
-    ok ->
-      {true, State};
+preprocess_command({ok, Command}, State = #state{f_consulter = Consulter, db_state = DbState}) when is_list(Command) ->  %TODO may be remove me?
+  case erlog_logic:reconsult_files(Command, DbState, Consulter) of
+    {ok, UpdDbState} ->
+      {true, State#state{db_state = UpdDbState}};
     {error, {L, Pm, Pe}} ->
       {erlog_io:format_error([L, Pm:format_error(Pe)]), State};
     {Error, Message} when Error == error; Error == erlog_error ->
@@ -188,9 +196,10 @@ process_command({prove, Goal}, State) ->
   prove_goal(Goal, State);
 process_command(next, State = #state{state = normal}) ->  % can't select solution, when not in select mode
   {fail, State};
-process_command(next, State = #state{state = [Vs, Cps], db = Db, f_consulter = Consulter, libs_dir = LD}) ->
-  case erlog_logic:prove_result(catch erlog_errors:fail(#param{choice = Cps, database = Db, f_consulter = Consulter, libs_dir = LD}), Vs) of
+process_command(next, State = #state{state = [Vs, Cps], db_state = DbState, f_consulter = Consulter, libs_dir = LD}) ->
+  case erlog_logic:prove_result(catch erlog_errors:fail(#param{choice = Cps, database = DbState, f_consulter = Consulter, libs_dir = LD}), Vs) of
     {Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
+    {fail, Db} -> {fail, State#state{db_state = Db}};
     Other -> {Other, State}
   end;
 process_command(halt, State) ->
@@ -198,14 +207,15 @@ process_command(halt, State) ->
   {ok, State}.
 
 %% @private
-prove_goal(Goal0, State = #state{db = Db, f_consulter = Consulter, e_man = Event, debugger = Deb, libs_dir = LD}) ->
+prove_goal(Goal0, State = #state{db_state = Db, f_consulter = Consulter, e_man = Event, debugger = Deb, libs_dir = LD}) ->
   Vs = erlog_logic:vars_in(Goal0),
   %% Goal may be a list of goals, ensure proper goal.
   Goal1 = erlog_logic:unlistify(Goal0),
   %% Must use 'catch' here as 'try' does not do last-call
   %% optimisation.
   case erlog_logic:prove_result(catch erlog_ec_core:prove_goal(Goal1, Db, Consulter, Event, Deb, LD), Vs) of
-    {succeed, Res, Args} -> {{succeed, Res}, State#state{state = Args}};
+    {succeed, Res, Args, UDbState} -> {{succeed, Res}, State#state{state = Args, db_state = UDbState}};
+    {fail, Db} -> {fail, State#state{db_state = Db}};
     OtherRes -> {OtherRes, State}
   end.
 
