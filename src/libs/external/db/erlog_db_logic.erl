@@ -49,7 +49,7 @@ prove_goal_clauses([C], _, Params = #param{choice = Cps, var_num = Vn}) -> %for 
       erlog_ec_core:prove_goal_clause(C, Params)
   end;
 prove_goal_clauses(C, Table, Params = #param{goal = G, next_goal = Next, var_num = Vn, bindings = Bs, choice = Cps, database = Db, cursor = Cursor}) ->
-  Cp = #cp{type = goal_clauses, label = Vn, data = {G, Db, Table, Cursor}, next = Next, bs = Bs, vn = Vn},
+  Cp = #cp{type = db_goal_clauses, label = Vn, data = {G, Db, Table, Cursor}, next = Next, bs = Bs, vn = Vn},
   erlog_ec_core:prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
 
