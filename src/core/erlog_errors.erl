@@ -45,6 +45,8 @@ erlog_error(E) -> throw({erlog_error, E}).
 %%  backwards over choice points until matching cut.
 fail(Param = #param{choice = [#cp{type = goal_clauses} = Cp | Cps]}) ->
   fail_goal_clauses(Cp, Param#param{choice = Cps});
+fail(Param = #param{choice = [#cp{type = db_goal_clauses} = Cp | Cps]}) ->
+  erlog_db_logic:fail_goal_clauses(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = Type} = Cp | Cps]}) when Type == disjunction; Type == if_then_else ->
   fail_disjunction(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = clause} = Cp | Cps]}) ->
