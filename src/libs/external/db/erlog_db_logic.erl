@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([check_call_result/5, prove_retract/3, prove_retractall/3, fail_retract/2]).
+-export([check_call_result/5, prove_retract/3, prove_retractall/3, fail_retract/2, fail_goal_clauses/2]).
 
 prove_retract({':-', H, B}, Table, Params) ->
   prove_retract(H, B, Table, Params);
@@ -27,6 +27,10 @@ prove_retractall(H, Table, Params) ->
 fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}, Table}, next = Next, bs = Bs, vn = Vn}, Param) ->
   {UCursor, Res} = erlog_memory:db_next(Db, Cursor, Table),
   retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}, Table).
+
+fail_goal_clauses(#cp{data = {G, Db, Table, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
+  {UCursor, Res} = erlog_memory:db_next(Db, Cursor, Table),
+  erlog_ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
 
 check_call_result([], Param, _, _, _) -> erlog_errors:fail(Param);
 check_call_result({clauses, Cs}, Param, G, Table, Next) -> prove_call(G, Cs, Next, Table, Param);
