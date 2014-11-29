@@ -30,7 +30,7 @@ fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}, Table}, next = Next, bs = Bs, vn 
 
 fail_goal_clauses(#cp{data = {G, Db, Table, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
   {UCursor, Res} = erlog_memory:db_next(Db, Cursor, Table),
-  erlog_ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
+  prove_goal_clauses(Res, Table, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
 
 check_call_result([], Param, _, _, _) -> erlog_errors:fail(Param);
 check_call_result({clauses, Cs}, Param, G, Table, Next) -> prove_call(G, Cs, Next, Table, Param);
@@ -64,7 +64,7 @@ prove_call(G, Cs, Next0, Table, Param = #param{bindings = Bs, choice = Cps, data
       %% Must increment Vn to avoid clashes!!!
       Cut = #cut{label = Vn},
       prove_goal_clauses(Cs, Table, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
-    {[Next1 | _], false} -> erlog_ec_core:prove_goal_clauses(Cs, Param#param{goal = Next1, var_num = Vn + 1})
+    {[Next1 | _], false} -> prove_goal_clauses(Cs, Table, Param#param{goal = Next1, var_num = Vn + 1})
   end.
 
 %% @private
