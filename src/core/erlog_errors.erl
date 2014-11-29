@@ -54,7 +54,7 @@ fail(Param = #param{choice = [#cp{type = findall} = Cp | Cps]}) ->
 fail(Param = #param{choice = [#cp{type = retract} = Cp | Cps]}) ->
   fail_retract(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = db_retract} = Cp | Cps]}) ->
-  erlog_db:fail_retract(Cp, Param#param{choice = Cps});
+  erlog_db_logic:fail_retract(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = current_predicate} = Cp | Cps]}) ->
   fail_current_predicate(Cp, Param#param{choice = Cps});
 fail(Param = #param{choice = [#cp{type = ecall} = Cp | Cps]}) ->

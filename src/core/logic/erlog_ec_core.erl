@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([prove_body/1, prove_goal/1, prove_goal/6, prove_goal_clauses/2, run_n_close/2]).
+-export([prove_body/1, prove_goal/1, prove_goal/6, prove_goal_clauses/2, run_n_close/2, prove_goal_clause/2]).
 
 %% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
@@ -112,7 +112,6 @@ run_n_close(Fun, Params = #param{database = Db, cursor = Cursor}) ->
     erlog_memory:close(Db, Cursor)
   end.
 
-%% @private
 prove_goal_clause([], Param) -> erlog_errors:fail(Param);
 prove_goal_clause([L], Param) -> prove_goal_clause(L, Param);
 prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
@@ -123,6 +122,7 @@ prove_goal_clause({_Tag, H0, {B0, _}}, Param = #param{goal = G, next_goal = Next
       erlog_ec_core:prove_body(Param#param{goal = B1, bindings = Bs1, var_num = Vn2});
     fail -> erlog_errors:fail(Param)
   end.
+
 
 %% @private
 check_result({built_in, Mod}, Param) -> Mod:prove_goal(Param);
