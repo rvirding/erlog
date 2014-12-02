@@ -104,7 +104,6 @@ deconsult_assert(Term0, {Db, Seen}) ->
       {ok, {Db, Seen}};  %TODO refactor iterate_terms not to pass DB everywhere!
     false ->
       check_abolish(Db, Func),
-      check_assert(Db, Term1),
       {ok, {Db, [Func | Seen]}}
   end.
 
