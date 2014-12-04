@@ -96,9 +96,8 @@ deconsult_assert(Term0, {Db, Seen}) ->
     true ->
       {ok, {Db, Seen}};
     false ->
-      {_, Udb1} = erlog_memory:abolish_clauses(Db, Func),
-      {_, Udb2} = erlog_memory:assertz_clause(Udb1, Term1),
-      {ok, {Udb2, [Func | Seen]}}
+      {_, Udb} = erlog_memory:abolish_clauses(Db, Func),
+      {ok, {Udb, [Func | Seen]}}
   end.
 
 %% @private

@@ -12,7 +12,7 @@
 -include("erlog_core.hrl").
 
 %% API
--export([check_call_result/5, prove_retract/3, prove_retractall/3, fail_retract/2, fail_goal_clauses/2]).
+-export([check_call_result/5, prove_retract/3, prove_retractall/3, fail_retract/2, fail_goal_clauses/2, prove_call/5]).
 
 prove_retract({':-', H, B}, Table, Params) ->
   prove_retract(H, B, Table, Params);
@@ -56,8 +56,6 @@ prove_goal_clauses(C, Table, Params = #param{goal = G, next_goal = Next, var_num
   Cp = #cp{type = db_goal_clauses, label = Vn, data = {G, Db, Table, Cursor}, next = Next, bs = Bs, vn = Vn},
   erlog_ec_core:prove_goal_clause(C, Params#param{choice = [Cp | Cps]}).
 
-
-%% @private
 prove_call(G, Cs, Next0, Table, Param = #param{bindings = Bs, choice = Cps, database = Db, var_num = Vn}) ->
   case erlog_ec_logic:check_goal(G, Next0, Bs, Db, false, Vn) of
     {[Next1 | _], true} ->
@@ -66,6 +64,7 @@ prove_call(G, Cs, Next0, Table, Param = #param{bindings = Bs, choice = Cps, data
       prove_goal_clauses(Cs, Table, Param#param{goal = Next1, choice = [Cut | Cps], var_num = Vn + 1});
     {[Next1 | _], false} -> prove_goal_clauses(Cs, Table, Param#param{goal = Next1, var_num = Vn + 1})
   end.
+
 
 %% @private
 prove_retract(H, B, Table, Params = #param{database = Db}) ->

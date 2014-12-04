@@ -198,7 +198,7 @@ process_command(next, State = #state{state = normal}) ->  % can't select solutio
   {fail, State};
 process_command(next, State = #state{state = [Vs, Cps], db_state = DbState, f_consulter = Consulter, libs_dir = LD}) ->
   case erlog_logic:prove_result(catch erlog_errors:fail(#param{choice = Cps, database = DbState, f_consulter = Consulter, libs_dir = LD}), Vs) of
-    {Atom, Res, Args} -> {{Atom, Res}, State#state{state = Args}};
+    {Atom, Res, Args, Udb} -> {{Atom, Res}, State#state{state = Args, db_state = Udb}};
     {fail, Db} -> {fail, State#state{db_state = Db}};
     Other -> {Other, State}
   end;

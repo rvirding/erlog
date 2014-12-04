@@ -23,7 +23,7 @@
 start() ->
   io:fwrite("Erlog Shell V~s (abort with ^G)\n",
     [erlang:system_info(version)]),
-  {ok, Core} = erlog:start_link(),
+  {ok, Core} = erlog:start_link([{event_h, {erlog_simple_printer, []}}]),
   start_db_if_needed(),  %start default ets-implementation of stand-alone database-module
   server_loop(Core, normal, []).
 
