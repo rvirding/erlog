@@ -25,12 +25,12 @@ prove_retractall(H, Table, Params) ->
   prove_retractall(H, true, Table, Params).
 
 fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}, Table}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  {UCursor, Res} = erlog_memory:db_next(Db, Cursor, Table),
-  retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}, Table).
+  {{UCursor, Res}, UDb} = erlog_memory:db_next(Db, Cursor, Table),
+  retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}, Table).
 
 fail_goal_clauses(#cp{data = {G, Db, Table, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
-  {UCursor, Res} = erlog_memory:db_next(Db, Cursor, Table),
-  prove_goal_clauses(Res, Table, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor}).
+  {{UCursor, Res}, UDb} = erlog_memory:db_next(Db, Cursor, Table),
+  prove_goal_clauses(Res, Table, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
 check_call_result([], Param, _, _, _) -> erlog_errors:fail(Param);
 check_call_result({clauses, Cs}, Param, G, Table, Next) -> prove_call(G, Cs, Next, Table, Param);
@@ -82,7 +82,7 @@ prove_retract(H, B, Table, Params = #param{database = Db}) ->
 prove_retractall(H, B, Table, Params = #param{database = Db}) ->
   Functor = erlog_ec_support:functor(H),
   case erlog_memory:get_db_procedure(Db, Table, H) of
-    {{cursor, Cursor, result, Res}, UDb}  ->
+    {{cursor, Cursor, result, Res}, UDb} ->
       check_retractall_result(Res, H, B, Functor, Table, Params#param{cursor = Cursor, database = UDb});
     {Res, UDb} ->
       check_retractall_result(Res, H, B, Functor, Table, Params#param{database = UDb})
