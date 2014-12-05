@@ -14,34 +14,26 @@
 %% API
 -export([prove_body/1, prove_goal/1, prove_goal/6, prove_goal_clauses/2, run_n_close/2, prove_goal_clause/2]).
 
-%% prove_goal(Goal, Database) -> Succeed | Fail.
 %% This is the main entry point into the interpreter. Check that
 %% everything is consistent then prove the goal as a call.
 -spec prove_goal(Goal0 :: term(), Db :: pid(), Consuter :: atom(), Event :: pid(), Deb :: fun(), LibsDir :: string()) -> term().
 prove_goal(Goal0, Db, Consulter, Event, Deb, LibsDir) ->
-  %% put(erlog_cut, orddict:new()),
-  %% put(erlog_cps, orddict:new()),
-  %% put(erlog_var, orddict:new()),
   %% Check term and build new instance of term with bindings.
   {Goal1, Bs, Vn} = erlog_ec_logic:initial_goal(Goal0),
   Params = #param{goal = [{call, Goal1}], choice = [], bindings = Bs, var_num = Vn,
     event_man = Event, database = Db, f_consulter = Consulter, debugger = Deb, libs_dir = LibsDir},
-  erlog_ec_core:prove_body(Params). %TODO use lists:foldr instead!
+  erlog_ec_core:prove_body(Params).
 
 %% prove_body(Body, ChoicePoints, Bindings, VarNum, Database) ->
 %%      {succeed,ChoicePoints,NewBindings,NewVarNum,NewDatabase}.
 %% Prove the goals in a body. Remove the first goal and try to prove
 %% it. Return when there are no more goals. This is how proving a
 %% goal/body succeeds.
-prove_body(Params = #param{goal = [G | Gs], debugger = Deb, bindings = Bs}) -> %TODO use lists:foldr instead!
-  %%io:fwrite("PB: ~p\n", [{G,Gs,Cps}]),
+prove_body(Params = #param{goal = [G | Gs], debugger = Deb, bindings = Bs}) ->
   Deb(ok, erlog_ec_support:dderef(G, Bs), Bs),
   prove_goal(Params#param{goal = G, next_goal = Gs});
 prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
-  %%io:fwrite("Cps: ~p\nCut: ~p\nVar: ~p\nVar: ~p\n",
-  %%      [get(erlog_cps),get(erlog_cut),get(erlog_var),dict:size(Bs)]),
-  %%io:fwrite("PB: ~p\n", [Cps]),
-  {succeed, Cps, Bs, Vn, Db}.      %No more body  %TODO why should we return database?
+  {succeed, Cps, Bs, Vn, Db}.      %No more body
 
 %% Prove support first. Then find in database.
 prove_goal(Param = #param{goal = {{once}, Label}, next_goal = Next, choice = Cps}) ->
@@ -76,7 +68,6 @@ prove_goal(Param = #param{goal = {{disj}, R}, next_goal = Next, choice = Cps, bi
   Cp = #cp{type = disjunction, next = R, bs = Bs, vn = Vn},
   prove_body(Param#param{goal = Next, choice = [Cp | Cps]});
 prove_goal(Param = #param{goal = G, database = Db}) ->
-%% 	io:fwrite("PG: ~p\n    ~p\n    ~p\n", [dderef(G, Bs),Next,Cps]),
   case catch erlog_memory:get_procedure(Db, G) of
     {{cursor, Cursor, result, Result}, UDB} ->
       Fun = fun(Params) -> check_result(Result, Params) end,
