@@ -112,7 +112,7 @@ iterate_terms(Ifun, DbState, [{'?-', _} | Ts]) ->
   iterate_terms(Ifun, DbState, Ts);
 iterate_terms(Ifun, DbState, [Term | Ts]) ->
   case catch Ifun(Term, DbState) of
-    {ok, UDbState} -> iterate_terms(Ifun, UDbState, Ts);
+    {_, UDbState} -> iterate_terms(Ifun, UDbState, Ts); %sometimes assertz db implementations return asserted object id instead ok
     {erlog_error, E, _} -> {erlog_error, E};
     {erlog_error, E} -> {erlog_error, E}
   end;
