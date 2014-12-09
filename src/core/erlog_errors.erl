@@ -76,12 +76,12 @@ fail_ecall(#cp{data = {Efun, Val}, next = Next, bs = Bs, vn = Vn}, Param) ->
   erlog_ec_logic:prove_ecall(Efun, Val, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
-fail_clause(#cp{data = {Ch, Cb, Db, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
+fail_clause(#cp{data = {Ch, Cb, _, Cursor}, next = Next, bs = Bs, vn = Vn}, Param = #param{database = Db}) -> %TODO remove unneeded Db in #cp
   {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
   erlog_ec_unify:unify_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
 %% @private
-fail_retract(#cp{data = {Ch, Cb, {Db, Cursor}}, next = Next, bs = Bs, vn = Vn}, Param) ->
+fail_retract(#cp{data = {Ch, Cb, {_, Cursor}}, next = Next, bs = Bs, vn = Vn}, Param = #param{database = Db}) ->  %TODO remove unneeded Db in #cp
   {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
   erlog_ec_logic:retract_clauses(Ch, Cb, Res, Param#param{next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
@@ -90,7 +90,7 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
   erlog_ec_logic:prove_predicates(Pi, Fs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
-fail_goal_clauses(#cp{data = {G, Db, Cursor}, next = Next, bs = Bs, vn = Vn}, Param) ->
+fail_goal_clauses(#cp{data = {G, _, Cursor}, next = Next, bs = Bs, vn = Vn}, Param = #param{database = Db}) -> %TODO remove unneeded Db in #cp
   {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
   erlog_ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
