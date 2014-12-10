@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, configure/1]).
+-export([start_link/0, configure/1, process_reply/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -37,6 +37,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+process_reply(Dict) ->
+  case dict:size(Dict) of
+    0 -> [];
+    _ -> process_vars(Dict)
+  end.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -194,6 +199,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+%% @private
 process_match({{_}, _, _}, _, _) -> false;  %skip support functors
 process_match(Functor, Execute, {detailed, Functor}) ->
   Execute();
@@ -203,13 +209,6 @@ process_match(Functor, Execute, {arity, Pred}) ->
   case erlog_ec_support:functor(Functor) of
     Pred -> Execute();
     _ -> false
-  end.
-
-%% @private
-process_reply(Dict) ->
-  case dict:size(Dict) of
-    0 -> [];
-    _ -> process_vars(Dict)
   end.
 
 %% @private
