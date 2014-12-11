@@ -87,7 +87,7 @@ functor(T) -> erlog_errors:type_error(callable, T).
 %% Checks - if var is normal, or binded, or < 0 (if int). Returns var's value.
 check_var({'-', Var}, Bs) ->
   case check_var(Var, Bs) of
-    Res when is_integer(Res) -> -1 * Res;
+    Res when is_number(Res) -> -1 * Res;
     Res -> Res
   end;
 check_var({Var}, Bs) -> check_var(erlog_ec_support:deref({Var}, Bs), Bs);
