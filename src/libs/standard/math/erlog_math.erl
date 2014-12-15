@@ -17,8 +17,8 @@
 %% API
 -export([load/1, prove_goal/1]).
 
-load(Db) ->
-  lists:foreach(fun(Proc) -> erlog_memory:load_kernel_space(Db, ?MODULE, Proc) end, ?ERLOG_MATH).
+load(DbState) ->
+  lists:foldl(fun(Proc, UDBState) -> erlog_memory:load_kernel_space(UDBState, ?MODULE, Proc) end, DbState, ?ERLOG_MATH).
 
 prove_goal(Params = #param{goal = {round, _, _, _} = G, next_goal = Next, bindings = Bs0}) ->
   {round, Number, Accuracy, Result} = erlog_ec_support:dderef(G, Bs0),

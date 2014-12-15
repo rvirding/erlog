@@ -130,7 +130,7 @@ init_debugger(Params) ->
 %% @private
 load_built_in(Database) ->
   %Load basic interpreter predicates
-  lists:foreach(fun(Mod) -> Mod:load(Database) end, ?STDLIB).
+  lists:foldl(fun(Mod, UDBState) -> Mod:load(UDBState) end, Database, ?STDLIB).
 
 %% @private
 -spec load_prolog_libraries(atom(), list(), #db_state{}) -> #db_state{}.
@@ -143,9 +143,9 @@ load_prolog_libraries(Fcon, LibsDir, DbState) ->
     end, DbState, Autoload).
 
 %% @private
-load_external_libraries(Params, FileCon, DdState) ->
+load_external_libraries(Params, FileCon, DbState) ->
   case proplists:get_value(libraries, Params) of
-    undefined -> DdState;
+    undefined -> DbState;
     Libraries ->
       lists:foldl(
         fun(Mod, UDbState) when is_atom(Mod) -> %autoload native library
@@ -153,7 +153,7 @@ load_external_libraries(Params, FileCon, DdState) ->
           (PrologLib, UDbState) when is_list(PrologLib) ->  %autoload external library
             {ok, UpdDbState} = erlog_file:load_library(FileCon, PrologLib, UDbState),
             UpdDbState
-        end, DdState, Libraries)
+        end, DbState, Libraries)
   end.
 
 %% @private
