@@ -34,7 +34,7 @@
 -include("erlog_core.hrl").
 
 %% Interface to server.
--export([start_link/1, start_link/0, execute/2, select/2, execute/3]).
+-export([start_link/1, start_link/0, execute/2, select/2, execute/3, select/3]).
 
 %% Gen server callbacs.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -43,6 +43,10 @@ execute(Worker, Command, undefined) -> execute(Worker, Command);
 execute(Worker, Command, Timeout) -> gen_server:call(Worker, {execute, trim_command(Command)}, Timeout).
 
 execute(Worker, Command) -> gen_server:call(Worker, {execute, trim_command(Command)}).
+
+select(Worker, Command, undefined) -> select(Worker, Command);
+select(Worker, Command, Timeout) -> gen_server:call(Worker, {select, trim_command(Command)}, Timeout).
+
 select(Worker, Command) -> gen_server:call(Worker, {select, trim_command(Command)}).
 
 -spec start_link() -> pid().
@@ -126,15 +130,7 @@ init_debugger(Params) ->
 %% @private
 load_built_in(Database) ->
   %Load basic interpreter predicates
-  lists:foldl(fun(Mod, UDBState) -> Mod:load(UDBState) end, Database,
-    [
-      erlog_core,       %Core predicates
-      erlog_bips,       %Built in predicates
-      erlog_dcg,        %DCG predicates
-      erlog_lists,      %Common lists library
-      erlog_time,       %Bindings for working with data and time
-      erlog_string      %Bindings for working with strings
-    ]).
+  lists:foreach(fun(Mod) -> Mod:load(Database) end, ?STDLIB).
 
 %% @private
 -spec load_prolog_libraries(atom(), list(), #db_state{}) -> #db_state{}.

@@ -93,3 +93,15 @@
     {to_string, 2}
   ]
 ).
+
+-define(STDLIB,
+  [
+    erlog_core,       %Core predicates
+    erlog_bips,       %Built in predicates
+    erlog_dcg,        %DCG predicates
+    erlog_lists,      %Common lists library
+    erlog_time,       %Bindings for working with data and time
+    erlog_string,     %Bindings for working with strings
+    erlog_math        %Predicates for working with math utils
+  ]
+).
