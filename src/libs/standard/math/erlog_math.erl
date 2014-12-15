@@ -31,4 +31,5 @@ prove_goal(Params = #param{goal = {round, _, _, _} = G, next_goal = Next, bindin
 
 %% @private
 round_float(N, _) when is_integer(N) -> N;
+round_float(N, 0) -> round(N);
 round_float(F, Accuracy) -> P = math:pow(10, Accuracy), round(F * P) / P.
