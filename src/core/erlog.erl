@@ -136,15 +136,7 @@ init_debugger(Params) ->
 %% @private
 load_built_in(Database) ->
   %Load basic interpreter predicates
-  lists:foreach(fun(Mod) -> Mod:load(Database) end,
-    [
-      erlog_core,       %Core predicates
-      erlog_bips,       %Built in predicates
-      erlog_dcg,        %DCG predicates
-      erlog_lists,      %Common lists library
-      erlog_time,       %Bindings for working with data and time
-      erlog_string      %Bindings for working with strings
-    ]).
+  lists:foreach(fun(Mod) -> Mod:load(Database) end, ?STDLIB).
 
 %% @private
 load_prolog_libraries(Fcon, LibsDir, Db) ->
