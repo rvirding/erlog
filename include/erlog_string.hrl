@@ -13,5 +13,8 @@
     {concat, 2},
     {substring, 4},
     {indexof, 3},
-    {split, 3}
+    {split, 3},
+    {parse_int, 2},
+    {parse_float, 2},
+    {str_number, 2}
   ]).
