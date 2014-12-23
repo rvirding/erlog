@@ -32,7 +32,7 @@ prove_goal(Params = #param{goal = {concat, Strings, Res}, next_goal = Next, bind
   end;
 prove_goal(Params = #param{goal = {substring, _, _, _, _} = Goal, next_goal = Next, bindings = Bs0}) ->
   {substring, From, To, Str, Res} = erlog_ec_support:dderef(Goal, Bs0),
-  Bs1 = erlog_ec_support:add_binding(Res, lists:sublist(Str, From, To - From), Bs0),
+  Bs1 = erlog_ec_support:add_binding(Res, lists:sublist(Str, From, To - From + 1), Bs0),
   erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
 prove_goal(Params = #param{goal = {indexof, _, _, _} = Goal, next_goal = Next, bindings = Bs0}) ->
   {indexof, Str1, Str2, Res} = erlog_ec_support:dderef(Goal, Bs0),
