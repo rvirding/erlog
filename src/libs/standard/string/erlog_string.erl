@@ -26,7 +26,7 @@ prove_goal(Params = #param{goal = {concat, Strings, Res}, next_goal = Next, bind
   case erlog_ec_support:dderef_list(Strings, Bs0) of
     List when is_list(List) ->
       ConcatMe = lists:foldr(fun preprocess_concat/2, [], List),
-      Bs1 = erlog_ec_support:add_binding(Res, ConcatMe, Bs0),
+      Bs1 = erlog_ec_support:add_binding(Res, lists:concat(ConcatMe), Bs0),
       erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
     _ -> erlog_errors:fail(Params)
   end;
