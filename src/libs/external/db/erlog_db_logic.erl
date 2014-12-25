@@ -69,7 +69,7 @@ prove_call(G, Cs, Next0, Table, Param = #param{bindings = Bs, choice = Cps, data
 %% @private
 prove_retract(H, B, Table, Params = #param{database = Db}) ->
   case erlog_memory:get_db_procedure(Db, Table, H) of
-    {{cursor, Cursor, result, {clauses, Cs}, UDB}} ->
+    {{cursor, Cursor, result, {clauses, Cs}}, UDB} ->
       erlog_ec_core:run_n_close(fun(Param) ->
         retract_clauses(H, B, Cs, Param, Table) end, Params#param{cursor = Cursor, database = UDB});
     {undefined, UDB} -> erlog_errors:fail(Params#param{database = UDB});
