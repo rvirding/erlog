@@ -41,7 +41,7 @@ If the prolog code works correctly it will return the tuple `{{succeed,
 
 ````erlang
            {ok,Erlog}         = erlog:new(),
-           case  erlog:prove(Erlog,{append,A,B,{'Z'}}) of
+           case  erlog:prove({append,A,B,{'Z'}}, Erlog) of
                {{succeed, [{'Z', Z}]}, E1} when is_record(E1,est) ->
                    Z =:= lists:append(A,B);
                fail ->
