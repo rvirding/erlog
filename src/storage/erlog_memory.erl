@@ -143,9 +143,9 @@ raw_store(DBState = #db_state{in_mem = InMem}, Key, Value) ->
 raw_fetch(#db_state{in_mem = InMem}, Key) ->
   fetch(Key, InMem).
 
-raw_append(DBState = #db_state{in_mem = InMem}, Key, Value) ->
+raw_append(DBState = #db_state{in_mem = InMem}, Key, AppendValue) ->
   Value = fetch(Key, InMem),
-  Umem = store(Key, lists:concat([Value, [Value]]), InMem),
+  Umem = store(Key, lists:concat([Value, [AppendValue]]), InMem),
   DBState#db_state{in_mem = Umem}.
 
 raw_erase(DBState = #db_state{in_mem = InMem}, Key) ->
