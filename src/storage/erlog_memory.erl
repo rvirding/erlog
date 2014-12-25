@@ -87,14 +87,12 @@ asserta_clause(DBState, Head, Body) ->
 db_assertz_clause(Database, Collection, {':-', Head, Body}) -> db_assertz_clause(Database, Collection, Head, Body);
 db_assertz_clause(Database, Collection, Head) -> db_assertz_clause(Database, Collection, Head, true).
 db_assertz_clause(DBState, Collection, Head, Body) ->
-  F = erlog_ec_support:functor(Head),
-  do_action(DBState, db_assertz_clause, F, {Collection, Head, Body}).
+  do_action(DBState, db_assertz_clause, {Collection, Head, Body}).
 
 db_asserta_clause(Database, Collection, {':-', H, B}) -> db_asserta_clause(Database, Collection, H, B);
 db_asserta_clause(Database, Collection, H) -> db_asserta_clause(Database, Collection, H, true).
 db_asserta_clause(DBState, Collection, Head, Body) ->
-  F = erlog_ec_support:functor(Head),
-  do_action(DBState, db_asserta_clause, F, {Collection, Head, Body}).
+  do_action(DBState, db_asserta_clause, {Collection, Head, Body}).
 
 next(DBState, Cursor) ->
   do_next(DBState, next, Cursor).
@@ -105,14 +103,13 @@ retract_clause(DBState, F, Ct) ->
   do_action(DBState, retract_clause, F, {F, Ct}).
 
 db_retract_clause(DBState, Collection, F, Ct) ->
-  do_action(DBState, db_retract_clause, F, {Collection, F, Ct}).
+  do_action(DBState, db_retract_clause, {Collection, F, Ct}).
 
 abolish_clauses(DBState = #db_state{stdlib = StdLib}, Func) ->
   check_immutable(StdLib, Func),
   check_abolish(abolish_clauses, Func, Func, DBState).
 
-db_abolish_clauses(DBState = #db_state{stdlib = StdLib}, Collection, Func) ->
-  check_immutable(StdLib, Func),  %abolishing fact from default memory need to be checked
+db_abolish_clauses(DBState, Collection, Func) ->
   check_abolish(db_abolish_clauses, Func, {Collection, Func}, DBState).
 
 get_procedure(DbState, Func) ->
