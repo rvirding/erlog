@@ -45,6 +45,11 @@ prove_goal(Params = #param{goal = {indexof, _, _, _} = Goal, next_goal = Next, b
       Bs1 = erlog_ec_support:add_binding(Res, Num, Bs0),
       erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1})
   end;
+prove_goal(Params = #param{goal = {split, _, _, _} = Goal, next_goal = Next, bindings = Bs0}) ->
+  {split, Str, Del, Res} = erlog_ec_support:dderef(Goal, Bs0),
+  List = string:tokens(Str, Del),
+  Bs1 = erlog_ec_support:add_binding(Res, List, Bs0),
+  erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
 prove_goal(Params = #param{goal = {parse_int, _, _} = Goal, next_goal = Next, bindings = Bs0}) ->
   {parse_int, Str, Int} = erlog_ec_support:dderef(Goal, Bs0),
   case string:to_integer(Str) of
