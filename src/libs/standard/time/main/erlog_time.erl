@@ -61,7 +61,7 @@ prove_goal(Params = #param{goal = {date_diff, _, _, _, _} = Goal, next_goal = Ne
     ok ->
       Diff = timer:now_diff(erlog_et_logic:ts_to_date(erlog_ec_support:check_var(TS1, Bs0)), erlog_et_logic:ts_to_date(erlog_ec_support:check_var(TS2, Bs0))) / 1000000,
       Time = erlog_et_logic:seconds_to_date(Diff, erlog_ec_support:check_var(Format, Bs0)),
-      case erlog_ec_support:try_add(Res, Time, Bs0) of
+      case erlog_ec_support:try_add(Time, Res, Bs0) of
         error -> erlog_errors:fail(Params);
         Bs -> erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs})
       end;
