@@ -23,6 +23,8 @@
   code_change/3]).
 
 -define(SERVER, ?MODULE).
+-define(LOCALVAR(X), lists:flatten(io_lib:format("localVar~p", [X]))).
+
 
 -record(state,
 {
@@ -37,6 +39,7 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+-spec process_reply(dict:dict()) -> list().
 process_reply(Dict) ->
   case dict:size(Dict) of
     0 -> [];
@@ -214,21 +217,35 @@ process_match(Functor, Execute, {arity, Pred}) ->
 %% @private
 process_vars(Dict) ->
   Keys = dict:fetch_keys(Dict),
-  lists:foldl(
-    fun(Key, Res) ->
-      case dict:find(Key, Dict) of
-        {ok, {K}} ->
-          process_values(Key, K, Dict, Res);
-        _ -> Res
-      end
-    end, [], Keys).
+  {Udict, Global} = lists:foldl(fun process_var/2, {Dict, []}, Keys),
+  Local = dict:fold(fun process_local/3, {[], 1}, Udict),
+  lists:append(Global, Local).
 
 %% @private
-process_values(Key, K, Dict, Res) ->
-  case dict:find(K, Dict) of
-    {ok, V} -> [{Key, V} | Res];
-    error -> Res
-  end.
+%% Get global var's values only.
+process_var(Var, {Dict, Acc} = A) when is_atom(Var) ->  %if global var - get its value and remove from dict
+  Number = dict:fetch(Var, Dict),
+  try
+    fetch_once(Number, Dict, Var, Acc)
+  catch
+    _:_ -> A
+  end;
+process_var(_, Acc) ->  Acc. %local vars and values should stay.
+
+%% @private
+%% Create new local var and assign value to it.
+process_local(Key, Value, Acc) ->
+  NewLocalVar = ?LOCALVAR(Key),
+  [{NewLocalVar, Value} | Acc].
+
+%% @private
+%% Fetch var's value by number and then delete it from dictionary.
+fetch_once({Number}, Dict, Var, Acc) -> fetch_once(Number, Dict, Var, Acc);
+fetch_once(Number, Dict, Var, Acc) ->
+  Val = dict:fetch(Number, Dict), %get value
+  UpdDict = dict:erase(Number, Dict), %delete value
+  UpdDict2 = dict:erase(Var, UpdDict), %delete var
+  {UpdDict2, [{Var, Val} | Acc]}.
 
 %% @private
 %% Is called when code execution is stopped. Waits for user action.
