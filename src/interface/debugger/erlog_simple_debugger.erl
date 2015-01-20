@@ -218,7 +218,7 @@ process_match(Functor, Execute, {arity, Pred}) ->
 process_vars(Dict) ->
   Keys = dict:fetch_keys(Dict),
   {Udict, Global} = lists:foldl(fun process_var/2, {Dict, []}, Keys),
-  Local = dict:fold(fun process_local/3, {[], 1}, Udict),
+  Local = dict:fold(fun process_local/3, [], Udict),
   lists:append(Global, Local).
 
 %% @private
