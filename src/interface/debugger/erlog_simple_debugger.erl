@@ -223,29 +223,28 @@ process_vars(Dict) ->
 
 %% @private
 %% Get global var's values only.
-process_var(Var, {Dict, Acc} = A) when is_atom(Var) ->  %if global var - get its value and remove from dict
+process_var(Var, {Dict, Acc}) when is_atom(Var) ->  %if global var - get its value and remove from dict
   Number = dict:fetch(Var, Dict),
+  UDict = dict:erase(Var, Dict), %delete var
   try
-    fetch_once(Number, Dict, Var, Acc)
+    fetch_once(Number, UDict, Var, Acc)
   catch
-    _:_ -> A
+    _:_ -> {UDict, Acc}
   end;
-process_var(_, Acc) ->  Acc. %local vars and values should stay.
+process_var(_, Acc) -> Acc. %local vars and values should stay.
 
 %% @private
 %% Create new local var and assign value to it.
 process_local(Key, Value, Acc) ->
-  NewLocalVar = ?LOCALVAR(Key),
-  [{NewLocalVar, Value} | Acc].
+  [{{Key}, Value} | Acc].
 
 %% @private
 %% Fetch var's value by number and then delete it from dictionary.
 fetch_once({Number}, Dict, Var, Acc) -> fetch_once(Number, Dict, Var, Acc);
 fetch_once(Number, Dict, Var, Acc) ->
   Val = dict:fetch(Number, Dict), %get value
-  UpdDict = dict:erase(Number, Dict), %delete value
-  UpdDict2 = dict:erase(Var, UpdDict), %delete var
-  {UpdDict2, [{Var, Val} | Acc]}.
+  Udict = dict:erase(Number, Dict), %delete value
+  {Udict, [{Var, Val} | Acc]}.
 
 %% @private
 %% Is called when code execution is stopped. Waits for user action.
