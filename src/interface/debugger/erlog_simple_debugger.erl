@@ -23,8 +23,6 @@
   code_change/3]).
 
 -define(SERVER, ?MODULE).
--define(LOCALVAR(X), lists:flatten(io_lib:format("localVar~p", [X]))).
-
 
 -record(state,
 {
