@@ -90,8 +90,9 @@ fail_current_predicate(#cp{data = {Pi, Fs}, next = Next, bs = Bs, vn = Vn}, Para
   erlog_ec_logic:prove_predicates(Pi, Fs, Param#param{next_goal = Next, bindings = Bs, var_num = Vn}).
 
 %% @private
-fail_goal_clauses(#cp{data = {G, _, Cursor}, next = Next, bs = Bs, vn = Vn}, Param = #param{database = Db}) -> %TODO remove unneeded Db in #cp
+fail_goal_clauses(#cp{data = {G, _, Cursor}, next = Next, bs = Bs, vn = Vn}, Param = #param{database = Db, debugger = Deb}) -> %TODO remove unneeded Db in #cp
   {{UCursor, Res}, UDb} = erlog_memory:next(Db, Cursor),
+  Deb(fail, G, Bs),
   erlog_ec_core:prove_goal_clauses(Res, Param#param{goal = G, next_goal = Next, bindings = Bs, var_num = Vn, cursor = UCursor, database = UDb}).
 
 fail_findall(#cp{next = Next, data = {Tag, Bag}, bs = Bs, vn = Vn0}, Param = #param{database = Db}) ->

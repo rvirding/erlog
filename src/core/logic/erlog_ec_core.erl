@@ -30,7 +30,7 @@ prove_goal(Goal0, Db, Consulter, Event, Deb, LibsDir) ->
 %% it. Return when there are no more goals. This is how proving a
 %% goal/body succeeds.
 prove_body(Params = #param{goal = [G | Gs], debugger = Deb, bindings = Bs}) ->
-  Deb(ok, erlog_ec_support:dderef(G, Bs), Bs),
+  Deb(ok, G, Bs),
   prove_goal(Params#param{goal = G, next_goal = Gs});
 prove_body(#param{goal = [], choice = Cps, bindings = Bs, var_num = Vn, database = Db}) ->
   {succeed, Cps, Bs, Vn, Db}.      %No more body
