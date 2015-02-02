@@ -60,7 +60,7 @@ join_proc(Pid, TM) ->
 %% @private
 recv_res(Pid, TM) ->
   receive
-    {Pid, Result} -> Result
+    {Pid, Result} when Result /= finish -> Result
   after TM -> empty
   end.
 
