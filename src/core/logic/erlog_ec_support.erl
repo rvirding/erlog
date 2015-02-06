@@ -15,7 +15,7 @@
 -export([new_bindings/0, get_binding/2, add_binding/3,
   functor/1, cut/3, collect_alternatives/3,
   update_result/4, update_vars/4, deref/2, dderef_list/2,
-  make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1, try_add/3, check_var/2]).
+  make_vars/2, pred_ind/1, deref_list/2, dderef/2, index_of/2, index_of/3, write/2, is_bound/1, try_add/3, check_var/2, get_vars/2]).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
@@ -71,6 +71,12 @@ dderef_list(Other, _Bs) -> erlog_errors:type_error(list, Other).
 -spec is_bound(term()) -> boolean().
 is_bound({N}) when is_integer(N) -> false;
 is_bound(_) -> true.
+
+%% takes unbound vars from goal and return it
+-spec get_vars(tuple(), dict:dict()) -> list().
+get_vars(Goal, Bs) ->
+  Bound = dderef(Goal, Bs),
+  lists:flatten(get_var(Bound, [])).
 
 %% make_vars(Count, VarNum) -> [Var].
 %% Make a list of new variables starting at VarNum.
@@ -147,10 +153,6 @@ index_of(_, [], _) -> not_found;
 index_of(Item, [Item | _], Index) -> Index;
 index_of(Item, [_ | Tl], Index) -> index_of(Item, Tl, Index + 1).
 
-remove_nth(List, N) ->
-  {A, B} = lists:split(N - 1, List),
-  A ++ tl(B).
-
 write(Res, Bs) when is_list(Res) ->
   case io_lib:printable_list(Res) of
     true -> Res;
@@ -158,7 +160,6 @@ write(Res, Bs) when is_list(Res) ->
   end;
 write(Res, Bs) ->
   write([Res], Bs).
-
 
 cut(Label, Last, Param = #param{next_goal = Next, choice = [#cut{label = Label} | Cps] = Cps0}) ->
   if Last -> erlog_ec_core:prove_body(Param#param{goal = Next, choice = Cps});
@@ -173,6 +174,13 @@ cut(Label, Last, Param = #param{choice = [#cp{type = goal_clauses, label = Label
 cut(Label, Last, Param = #param{choice = [_Cp | Cps]}) ->
   cut(Label, Last, Param#param{choice = Cps}).
 
+
+%% @private
+remove_nth(List, N) ->
+  {A, B} = lists:split(N - 1, List),
+  A ++ tl(B).
+
+%% @private
 %% cut_goal_clauses(Last, Next, Cp, Cps, Bs, Vn, Db).
 cut_goal_clauses(true, #cp{label = _}, Param = #param{next_goal = Next}) ->
   %% Just remove the choice point completely and continue.
@@ -181,3 +189,12 @@ cut_goal_clauses(false, #cp{label = L}, Param = #param{next_goal = Next, choice 
   %% Replace choice point with cut point then continue.
   Cut = #cut{label = L},
   erlog_ec_core:prove_body(Param#param{goal = Next, choice = [Cut | Cps]}).
+
+%% @private
+%% Get unbound vars from goal
+get_var(N = {I}, Acc) when is_integer(I)-> [N | Acc];
+get_var(Tuple, Acc) when is_tuple(Tuple) -> get_var(tuple_to_list(Tuple), Acc);
+get_var([First | Rest], Acc) ->
+  FirstPrep = get_var(First, []),
+  get_var(Rest, [FirstPrep | Acc]);
+get_var(_, Acc) -> Acc.

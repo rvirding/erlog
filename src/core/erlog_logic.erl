@@ -51,6 +51,7 @@ reconsult_files(Other, _Db, _Fun) -> {error, {type_error, list, Other}}.
 
 shell_prove_result({succeed, Vs}) -> show_bindings(Vs);
 shell_prove_result(fail) -> false;
+shell_prove_result({fail, _}) -> false;
 shell_prove_result({error, Error}) -> erlog_io:format_error([Error]);
 shell_prove_result({'EXIT', Error}) -> erlog_io:format_error("EXIT", [Error]).
 

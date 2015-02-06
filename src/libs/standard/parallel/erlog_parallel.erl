@@ -26,7 +26,8 @@ prove_goal(Params = #param{goal = {spawn, _, _} = G, next_goal = Next, bindings 
   Parent = self(),
   Pid = spawn(
     fun() ->
-      Parent ! {self(), (catch erlog_ec_core:prove_goal(Params#param{goal = Goal, next_goal = []}))},
+      R = (catch erlog_ec_core:prove_goal(Params#param{goal = Goal, next_goal = []})),
+      reply(Parent, R, erlog_ec_support:get_vars(Goal, Bs0)),
       Parent ! {self(), finish}
     end),
   Bs1 = erlog_ec_support:add_binding(Res, Pid, Bs0),
@@ -37,21 +38,17 @@ prove_goal(Params = #param{goal = {join, _, _} = G, next_goal = Next, bindings =
     ok -> erlog_ec_core:prove_body(Params#param{goal = Next});
     _ -> erlog_errors:fail(Params)
   end;
-prove_goal(Params = #param{goal = {check, _, _} = G, next_goal = Next, bindings = Bs0, var_num = Vn0}) ->
+prove_goal(Params = #param{goal = {check, _, _} = G, next_goal = Next, bindings = Bs0}) ->
   {check, Pid, Result} = erlog_ec_support:dderef(G, Bs0),
   case recv_res(Pid, 0) of
-    empty ->
-      Bs1 = erlog_ec_support:add_binding(Result, false, Bs0),
+    error -> erlog_errors:fail(Params);
+    empty -> Bs1 = erlog_ec_support:add_binding(Result, false, Bs0),
       erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
-    {succeed, _, Bs1, Vn1, _} ->
-      Bs = erlog_ec_support:add_binding(Result, true, dict:merge(fun merge_dicts/3, Bs0, Bs1)),
-      erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs, var_num = Vn0 + Vn1});
-    _ -> erlog_errors:fail(Params)
+    VarsGot ->
+      UBs = lists:foldl(fun({Var, Value}, UpdBs) -> erlog_ec_support:add_binding(Var, Value, UpdBs) end, Bs0, VarsGot),
+      erlog_ec_core:prove_body(Params#param{goal = Next, bindings = UBs})
   end.
 
-
-%% @private
-merge_dicts(_, _, Value2) -> Value2.
 
 %% @private
 join_proc(Pid, TM) ->
@@ -67,8 +64,21 @@ recv_res(Pid, TM) ->
   after TM -> empty
   end.
 
-
 %% @private
 join(Pids, Timeout) when is_list(Pids) ->
   lists:foreach(fun(Pid) -> join_proc(Pid, Timeout) end, Pids);
 join(Pid, Timeout) -> join([Pid], Timeout).
+
+%% @private
+reply(Parent, {succeed, _, Bs1, _, _}, StartVars) -> Parent ! {self(), extract_vars(StartVars, Bs1)};
+reply(Parent, _, _) -> Parent ! {self(), error}.
+
+%% @private
+extract_vars(VarList, Bs) ->
+  lists:foldl(
+    fun({Var}, Acc) ->
+      case dict:find(Var, Bs) of
+        {ok, Value} -> [{{Var}, Value} | Acc];
+        error -> Acc
+      end
+    end, [], VarList).
