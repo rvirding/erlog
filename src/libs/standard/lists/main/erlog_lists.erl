@@ -36,7 +36,7 @@ load(DbState) ->
   lists:foldl(fun(Head, UDBState) -> erlog_memory:load_kernel_space(UDBState, ?MODULE, Head) end, DbState, ?ERLOG_LISTS).
 
 prove_goal(Params = #param{goal = {length, ListVar, Len}, next_goal = Next, bindings = Bs0}) ->
-  case erlog_ec_support:deref(ListVar, Bs0) of
+  case erlog_ec_support:dderef_list(ListVar, Bs0) of
     List when is_list(List) ->
       Bs1 = erlog_ec_support:add_binding(Len, length(List), Bs0),
       erlog_ec_core:prove_body(Params#param{goal = Next, bindings = Bs1});
