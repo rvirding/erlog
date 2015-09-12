@@ -34,7 +34,7 @@
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/2,unify_prove_body/4,unify_prove_body/6,fail/1,
 		    add_binding/3,make_var_list/2,
-		    deref/2,dderef/2,dderef_list/2,unify/3,
+		    deref/2,dderef/2,dderef_list/2,term_vars/3,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
 		    asserta_clause/2,assertz_clause/2]).
@@ -58,6 +58,8 @@ load(Db0) ->
 	   {arg,3},
 	   {copy_term,2},
 	   {functor,3},
+	   {term_variables,2},
+	   {term_variables,3},
 	   {'=..',2},
 	   %% Type testing.
 	   {atom,1},
@@ -117,6 +119,10 @@ prove_goal({copy_term,T0,C}, Next, #est{bs=Bs,vn=Vn0}=St) ->
     unify_prove_body(T, C, Next, St#est{vn=Vn1});
 prove_goal({functor,T,F,A}, Next, #est{bs=Bs}=St) ->
     prove_functor(deref(T, Bs), F, A, Next, St);
+prove_goal({term_variables,Term,List}, Next, St) ->
+    prove_body([{term_variables,Term,List,[]}|Next], St);
+prove_goal({term_variables,Term,List,Tail}, Next, St) ->
+    prove_term_variables(Term, List, Tail, Next, St);
 prove_goal({'=..',T,L}, Next, #est{bs=Bs}=St) ->
     prove_univ(dderef(T, Bs), L, Next, St);
 %% Type testing.
@@ -280,6 +286,15 @@ prove_functor({_}=Var, F0, A0, Next, #est{bs=Bs0,vn=Vn0}=St) ->
 	{F1,A1} when is_atom(F1) -> erlog_int:type_error(integer, A1, St);
 	{F1,_} -> erlog_int:type_error(atom, F1, St)
     end.
+
+%% prove_term_variables(Term, List, Tail, Next, State) -> void.
+%%  Unify List with a list of all the variables in Term with tail
+%%  Tail. The variables are in depth-first and left-to-right of how
+%%  they occur in Term.
+
+prove_term_variables(T, L, Tail, Next, #est{bs=Bs}=St) ->
+    Tvs = erlog_int:term_vars(T, Tail, Bs),
+    unify_prove_body(Tvs, L, Next, St).
 
 %% prove_univ(Term, List, Next, State) -> void.
 %%  Prove the goal Term =.. List, Term has already been dereferenced.

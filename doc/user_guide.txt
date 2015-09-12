@@ -12,7 +12,7 @@ call/1, ','/2, '!'/0, ';'/2, fail/0, false/0, '->'/2 (if-then),
 ( -> ; )(if-then-else), '\\+'/1, once/1, repeat/0, true/0
 
 Term creation and decomposition
-arg/3, copy_term/2, functor/3, '=..'/2
+arg/3, copy_term/2, functor/3, '=..'/2, term_variables/2
 
 Clause creation and destruction
 abolish/1, assert/1, asserta/1, assertz/1, retract/1, retractall/1.
