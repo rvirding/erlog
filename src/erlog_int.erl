@@ -550,7 +550,7 @@ unify_clauses(Ch, Cb, [C], Next, #est{bs=Bs0,vn=Vn0}=St) ->
 unify_clauses(Ch, Cb, [C|Cs], Next, #est{bs=Bs0,vn=Vn0}=St) ->
     case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 	{succeed,Bs1,Vn1} ->
-	    Cp = #cp{type=clause,data={Ch,Cb,Cs},next=Next,bs=Bs1,vn=Vn1},
+	    Cp = #cp{type=clause,data={Ch,Cb,Cs},next=Next,bs=Bs0,vn=Vn1},
 	    Cps = St#est.cps,
 	    prove_body(Next, St#est{cps=[Cp|Cps],bs=Bs1,vn=Vn1});
 	fail -> unify_clauses(Ch, Cb, Cs, Next, St)
