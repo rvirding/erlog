@@ -33,8 +33,8 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/2,unify_prove_body/4,unify_prove_body/6,fail/1,
-		    add_binding/3,make_var_list/2,
-		    deref/2,dderef/2,dderef_list/2,term_vars/3,unify/3,
+		    get_binding/2,add_binding/3,make_var_list/2,
+		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
 		    asserta_clause/2,assertz_clause/2]).
@@ -293,8 +293,28 @@ prove_functor({_}=Var, F0, A0, Next, #est{bs=Bs0,vn=Vn0}=St) ->
 %%  they occur in Term.
 
 prove_term_variables(T, L, Tail, Next, #est{bs=Bs}=St) ->
-    Tvs = erlog_int:term_vars(T, Tail, Bs),
+    Tvs = term_vars(T, Tail, Bs),
     unify_prove_body(Tvs, L, Next, St).
+
+%% term_vars(Term, Tail, Bindings) -> TermVariables.
+%%  This is like dderef but we never rebuild Term just get the variables.
+
+term_vars(A, Vars, _) when ?IS_CONSTANT(A) -> Vars;
+term_vars([], Vars, _) -> Vars;
+term_vars([H|T], Vars0, Bs) ->
+    Vars1 = term_vars(H, Vars0, Bs),
+    term_vars(T, Vars1, Bs);
+term_vars({_}=Var, Vars, Bs) ->
+    case get_binding(Var, Bs) of
+	{ok,T} -> term_vars(T, Vars, Bs);
+	error ->
+	    case lists:member(Var, Vars) of	%Add to the end if not there
+		true -> Vars;
+		false -> Vars ++ [Var]
+	    end
+    end;
+term_vars(T, Vars, Bs) ->
+    foldl(fun (E, Vs) -> term_vars(E, Vs, Bs) end, Vars, tl(tuple_to_list(T))).
 
 %% prove_univ(Term, List, Next, State) -> void.
 %%  Prove the goal Term =.. List, Term has already been dereferenced.

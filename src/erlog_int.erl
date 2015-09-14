@@ -133,9 +133,8 @@
 -export([unify_prove_body/4,unify_prove_body/6]).
 
 %% Bindings, unification and dereferncing.
--export([new_bindings/0,add_binding/3,make_var_list/2]).
--export([deref/2,deref_list/2,dderef/2,dderef_list/2,
-	 partial_list/2,term_vars/3]).
+-export([new_bindings/0,get_binding/2,add_binding/3,make_var_list/2]).
+-export([deref/2,deref_list/2,dderef/2,dderef_list/2,partial_list/2]).
 -export([unify/3,functor/1]).
 
 %% Creating term and body instances.
@@ -1290,26 +1289,6 @@ partial_list({V}=Var, Bs) ->
 	error -> Var
     end;
 partial_list(Other, _) -> type_error(list, Other).
-
-%% term_vars(Term, Tail, Bindings) -> TermVariables.
-%%  This is like dderef but we never rebuild Term.
-
-term_vars(A, Vars, _) when ?IS_CONSTANT(A) -> Vars;
-term_vars([], Vars, _) -> Vars;
-term_vars([H|T], Vars0, Bs) -> 
-    Vars1 = term_vars(H, Vars0, Bs),
-    term_vars(T, Vars1, Bs);
-term_vars({V}=Var, Vars, Bs) ->
-    case ?BIND:find(V, Bs) of
-	{ok,T} -> term_vars(T, Vars, Bs);
-	error ->
-	    case lists:member(Var, Vars) of	%Add to the end if not there
-		true -> Vars;
-		false -> Vars ++ [Var]
-	    end
-    end;
-term_vars(T, Vars, Bs) ->
-    foldl(fun (E, Vs) -> term_vars(E, Vs, Bs) end, Vars, tl(tuple_to_list(T))).
 
 %% initial_goal(Goal) -> {Goal,Bindings,NewVarNum}.
 %% initial_goal(Goal, Bindings, VarNum) -> {Goal,NewBindings,NewVarNum}.
