@@ -1,4 +1,4 @@
-%% Copyright (c) 2008-2013 Robert Virding
+%% Copyright (c) 2008-2015 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ read_string(Cs) ->
 %%  A very simple write function. Does not pretty-print but can handle
 %%  operators. The xxx1 verions return an iolist of the characters.
 
--record(ops, {ignore_ops=false,quoted=false}).
+-record(ops, {ignore_ops=false,numbervars=false,quoted=false}).
 
 write_term(T, Opts) -> write_term(standard_io, T, Opts).
 
@@ -140,6 +140,7 @@ write_term(Io, T, Opts) ->
 
 write_term1(T, Opts) ->
     Ops = #ops{ignore_ops=lists:member(ignore_ops, Opts),
+               numbervars=lists:member(numbervars, Opts),
                quoted=lists:member(quoted, Opts)},
     write_term1(T, 1200, Ops).
 
@@ -167,12 +168,21 @@ write_canonical1(T) -> write_term1(T, [ignore_ops,quoted]).
 write_term1(T, Prec, Ops) when is_atom(T) -> write_atom1(T, Prec, Ops);
 write_term1(T, _, _) when is_number(T) -> io_lib:write(T);
 write_term1({V}, _, _) when is_integer(V) -> "_" ++ integer_to_list(V);
-write_term1({V}, _, _) -> atom_to_list(V);           %Variable
+write_term1({V}, _, _) -> atom_to_list(V);      %Variable
+write_term1([H|T], Prec, #ops{ignore_ops=true}=Ops) ->
+    write_term1({'.',H,T}, Prec, Ops);
 write_term1([H|T], _, Ops) ->
     [$[,write_term1(H, 999, Ops),write_tail1(T, Ops),$]];
 write_term1([], _, _) -> "[]";
 write_term1({'{}',A}, _, #ops{ignore_ops=false}=Ops) ->
     [${,write_term1(A, 1200, Ops),$}];
+write_term1({'$VAR',N}, _, #ops{numbervars=true}=Ops)
+  when is_integer(N), N >= 0 ->
+    %% Write as a variable name.
+    U = $A + (N rem 26),                        %First uppercase
+    if N < 26 -> [U];
+       true -> [U|integer_to_list(N div 26)]
+    end;
 write_term1({F,A}, Prec, #ops{ignore_ops=false}=Ops) ->
     case erlog_parse:prefix_op(F) of
         {yes,OpP,ArgP} ->
@@ -206,7 +216,7 @@ write_term1(T, _, Ops) when is_tuple(T) ->
     [F,A1|As] = tuple_to_list(T),
     [write_term1(F, 1200, Ops),
      $(,write_term1(A1, 999, Ops),write_tail1(As, Ops),$)];
-write_term1(T, _, _) ->                           %Else use default Erlang.
+write_term1(T, _, _) ->                         %Else use default Erlang.
     io_lib:write(T).
 
 %% write_prec1(OutString, OpPrecedence, Precedence) -> iolist().
