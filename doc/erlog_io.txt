@@ -11,10 +11,17 @@ DESCRIPTION
         Erlog is a Prolog interpreter implemented in Erlang and
         integrated with the Erlang runtime system.
 
+EXPORTS
+
 erlog_io:read([IoDevice,] Prompt) ->
         {ok,Term} | {ok,end_of_file} | {error,Error}.
 
 erlog_io:write([IoDevice,] Term) -> ok.
+erlog_io:writeq([IoDevice,] Term) -> ok.
+erlog_io:write_canonical([IoDevice,] Term) -> ok.
+erlog_io:write_term([IoDevice,] Term, Options) -> ok.
+
+erlog_io:read_string(String) -> {ok,Term} | {error,ErrorDescriptor}.
 
 erlog_parse:term([Token]) -> {ok,Term} | {error,ErrorDescriptor}.
 erlog_parse:term([Token], LineNo) -> {ok,Term} | {error,ErrorDescriptor}.

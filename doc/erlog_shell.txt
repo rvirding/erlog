@@ -18,8 +18,8 @@ DESCRIPTION
 
 EXPORTS
 
-erlog_shell:start() -> ShellPid.
-erlog_shell:start(DbModule, DbInitArg) -> ShellPid.
+start() -> ShellPid.
+start(DbModule, DbInitArg) -> ShellPid.
 
         Start a simple Erlog shell in a new process. Goals can be
         entered at the "?-" prompt. When the goal succeeds the
@@ -28,8 +28,8 @@ erlog_shell:start(DbModule, DbInitArg) -> ShellPid.
         will attempt to find the next solution, otherwise the system
         will return to the "?-" prompt.
 
-erlog_shell:server() -> ok.
-erlog_shell:server(DbModule, DbInitArg) -> ok.
+server() -> ok.
+server(DbModule, DbInitArg) -> ok.
 
         Start a simple Erlog shell in the current process.
 
