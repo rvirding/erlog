@@ -39,6 +39,10 @@ findall/3
 Prolog flags
 current_prolog_flag/2, set_prolog_flag/2
 
+Standard I/O
+put_char/1, put_code/1, read/1, write/1, writeq/1, write_canonical/1,
+write_term/2
+
 Erlang interface
 ecall/2
 

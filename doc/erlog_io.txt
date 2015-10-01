@@ -17,9 +17,21 @@ erlog_io:read([IoDevice,] Prompt) ->
         {ok,Term} | {ok,end_of_file} | {error,Error}.
 
 erlog_io:write([IoDevice,] Term) -> ok.
+
+        The same as calling write_term(Term, [numbervars]).
+
 erlog_io:writeq([IoDevice,] Term) -> ok.
+
+        The same as calling write_term(Term, [numbervars,quoted]).
+
 erlog_io:write_canonical([IoDevice,] Term) -> ok.
+
+        The same as calling write_term(Term, [ignore_ops,quoted]).
+
 erlog_io:write_term([IoDevice,] Term, Options) -> ok.
+
+        The options are numbervars, quoted and ignore_ops. These have
+        the same meaning as in the standard. By default all are false.
 
 erlog_io:read_string(String) -> {ok,Term} | {error,ErrorDescriptor}.
 

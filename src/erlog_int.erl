@@ -239,7 +239,7 @@ built_in_db(Db0) ->
 -define(FAIL(St), fail(St)).
 
 %% prove_goal(Goal, NextGoal, State) ->
-%%	{succeed,State} | {fail,State}.
+%%     {succeed,State} | {fail,State}.
 %% Prove one goal. We seldom return succeed here but usually go directly to
 %% to NextGoal.
 %% Handle built-in predicates here. RTFM for a description of the

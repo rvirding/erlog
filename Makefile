@@ -56,7 +56,7 @@ REBAR=$(shell which rebar)
 .PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
   update-deps clean-common-test-data rebuild
 
-all: deps compile test
+all: deps compile
 
 # =============================================================================
 # Rules to build the system

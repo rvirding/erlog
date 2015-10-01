@@ -81,8 +81,16 @@ load(Db0) ->
 	   {'=:=',2},
 	   {'=\\=',2},
 	   {'<',2},
-	   {'=<',2}
-	   ]).
+	   {'=<',2},
+	   %% I/O
+	   {put_char,1},
+	   {put_code,1},
+	   {read,1},
+	   {write,1},
+	   {writeq,1},
+	   {write_canonical,1},
+	   {write_term,2}
+	  ]).
 
 %% prove_goal(Goal, NextGoal, State) ->
 %%	{succeed,State} |
@@ -200,7 +208,25 @@ prove_goal({'=\\=',L,R}, Next, St) ->
 prove_goal({'<',L,R}, Next, St) ->
     arith_test_prove_body('<', L, R, Next, St);
 prove_goal({'=<',L,R}, Next, St) ->
-    arith_test_prove_body('=<', L, R, Next, St).
+    arith_test_prove_body('=<', L, R, Next, St);
+%% I/O.
+prove_goal({put_char,C}, Next, St) ->
+    prove_put_char_1(C, Next, St);
+prove_goal({put_code,C}, Next, St) ->
+    prove_put_code_1(C, Next, St);
+prove_goal({read,Var}, Next, St) ->
+    prove_read_1(Var, Next, St);
+prove_goal({write,T}, Next, St) ->
+    prove_write_1(T, Next, St);
+prove_goal({writeq,T}, Next, St) ->
+    prove_writeq_1(T, Next, St);
+prove_goal({write_canonical,T}, Next, St) ->
+    prove_write_canonical_1(T, Next, St);
+prove_goal({write_term,T,Opts}, Next, St) ->
+    prove_write_term_2(T, Opts, Next, St);
+%% This error should never occur!
+prove_goal(Goal, _, _) ->
+    error({illegal_bip,Goal}).
 
 %% term_test_prove_body(Test, Left, Right, Next, State) ->
 %%     void.
@@ -474,3 +500,88 @@ eval_int(E0, Bs, St) ->
     end.
 
 pred_ind(N, A) -> {'/',N,A}.
+
+%% prove_put_char_1(Char, NextGoal, State) -> void.
+%% prove_put_code_1(Code, NextGoal, State) -> void.
+
+prove_put_char_1(C0, Next, #est{bs=Bs}=St) ->
+    case dderef(C0, Bs) of
+	{_} -> erlog_int:instantiation_error(St);
+	C1 ->
+	    case is_atom(C1) andalso atom_to_list(C1) of
+		[C] ->
+		    io:put_chars([C]),
+		    prove_body(Next, St);
+		_ -> erlog_int:type_error(character, C1)
+	    end
+    end.
+
+-define(IS_UNICODE(C), ((C >= 0) and (C =< 16#10FFFF))).
+
+prove_put_code_1(C0, Next, #est{bs=Bs}=St) ->
+    case dderef(C0, Bs) of
+	{_} -> erlog_int:instantiation_error(St);
+	C1 ->
+	    case is_integer(C1) andalso ?IS_UNICODE(C1) of
+		true ->
+		    io:put_chars([C1]),
+		    prove_body(Next, St);
+	       false -> erlog_int:type_error(integer, C1)
+	    end
+    end.
+
+%% prove_read_1(Var, NextGoal, State) -> void.
+
+prove_read_1(Var, Next, St) ->
+    case erlog_io:read('') of			%No prompt
+	{ok,Term} ->
+	    unify_prove_body(Var, Term, Next, St);
+	{error,{_,_,Error}} ->
+	    erlog_int:erlog_error({syntax_error,Error}, St)
+    end.
+
+%% prove_write_1(Term, NextGoal, State) -> void.
+%% prove_writeq_1(Term, NextGoal, State) -> void.
+%% prove_write_canonical_1(Term, NextGoal, State) -> void.
+%%  These can call the write functions in the erlog_io module directly.
+
+prove_write_1(T0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    erlog_io:write(T1),
+    prove_body(Next, St).
+
+prove_writeq_1(T0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    erlog_io:writeq(T1),
+    prove_body(Next, St).
+
+prove_write_canonical_1(T0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    erlog_io:write_canonical(T1),
+    prove_body(Next, St).
+
+%% prove_write_term_2(Term, Options, NextGoal, State) -> void.
+
+prove_write_term_2(T0, Opts0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    Opts1 = write_term_opts(dderef(Opts0, Bs), St),
+    erlog_io:write_term(T1, Opts1),
+    prove_body(Next, St).
+
+write_term_opts([{ignore_ops,true}|Opts], St) ->
+    [ignore_ops|write_term_opts(Opts, St)];
+write_term_opts([{ignore_ops,false}|Opts], St) ->
+    write_term_opts(Opts, St);
+write_term_opts([{numbervars,true}|Opts], St) ->
+    [numbervars|write_term_opts(Opts, St)];
+write_term_opts([{numbervars,false}|Opts], St) ->
+    write_term_opts(Opts, St);
+write_term_opts([{quoted,true}|Opts], St) ->
+    [quoted|write_term_opts(Opts, St)];
+write_term_opts([{quoted,false}|Opts], St) ->
+    write_term_opts(Opts, St);
+write_term_opts([{_}|_], St) ->
+    erlog_int:instantiation_error(St);
+write_term_opts([T|_], St) ->
+    erlog_int:domain_error(write_option, T, St);
+write_term_opts([], _) -> [].

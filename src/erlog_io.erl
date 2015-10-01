@@ -131,6 +131,7 @@ read_string(Cs) ->
 %%  A very simple write function. Does not pretty-print but can handle
 %%  operators. The xxx1 verions return an iolist of the characters.
 
+%% The default is that all the options are false.
 -record(ops, {ignore_ops=false,numbervars=false,quoted=false}).
 
 write_term(T, Opts) -> write_term(standard_io, T, Opts).
@@ -144,17 +145,17 @@ write_term1(T, Opts) ->
                quoted=lists:member(quoted, Opts)},
     write_term1(T, 1200, Ops).
 
-write(T) -> write_term(T, []).
+write(T) -> write_term(T, [numbervars]).
 
-write(Io, T) -> write_term(Io, T, []).
+write(Io, T) -> write_term(Io, T, [numbervars]).
 
-write1(T) -> write_term1(T, []).
+write1(T) -> write_term1(T, [numbervars]).
 
-writeq(T) -> write_term(T, [quoted]).
+writeq(T) -> write_term(T, [numbervars,quoted]).
 
-writeq(Io, T) -> write_term(Io, T, [quoted]).
+writeq(Io, T) -> write_term(Io, T, [numbervars,quoted]).
 
-writeq1(T) -> write_term1(T, [quoted]).
+writeq1(T) -> write_term1(T, [numbervars,quoted]).
 
 write_canonical(T) -> write_term(T, [ignore_ops,quoted]).
 
