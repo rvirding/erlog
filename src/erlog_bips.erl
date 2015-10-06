@@ -15,7 +15,7 @@
 %% File    : erlog_bips.erl
 %% Author  : Robert Virding
 %% Purpose : Built-in predicates of Erlog interpreter.
-%% 
+%%
 %% These are the built-in predicates of the Prolog interpreter which
 %% are not control predicates or database predicates.
 
@@ -58,6 +58,7 @@ load(Db0) ->
 	   {arg,3},
 	   {copy_term,2},
 	   {functor,3},
+	   {numbervars,3},			%Not part of ISO standard
 	   {term_variables,2},
 	   {term_variables,3},
 	   {'=..',2},
@@ -127,6 +128,8 @@ prove_goal({copy_term,T0,C}, Next, #est{bs=Bs,vn=Vn0}=St) ->
     unify_prove_body(T, C, Next, St#est{vn=Vn1});
 prove_goal({functor,T,F,A}, Next, #est{bs=Bs}=St) ->
     prove_functor(deref(T, Bs), F, A, Next, St);
+prove_goal({numbervars,Term,S,E}, Next, St) ->
+    prove_numbervars(Term, S, E, Next, St);
 prove_goal({term_variables,Term,List}, Next, St) ->
     prove_body([{term_variables,Term,List,[]}|Next], St);
 prove_goal({term_variables,Term,List,Tail}, Next, St) ->
@@ -228,8 +231,7 @@ prove_goal({write_term,T,Opts}, Next, St) ->
 prove_goal(Goal, _, _) ->
     error({illegal_bip,Goal}).
 
-%% term_test_prove_body(Test, Left, Right, Next, State) ->
-%%     void.
+%% term_test_prove_body(Test, Left, Right, Next, State) -> void.
 
 term_test_prove_body(Test, L, R, Next, #est{bs=Bs}=St) ->
     case erlang:Test(dderef(L, Bs), dderef(R, Bs)) of
@@ -313,34 +315,65 @@ prove_functor({_}=Var, F0, A0, Next, #est{bs=Bs0,vn=Vn0}=St) ->
 	{F1,_} -> erlog_int:type_error(atom, F1, St)
     end.
 
+%% prove_numbervars(Term, Start, E, Next, State) -> void.
+%%  Unify the free variables in Term with a term $VAR(N), where N is
+%%  the number of the variable.  This is predicate is not part of the
+%%  ISO standard.
+
+prove_numbervars(T, S0, E, Next, #est{bs=Bs0}=St) ->
+    case deref(S0, Bs0) of
+	{_} -> erlog_int:instantiation_error(St);
+	S1 when is_integer(S1) ->
+	    {N,Bs1} = numbervars(T, S1, Bs0),
+	    unify_prove_body(N, E, Next, St#est{bs=Bs1});
+	S1 -> erlog_int:type_error(integer, S1, St)
+    end.
+
+numbervars(A, I, Bs) when ?IS_CONSTANT(A) -> {I,Bs};
+numbervars([], I, Bs) -> {I,Bs};
+numbervars([H|T], I0, Bs0) ->
+    {I1,Bs1} = numbervars(H, I0, Bs0),
+    numbervars(T, I1, Bs1);
+numbervars({_}=Var, I, Bs0) ->
+    case get_binding(Var, Bs0) of
+	{ok,T} -> numbervars(T, I, Bs0);
+	error ->
+	    Bs1 = add_binding(Var, {'$VAR',I}, Bs0),
+	    {I+1,Bs1}
+    end;
+numbervars(T, I0, Bs0) ->
+    foldl(fun (E, {I,Bs}) -> numbervars(E, I, Bs) end,
+	  {I0,Bs0}, tl(tuple_to_list(T))).
+
 %% prove_term_variables(Term, List, Tail, Next, State) -> void.
 %%  Unify List with a list of all the variables in Term with tail
 %%  Tail. The variables are in depth-first and left-to-right of how
 %%  they occur in Term.
 
 prove_term_variables(T, L, Tail, Next, #est{bs=Bs}=St) ->
-    Tvs = term_vars(T, Tail, Bs),
+    Tvs = term_variables(T, Tail, Bs),
     unify_prove_body(Tvs, L, Next, St).
 
-%% term_vars(Term, Tail, Bindings) -> TermVariables.
+%% term_variables(Term, Tail, Bindings) -> TermVariables.
 %%  This is like dderef but we never rebuild Term just get the variables.
 
-term_vars(A, Vars, _) when ?IS_CONSTANT(A) -> Vars;
-term_vars([], Vars, _) -> Vars;
-term_vars([H|T], Vars0, Bs) ->
-    Vars1 = term_vars(H, Vars0, Bs),
-    term_vars(T, Vars1, Bs);
-term_vars({_}=Var, Vars, Bs) ->
+term_variables(A, Vars, _) when ?IS_CONSTANT(A) -> Vars;
+term_variables([], Vars, _) -> Vars;
+term_variables([H|T], Vars0, Bs) ->
+    Vars1 = term_variables(H, Vars0, Bs),
+    term_variables(T, Vars1, Bs);
+term_variables({_}=Var, Vars, Bs) ->
     case get_binding(Var, Bs) of
-	{ok,T} -> term_vars(T, Vars, Bs);
+	{ok,T} -> term_variables(T, Vars, Bs);
 	error ->
 	    case lists:member(Var, Vars) of	%Add to the end if not there
 		true -> Vars;
 		false -> Vars ++ [Var]
 	    end
     end;
-term_vars(T, Vars, Bs) ->
-    foldl(fun (E, Vs) -> term_vars(E, Vs, Bs) end, Vars, tl(tuple_to_list(T))).
+term_variables(T, Vars, Bs) ->
+    foldl(fun (E, Vs) -> term_variables(E, Vs, Bs) end,
+	  Vars, tl(tuple_to_list(T))).
 
 %% prove_univ(Term, List, Next, State) -> void.
 %%  Prove the goal Term =.. List, Term has already been dereferenced.
@@ -370,8 +403,7 @@ prove_univ({_}=Var, L, Next, #est{bs=Bs0}=St) ->
 	Other -> erlog_int:type_error(list, Other, St)
 end.
 
-%% prove_atom_chars(Atom, List, Next, State) ->
-%%     void.
+%% prove_atom_chars(Atom, List, Next, State) -> void.
 %%  Prove the atom_chars(Atom, List).
 
 prove_atom_chars(A, L, Next, #est{bs=Bs}=St) ->
@@ -401,8 +433,7 @@ prove_atom_chars(A, L, Next, #est{bs=Bs}=St) ->
 	    erlog_int:type_error(atom, Other, St)
     end.
 
-%% prove_atom_codes(Atom, List, Next, State) ->
-%%     void.
+%% prove_atom_codes(Atom, List, Next, State) -> void.
 %%  Prove the atom_codes(Atom, List).
 
 prove_atom_codes(A, L, Next, #est{bs=Bs}=St) ->
@@ -428,8 +459,7 @@ prove_atom_codes(A, L, Next, #est{bs=Bs}=St) ->
 	    erlog_int:type_error(atom, Other, St)
     end.
 
-%% arith_test_prove_body(Test, Left, Right, Next, State) ->
-%%     void.
+%% arith_test_prove_body(Test, Left, Right, Next, State) -> void.
 
 arith_test_prove_body(Test, L, R, Next, #est{bs=Bs}=St) ->
     case erlang:Test(eval_arith(deref(L, Bs), Bs, St),
