@@ -84,6 +84,7 @@ load(Db0) ->
 	   {'<',2},
 	   {'=<',2},
 	   %% I/O
+	   {nl,0},
 	   {put_char,1},
 	   {put_code,1},
 	   {read,1},
@@ -213,6 +214,8 @@ prove_goal({'<',L,R}, Next, St) ->
 prove_goal({'=<',L,R}, Next, St) ->
     arith_test_prove_body('=<', L, R, Next, St);
 %% I/O.
+prove_goal(nl, Next, St) ->
+    prove_nl_0(Next, St);
 prove_goal({put_char,C}, Next, St) ->
     prove_put_char_1(C, Next, St);
 prove_goal({put_code,C}, Next, St) ->
@@ -530,6 +533,12 @@ eval_int(E0, Bs, St) ->
     end.
 
 pred_ind(N, A) -> {'/',N,A}.
+
+%% prove_nl_0(Next, State) -> void.
+
+prove_nl_0(Next, St) ->
+    io:nl(),
+    prove_body(Next, St).
 
 %% prove_put_char_1(Char, NextGoal, State) -> void.
 %% prove_put_code_1(Code, NextGoal, State) -> void.
