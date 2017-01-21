@@ -79,7 +79,7 @@ forth.
 ### Opaque data
 
 Erlog does not understand references, ports and pids. They can be
-passed threw Erlog but Erlog won't be able to do more than basic
+passed through Erlog but Erlog won't be able to do more than basic
 comparisons on them.
 
 ### Structured Data
