@@ -1,0 +1,107 @@
+MODULE
+
+        erlog_server
+
+MODULE SUMMARY
+
+        A simple Erlog server.
+
+DESCRIPTION
+
+        Erlog is a Prolog interpreter implemented in Erlang and
+        integrated with the Erlang runtime system. This is a simple
+        server implementing the same basic interface as in the erlog
+        module.
+
+        It is implemented as a generic server.
+
+TYPES
+
+erlog_server() = pid()
+
+solution() = {succeed,Bindings}
+           | fail
+           | {error,Error}
+           | {'EXIT',Error}
+
+eterm()
+        Erlog term.
+
+EXPORTS
+
+start_link() -> {ok,Server}.
+start_link(DbMod, DbArg) -> {ok,Server}.
+start() -> {ok,Server}.
+start(DbMod, DbArg) -> {ok,Server}.
+
+        Types
+            DbModule = atom()
+            DbInitArg = term()
+            Server = erlog_server()
+
+        Initialise the erlog gen_server with either start_link or
+        start. The database is initialised by calling
+        DbModule(DbInitArg). If DbModule and DbInitArg are not given
+        then the default database will be used.
+
+prove(Server, Goal) -> Solution.
+
+        Types
+            Server = erlog_server()
+            Goal = eterm()
+            Solution = solution()
+
+        Try to prove Goal, if this can be done return the first
+        solution. This will reset the interpreter and completely
+        replace any existing goal, except of course for operations on
+        the database.
+
+next_solution(Server) -> Solution.
+
+        Types
+            Server = erlog_server()
+            Solution = solution()
+
+        Try to find the next solution of the last goal.
+
+consult(Server, FileName) -> ok | {error,Error}.
+reconsult(Server, FileName) -> ok | {error,Error}.
+
+        Types
+            Server = erlog_server()
+            FileName = string()
+
+load(Server, Module) -> ok.
+
+        Types
+            Server = erlog_server()
+            Module = atom()
+
+get_db(Server) -> Database.
+
+        Types
+            Server = erlog_server()
+            Database = term()
+
+        Return the current Erlog database.
+
+set_db(Server, Database) -> ok.
+set_db(Server, DbModule, Database) -> ok.
+
+        Types
+            Server = erlog_server()
+            DbModule = atom()
+            Database = term()
+
+        Set the Erlog database.
+
+DATABASE INTERFACE
+
+        The database interface is described in the documentation of
+        erlog.
+
+AUTHOR
+
+        Robert Virding - robert.virding@telia.com
+        (with thanks to Richard O'Keefe for explaining some finer
+        points of the Prolog standard)

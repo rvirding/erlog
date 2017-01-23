@@ -15,7 +15,7 @@
 %% File    : erlog_bips.erl
 %% Author  : Robert Virding
 %% Purpose : Built-in predicates of Erlog interpreter.
-%% 
+%%
 %% These are the built-in predicates of the Prolog interpreter which
 %% are not control predicates or database predicates.
 
@@ -33,7 +33,7 @@
 
 %% We use these a lot so we import them for cleaner code.
 -import(erlog_int, [prove_body/2,unify_prove_body/4,unify_prove_body/6,fail/1,
-		    add_binding/3,make_var_list/2,
+		    get_binding/2,add_binding/3,make_var_list/2,
 		    deref/2,dderef/2,dderef_list/2,unify/3,
 		    term_instance/2,
 		    add_built_in/2,add_compiled_proc/4,
@@ -58,6 +58,9 @@ load(Db0) ->
 	   {arg,3},
 	   {copy_term,2},
 	   {functor,3},
+	   {numbervars,3},			%Not part of ISO standard
+	   {term_variables,2},
+	   {term_variables,3},
 	   {'=..',2},
 	   %% Type testing.
 	   {atom,1},
@@ -79,8 +82,17 @@ load(Db0) ->
 	   {'=:=',2},
 	   {'=\\=',2},
 	   {'<',2},
-	   {'=<',2}
-	   ]).
+	   {'=<',2},
+	   %% I/O
+	   {nl,0},
+	   {put_char,1},
+	   {put_code,1},
+	   {read,1},
+	   {write,1},
+	   {writeq,1},
+	   {write_canonical,1},
+	   {write_term,2}
+	  ]).
 
 %% prove_goal(Goal, NextGoal, State) ->
 %%	{succeed,State} |
@@ -117,6 +129,12 @@ prove_goal({copy_term,T0,C}, Next, #est{bs=Bs,vn=Vn0}=St) ->
     unify_prove_body(T, C, Next, St#est{vn=Vn1});
 prove_goal({functor,T,F,A}, Next, #est{bs=Bs}=St) ->
     prove_functor(deref(T, Bs), F, A, Next, St);
+prove_goal({numbervars,Term,S,E}, Next, St) ->
+    prove_numbervars(Term, S, E, Next, St);
+prove_goal({term_variables,Term,List}, Next, St) ->
+    prove_body([{term_variables,Term,List,[]}|Next], St);
+prove_goal({term_variables,Term,List,Tail}, Next, St) ->
+    prove_term_variables(Term, List, Tail, Next, St);
 prove_goal({'=..',T,L}, Next, #est{bs=Bs}=St) ->
     prove_univ(dderef(T, Bs), L, Next, St);
 %% Type testing.
@@ -194,10 +212,29 @@ prove_goal({'=\\=',L,R}, Next, St) ->
 prove_goal({'<',L,R}, Next, St) ->
     arith_test_prove_body('<', L, R, Next, St);
 prove_goal({'=<',L,R}, Next, St) ->
-    arith_test_prove_body('=<', L, R, Next, St).
+    arith_test_prove_body('=<', L, R, Next, St);
+%% I/O.
+prove_goal(nl, Next, St) ->
+    prove_nl_0(Next, St);
+prove_goal({put_char,C}, Next, St) ->
+    prove_put_char_1(C, Next, St);
+prove_goal({put_code,C}, Next, St) ->
+    prove_put_code_1(C, Next, St);
+prove_goal({read,Var}, Next, St) ->
+    prove_read_1(Var, Next, St);
+prove_goal({write,T}, Next, St) ->
+    prove_write_1(T, Next, St);
+prove_goal({writeq,T}, Next, St) ->
+    prove_writeq_1(T, Next, St);
+prove_goal({write_canonical,T}, Next, St) ->
+    prove_write_canonical_1(T, Next, St);
+prove_goal({write_term,T,Opts}, Next, St) ->
+    prove_write_term_2(T, Opts, Next, St);
+%% This error should never occur!
+prove_goal(Goal, _, _) ->
+    error({illegal_bip,Goal}).
 
-%% term_test_prove_body(Test, Left, Right, Next, State) ->
-%%     void.
+%% term_test_prove_body(Test, Left, Right, Next, State) -> void.
 
 term_test_prove_body(Test, L, R, Next, #est{bs=Bs}=St) ->
     case erlang:Test(dderef(L, Bs), dderef(R, Bs)) of
@@ -281,6 +318,66 @@ prove_functor({_}=Var, F0, A0, Next, #est{bs=Bs0,vn=Vn0}=St) ->
 	{F1,_} -> erlog_int:type_error(atom, F1, St)
     end.
 
+%% prove_numbervars(Term, Start, E, Next, State) -> void.
+%%  Unify the free variables in Term with a term $VAR(N), where N is
+%%  the number of the variable.  This is predicate is not part of the
+%%  ISO standard.
+
+prove_numbervars(T, S0, E, Next, #est{bs=Bs0}=St) ->
+    case deref(S0, Bs0) of
+	{_} -> erlog_int:instantiation_error(St);
+	S1 when is_integer(S1) ->
+	    {N,Bs1} = numbervars(T, S1, Bs0),
+	    unify_prove_body(N, E, Next, St#est{bs=Bs1});
+	S1 -> erlog_int:type_error(integer, S1, St)
+    end.
+
+numbervars(A, I, Bs) when ?IS_CONSTANT(A) -> {I,Bs};
+numbervars([], I, Bs) -> {I,Bs};
+numbervars([H|T], I0, Bs0) ->
+    {I1,Bs1} = numbervars(H, I0, Bs0),
+    numbervars(T, I1, Bs1);
+numbervars({_}=Var, I, Bs0) ->
+    case get_binding(Var, Bs0) of
+	{ok,T} -> numbervars(T, I, Bs0);
+	error ->
+	    Bs1 = add_binding(Var, {'$VAR',I}, Bs0),
+	    {I+1,Bs1}
+    end;
+numbervars(T, I0, Bs0) ->
+    foldl(fun (E, {I,Bs}) -> numbervars(E, I, Bs) end,
+	  {I0,Bs0}, tl(tuple_to_list(T))).
+
+%% prove_term_variables(Term, List, Tail, Next, State) -> void.
+%%  Unify List with a list of all the variables in Term with tail
+%%  Tail. The variables are in depth-first and left-to-right of how
+%%  they occur in Term.
+
+prove_term_variables(T, L, Tail, Next, #est{bs=Bs}=St) ->
+    Tvs = term_variables(T, Tail, Bs),
+    unify_prove_body(Tvs, L, Next, St).
+
+%% term_variables(Term, Tail, Bindings) -> TermVariables.
+%%  This is like dderef but we never rebuild Term just get the variables.
+
+term_variables(A, Vars, _) when ?IS_CONSTANT(A) -> Vars;
+term_variables([], Vars, _) -> Vars;
+term_variables([H|T], Vars0, Bs) ->
+    Vars1 = term_variables(H, Vars0, Bs),
+    term_variables(T, Vars1, Bs);
+term_variables({_}=Var, Vars, Bs) ->
+    case get_binding(Var, Bs) of
+	{ok,T} -> term_variables(T, Vars, Bs);
+	error ->
+	    case lists:member(Var, Vars) of	%Add to the end if not there
+		true -> Vars;
+		false -> Vars ++ [Var]
+	    end
+    end;
+term_variables(T, Vars, Bs) ->
+    foldl(fun (E, Vs) -> term_variables(E, Vs, Bs) end,
+	  Vars, tl(tuple_to_list(T))).
+
 %% prove_univ(Term, List, Next, State) -> void.
 %%  Prove the goal Term =.. List, Term has already been dereferenced.
 
@@ -309,8 +406,7 @@ prove_univ({_}=Var, L, Next, #est{bs=Bs0}=St) ->
 	Other -> erlog_int:type_error(list, Other, St)
 end.
 
-%% prove_atom_chars(Atom, List, Next, State) ->
-%%     void.
+%% prove_atom_chars(Atom, List, Next, State) -> void.
 %%  Prove the atom_chars(Atom, List).
 
 prove_atom_chars(A, L, Next, #est{bs=Bs}=St) ->
@@ -340,8 +436,7 @@ prove_atom_chars(A, L, Next, #est{bs=Bs}=St) ->
 	    erlog_int:type_error(atom, Other, St)
     end.
 
-%% prove_atom_codes(Atom, List, Next, State) ->
-%%     void.
+%% prove_atom_codes(Atom, List, Next, State) -> void.
 %%  Prove the atom_codes(Atom, List).
 
 prove_atom_codes(A, L, Next, #est{bs=Bs}=St) ->
@@ -367,8 +462,7 @@ prove_atom_codes(A, L, Next, #est{bs=Bs}=St) ->
 	    erlog_int:type_error(atom, Other, St)
     end.
 
-%% arith_test_prove_body(Test, Left, Right, Next, State) ->
-%%     void.
+%% arith_test_prove_body(Test, Left, Right, Next, State) -> void.
 
 arith_test_prove_body(Test, L, R, Next, #est{bs=Bs}=St) ->
     case erlang:Test(eval_arith(deref(L, Bs), Bs, St),
@@ -439,3 +533,94 @@ eval_int(E0, Bs, St) ->
     end.
 
 pred_ind(N, A) -> {'/',N,A}.
+
+%% prove_nl_0(Next, State) -> void.
+
+prove_nl_0(Next, St) ->
+    io:nl(),
+    prove_body(Next, St).
+
+%% prove_put_char_1(Char, NextGoal, State) -> void.
+%% prove_put_code_1(Code, NextGoal, State) -> void.
+
+prove_put_char_1(C0, Next, #est{bs=Bs}=St) ->
+    case dderef(C0, Bs) of
+	{_} -> erlog_int:instantiation_error(St);
+	C1 ->
+	    case is_atom(C1) andalso atom_to_list(C1) of
+		[C] ->
+		    io:put_chars([C]),
+		    prove_body(Next, St);
+		_ -> erlog_int:type_error(character, C1)
+	    end
+    end.
+
+-define(IS_UNICODE(C), ((C >= 0) and (C =< 16#10FFFF))).
+
+prove_put_code_1(C0, Next, #est{bs=Bs}=St) ->
+    case dderef(C0, Bs) of
+	{_} -> erlog_int:instantiation_error(St);
+	C1 ->
+	    case is_integer(C1) andalso ?IS_UNICODE(C1) of
+		true ->
+		    io:put_chars([C1]),
+		    prove_body(Next, St);
+	       false -> erlog_int:type_error(integer, C1)
+	    end
+    end.
+
+%% prove_read_1(Var, NextGoal, State) -> void.
+
+prove_read_1(Var, Next, St) ->
+    case erlog_io:read('') of			%No prompt
+	{ok,Term} ->
+	    unify_prove_body(Var, Term, Next, St);
+	{error,{_,_,Error}} ->
+	    erlog_int:erlog_error({syntax_error,Error}, St)
+    end.
+
+%% prove_write_1(Term, NextGoal, State) -> void.
+%% prove_writeq_1(Term, NextGoal, State) -> void.
+%% prove_write_canonical_1(Term, NextGoal, State) -> void.
+%%  These can call the write functions in the erlog_io module directly.
+
+prove_write_1(T0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    erlog_io:write(T1),
+    prove_body(Next, St).
+
+prove_writeq_1(T0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    erlog_io:writeq(T1),
+    prove_body(Next, St).
+
+prove_write_canonical_1(T0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    erlog_io:write_canonical(T1),
+    prove_body(Next, St).
+
+%% prove_write_term_2(Term, Options, NextGoal, State) -> void.
+
+prove_write_term_2(T0, Opts0, Next, #est{bs=Bs}=St) ->
+    T1 = dderef(T0, Bs),
+    Opts1 = write_term_opts(dderef(Opts0, Bs), St),
+    erlog_io:write_term(T1, Opts1),
+    prove_body(Next, St).
+
+write_term_opts([{ignore_ops,true}|Opts], St) ->
+    [ignore_ops|write_term_opts(Opts, St)];
+write_term_opts([{ignore_ops,false}|Opts], St) ->
+    write_term_opts(Opts, St);
+write_term_opts([{numbervars,true}|Opts], St) ->
+    [numbervars|write_term_opts(Opts, St)];
+write_term_opts([{numbervars,false}|Opts], St) ->
+    write_term_opts(Opts, St);
+write_term_opts([{quoted,true}|Opts], St) ->
+    [quoted|write_term_opts(Opts, St)];
+write_term_opts([{quoted,false}|Opts], St) ->
+    write_term_opts(Opts, St);
+write_term_opts([{_}|_], St) ->
+    erlog_int:instantiation_error(St);
+write_term_opts([T|_], St) ->
+    erlog_int:domain_error(write_option, T, St);
+write_term_opts([], _) -> [].

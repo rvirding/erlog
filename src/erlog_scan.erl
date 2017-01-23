@@ -1,4 +1,4 @@
--file("/usr/local/lib/erlang/lib/parsetools-2.0.11/include/leexinc.hrl", 0).
+-file("/usr/local/lib/erlang/lib/parsetools-2.1/include/leexinc.hrl", 0).
 %% The source of this file is part of leex distribution, as such it
 %% has the same Copyright as the other files in the leex
 %% distribution. The Copyright is defined in the accompanying file
@@ -94,7 +94,7 @@ escape_char($s) -> $\s;				%\s = SPC
 escape_char($d) -> $\d;				%\d = DEL
 escape_char(C) -> C.
 
--file("/usr/local/lib/erlang/lib/parsetools-2.0.11/include/leexinc.hrl", 14).
+-file("/usr/local/lib/erlang/lib/parsetools-2.1/include/leexinc.hrl", 14).
 
 format_error({illegal,S}) -> ["illegal characters ",io_lib:write_string(S)];
 format_error({user,S}) -> S.
@@ -119,13 +119,15 @@ string(Ics0, L0, Tcs, Ts) ->
             string_cont(Ics1, L1, yyaction(A, Alen, Tcs, L0), Ts);
         {reject,_Alen,Tlen,_Ics1,L1,_S1} ->  % After a non-accepting state
             {error,{L0,?MODULE,{illegal,yypre(Tcs, Tlen+1)}},L1};
-        {A,Alen,_Tlen,_Ics1,L1,_S1} ->
-            string_cont(yysuf(Tcs, Alen), L1, yyaction(A, Alen, Tcs, L0), Ts)
+        {A,Alen,_Tlen,_Ics1,_L1,_S1} ->
+            string_cont(yysuf(Tcs, Alen), L0, yyaction(A, Alen, Tcs, L0), Ts)
     end.
 
 %% string_cont(RestChars, Line, Token, Tokens)
 %% Test for and remove the end token wrapper. Push back characters
 %% are prepended to RestChars.
+
+-dialyzer({nowarn_function, string_cont/4}).
 
 string_cont(Rest, Line, {token,T}, Ts) ->
     string(Rest, Line, Rest, [T|Ts]);
@@ -188,13 +190,15 @@ token(S0, Ics0, L0, Tcs, Tlen0, Tline, A0, Alen0) ->
         {reject,_Alen1,Tlen1,Ics1,L1,_S1} ->    % No token match
             Error = {Tline,?MODULE,{illegal,yypre(Tcs, Tlen1+1)}},
             {done,{error,Error,L1},Ics1};
-        {A1,Alen1,_Tlen1,_Ics1,L1,_S1} ->       % Use last accept match
-            token_cont(yysuf(Tcs, Alen1), L1, yyaction(A1, Alen1, Tcs, Tline))
+        {A1,Alen1,_Tlen1,_Ics1,_L1,_S1} ->       % Use last accept match
+            token_cont(yysuf(Tcs, Alen1), L0, yyaction(A1, Alen1, Tcs, Tline))
     end.
 
 %% token_cont(RestChars, Line, Token)
 %% If we have a token or error then return done, else if we have a
 %% skip_token then continue.
+
+-dialyzer({nowarn_function, token_cont/3}).
 
 token_cont(Rest, Line, {token,T}) ->
     {done,{ok,T,Line},Rest};
@@ -260,15 +264,17 @@ tokens(S0, Ics0, L0, Tcs, Tlen0, Tline, Ts, A0, Alen0) ->
             %% Skip rest of tokens.
             Error = {L1,?MODULE,{illegal,yypre(Tcs, Tlen1+1)}},
             skip_tokens(yysuf(Tcs, Tlen1+1), L1, Error);
-        {A1,Alen1,_Tlen1,_Ics1,L1,_S1} ->
+        {A1,Alen1,_Tlen1,_Ics1,_L1,_S1} ->
             Token = yyaction(A1, Alen1, Tcs, Tline),
-            tokens_cont(yysuf(Tcs, Alen1), L1, Token, Ts)
+            tokens_cont(yysuf(Tcs, Alen1), L0, Token, Ts)
     end.
 
 %% tokens_cont(RestChars, Line, Token, Tokens)
 %% If we have an end_token or error then return done, else if we have
 %% a token then save it and continue, else if we have a skip_token
 %% just continue.
+
+-dialyzer({nowarn_function, tokens_cont/4}).
 
 tokens_cont(Rest, Line, {token,T}, Ts) ->
     tokens(yystate(), Rest, Line, Rest, 0, Line, [T|Ts], reject, 0);
@@ -321,6 +327,8 @@ skip_tokens(S0, Ics0, L0, Tcs, Tlen0, Tline, Error, A0, Alen0) ->
 %% Skip tokens until we have an end_token or error then return done
 %% with the original rror.
 
+-dialyzer({nowarn_function, skip_cont/4}).
+
 skip_cont(Rest, Line, {token,_T}, Error) ->
     skip_tokens(yystate(), Rest, Line, Rest, 0, Line, Error, reject, 0);
 skip_cont(Rest, Line, {token,_T,Push}, Error) ->
@@ -354,7 +362,7 @@ yysuf(List, N) -> lists:nthtail(N, List).
 %% return signal either an unrecognised character or end of current
 %% input.
 
--file("src/erlog_scan.erl", 356).
+-file("src/erlog_scan.erl", 364).
 yystate() -> 60.
 
 yystate(67, [42|Ics], Line, Tlen, _, _) ->
@@ -1632,4 +1640,4 @@ yyaction_15(TokenChars, TokenLen, TokenLine) ->
 yyaction_16(TokenChars, TokenLine) ->
      { token, { list_to_atom (TokenChars), TokenLine } } .
 
--file("/usr/local/lib/erlang/lib/parsetools-2.0.11/include/leexinc.hrl", 282).
+-file("/usr/local/lib/erlang/lib/parsetools-2.1/include/leexinc.hrl", 290).

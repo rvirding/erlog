@@ -26,8 +26,8 @@ eterm()
 
 EXPORTS
 
-erlog:new() -> {ok,Estate}.
-erlog:new(DbModule, DbInitArg) -> {ok,Estate}.
+new() -> {ok,Estate}.
+new(DbModule, DbInitArg) -> {ok,Estate}.
 
         Types
             DbModule = atom()
@@ -38,7 +38,7 @@ erlog:new(DbModule, DbInitArg) -> {ok,Estate}.
         by calling DbModule(DbInitArg). If DbModule and DbInitArg are
         not given then the default database will be used.
 
-erlog:prove(Goal, Estate1) -> {Solution,Estate2}.
+prove(Goal, Estate1) -> {Solution,Estate2}.
 
         Types
             Estate1 = Estate2 = erlog()
@@ -50,7 +50,7 @@ erlog:prove(Goal, Estate1) -> {Solution,Estate2}.
         replace any existing goal, except of course for operations on
         the database.
 
-erlog:next_solution(Estate1) -> {Solution,Estate2}.
+next_solution(Estate1) -> {Solution,Estate2}.
 
         Types
             Estate1 = Estate2 = erlog()
@@ -58,38 +58,46 @@ erlog:next_solution(Estate1) -> {Solution,Estate2}.
 
         Try to find the next solution of the last goal.
 
-erlog:consult(FileName, Estate1) -> {ok,Estate2} | {error,Error}.
-erlog:reconsult(FileName, Estate1) -> {ok,Estate2} | {error,Error}.
+consult(FileName, Estate1) -> {ok,Estate2} | {error,Error}.
+reconsult(FileName, Estate1) -> {ok,Estate2} | {error,Error}.
 
         Types
             Estate1 = Estate2 = erlog()
             FileName = string()
 
-erlog:load(Module, Estate1) -> {ok,Estate2}.
+        Consult/reconsult a file into Erlog.
+
+load(Module, Estate1) -> {ok,Estate2}.
 
         Types
             Estate1 = Estate2 = erlog()
             Module = atom()
 
-erlog:get_db(Estate) -> {ok,Database}.
+        Load the predicates in Module into Erlog.
+
+get_db(Estate) -> Database.
 
         Types
             Estate = erlog()
             Database = term()
 
-erlog:set_db(Database, Estate1) -> {ok,Estate2}.
-erlog:set_db(DbModule, Database, Estate1) -> {ok,Estate2}.
+        Return the current Erlog database.
+
+set_db(Database, Estate1) -> Estate2.
+set_db(DbModule, Database, Estate1) -> Estate2.
 
         Types
             Estate1 = Estate2 = erlog()
             DbModule = atom()
             Database = term()
 
-erlog:is_legal_term(Term) -> bool().
+        Set the Erlog database.
+
+is_legal_term(Term) -> bool().
 
         Test if Term is a well-formed (legal) Erlog structure.
 
-erlog:vars_in(Term) -> [{VarName,Variable}].
+vars_in(Term) -> [{VarName,Variable}].
 
         Returns a list of {VariableName,Variable} pairs.
 

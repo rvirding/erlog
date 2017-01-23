@@ -7,10 +7,9 @@ Erlog is a Prolog interpreter implemented in Erlang and integrated
 with the Erlang runtime system. It is a subset of the Prolog standard.
 An Erlog shell (REPL) is also included.
 
-
-You should use this if you want to include some prolog or logic
+You should use this if you want to include some Prolog or logic
 programming functionality in a larger Erlang system (Including Elixir,
-LFE, Joxa etc). If you want a stand alone prolog you are probably
+LFE, Joxa etc). If you want a stand alone Prolog you are probably
 better off using a package like SWI Prolog.
 
 
@@ -18,12 +17,10 @@ better off using a package like SWI Prolog.
 
 This is a low level interface, which is meant to built upon as much as used directly.
 
-
-
 To create an Erlog instance in a closure use `erlog:new()` this will
-return `{ok, State}` Where state is the current state of the erlog
+return `{ok, State}` Where state is the current state of the Erlog
 system. You should treat it as an opaque data structure. To prove a
-clause or run prolog code you can then run `erlog:prove(State, {...})`
+clause or run Prolog code you can then run `erlog:prove(State, {...})`
 This will return a new closure and a return of type
 `erlog_return()`. To consult a file you can run `erlog:consult(State,
 FILE)` which will return a new closure and 'ok' or an error.
@@ -34,14 +31,14 @@ it starts with an append statement which ask it to append lists `A`
 and `B`. The return value is designated with a 1 tuple with an atom
 value for the return variable, in this case `{'Z'}`. 
 
-If the prolog code works correctly it will return the tuple `{{succeed,
+If the Prolog code works correctly it will return the tuple `{{succeed,
 [{'Z', Value}]}, NewState}`. 
 
 
 
 ````erlang
            {ok,Erlog}         = erlog:new(),
-           case  erlog:prove(Erlog,{append,A,B,{'Z'}}) of
+           case  erlog:prove({append,A,B,{'Z'}}, Erlog) of
                {{succeed, [{'Z', Z}]}, E1} when is_record(E1,est) ->
                    Z =:= lists:append(A,B);
                fail ->
@@ -49,7 +46,7 @@ If the prolog code works correctly it will return the tuple `{{succeed,
            end
 ````
 
-The dialyzer types of some of erlog's functions are as such
+The dialyzer types of some of Erlog's functions are as such
 
 ````erlang
 -opaque erlog_state()			:: #est{}.
@@ -61,7 +58,7 @@ The dialyzer types of some of erlog's functions are as such
 
 ````
 
-If you want to build a gen_server out of your prolog code checkout the erlog server project https://github.com/zkessin/erlog-server
+If you want to build a gen_server out of your Prolog code checkout the Erlog server project https://github.com/zkessin/erlog-server
 
 If you have questions about Erlog post them tagged with Erlog on Stack Overflow http://stackoverflow.com/questions/tagged/erlog
 
@@ -82,13 +79,12 @@ forth.
 ### Opaque data
 
 Erlog does not understand references, ports and pids. They can be
-passed threw Erlog but Erlog won't be able to do more than basic
+passed through Erlog but Erlog won't be able to do more than basic
 comparisons on them.
-
 
 ### Structured Data
 
-It is possible to send structured Erlang data to prolog, and this is
+It is possible to send structured Erlang data to Prolog, and this is
 often very useful. Lists can be sent directly back and forth. Maps are
 not (Yet) supported, we will be looking into how to support them in
 the future. 
@@ -97,11 +93,11 @@ Erlog understands Erlang tuples to be facts. So the Erlang tuple
 `{foo, 1, 2, 3}` would show up in Erlog as the fact `foo(1,2,3)`. The
 upshot of this is that all tuples that are passed to Erlog must have
 an atom as the first element and must have more than 1 element. The
-tuple `{atom()}` will be understood to be a prolog variable. 
+tuple `{atom()}` will be understood to be a Prolog variable. 
 
 Records in Erlang are just tuples with an initial atom. So it is
 possible to pass records between Erlog and Erlang. The record
-definition here and the prolog fact are equivalent. 
+definition here and the Prolog fact are equivalent. 
 
 ````erlang
 -record(person, {name, phone, address}).
@@ -111,7 +107,7 @@ definition here and the prolog fact are equivalent.
 person(Name, Phone, Address).
 ````
 
-You can access fields in an erlang record by position by using the
+You can access fields in an Erlang record by position by using the
 standard prolog arg/3 predicate.  If you want to create functors that
 can access fields in an Erlang record by name, you can create functors
 for that Automaticly with the code in the file
@@ -122,16 +118,15 @@ compile time.
 
 ## Using ETS
 
-Erlog can also share data with an erlang program by way of an ETS
+Erlog can also share data with an Erlang program by way of an ETS
 table. Erlog includes commands to unify a goal with the contents of an
-ets table. It should also be possible to work with mnesia tables, but
+ETS table. It should also be possible to work with mnesia tables, but
 this has not yet been done.
 
-If you want to use Erlog with ets you need to load the erlog_ets
+If you want to use Erlog with ETS you need to load the erlog_ets
 module into Erlog. To do that you call `erlog:load(PID,erlog_ets)` or
-`E({load,erlog_ets})`. You can match on an ets table with
+`E({load,erlog_ets})`. You can match on an ETS table with
 `ets_match(TableId, Value)`.
-
 
 ## Including with rebar
 
@@ -158,6 +153,6 @@ to run the tests then run `rebar eunit`
 
 ## Licence 
 
-Erlog was created by Robert Virding and is can be used under the
+Erlog was created by Robert Virding and can be used under the
 Apache 2.0 Licence. 
 

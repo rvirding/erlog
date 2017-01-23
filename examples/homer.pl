@@ -1,19 +1,20 @@
 %%% -*- mode: prolog -*-
-%% Homer Simpson, after a stop at Moe’s, went to the Springfield Mall to buy
-%% Marge, Lisa, Bart and Maggie a gift in anticipation that they will be upset 
-%% with him when he gets home. He bought 4 gifts: a green dress for Marge, a 
-%% saxophone book for Lisa, a slingshot for Bart and a pacifier for Maggie. He 
-%% recalls buying the gifts at: The Leftorium, Sprawl-Mart, Try-N-Save, and King
-%% Toots. Somewhere along the way, Homer lost his car keys and had to walk home 
-%% carrying the gifts. Wanting to retrace his steps and find his lost car keys, 
-%% the family asks Homer where he bought the gifts and the order in which he 
-%% bought the gifts. Being partly inebriated however, Homer couldn’t remember 
-%% which stores he bought the gifts at and in which order he visited the
-%% stores.
+%% Homer Simpson, after a stop at Moe's, went to the Springfield Mall
+%% to buy Marge, Lisa, Bart and Maggie a gift in anticipation that
+%% they will be upset with him when he gets home. He bought 4 gifts: a
+%% green dress for Marge, a saxophone book for Lisa, a slingshot for
+%% Bart and a pacifier for Maggie. He recalls buying the gifts at: The
+%% Leftorium, Sprawl-Mart, Try-N-Save, and King Toots. Somewhere along
+%% the way, Homer lost his car keys and had to walk home carrying the
+%% gifts. Wanting to retrace his steps and find his lost car keys, the
+%% family asks Homer where he bought the gifts and the order in which
+%% he bought the gifts. Being partly inebriated however, Homer
+%% couldn't remember which stores he bought the gifts at and in which
+%% order he visited the stores.
 %% 
 %% After some interrogation, Homer does remember:
 %% 
-%% · He bought the saxophone book at King Toot’s
+%% · He bought the saxophone book at King Toot's
 %% · The store he visited just after buying the slingshot was not Sprawl-Mart
 %% · The Leftorium was his second stop
 %% · Two stops after leaving Try-N-Save, he bought the pacifier

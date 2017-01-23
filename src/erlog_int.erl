@@ -133,7 +133,7 @@
 -export([unify_prove_body/4,unify_prove_body/6]).
 
 %% Bindings, unification and dereferncing.
--export([new_bindings/0,add_binding/3,make_var_list/2]).
+-export([new_bindings/0,get_binding/2,add_binding/3,make_var_list/2]).
 -export([deref/2,deref_list/2,dderef/2,dderef_list/2,partial_list/2]).
 -export([unify/3,functor/1]).
 
@@ -239,7 +239,7 @@ built_in_db(Db0) ->
 -define(FAIL(St), fail(St)).
 
 %% prove_goal(Goal, NextGoal, State) ->
-%%	{succeed,State} | {fail,State}.
+%%     {succeed,State} | {fail,State}.
 %% Prove one goal. We seldom return succeed here but usually go directly to
 %% to NextGoal.
 %% Handle built-in predicates here. RTFM for a description of the
@@ -550,7 +550,7 @@ unify_clauses(Ch, Cb, [C], Next, #est{bs=Bs0,vn=Vn0}=St) ->
 unify_clauses(Ch, Cb, [C|Cs], Next, #est{bs=Bs0,vn=Vn0}=St) ->
     case unify_clause(Ch, Cb, C, Bs0, Vn0) of
 	{succeed,Bs1,Vn1} ->
-	    Cp = #cp{type=clause,data={Ch,Cb,Cs},next=Next,bs=Bs1,vn=Vn1},
+	    Cp = #cp{type=clause,data={Ch,Cb,Cs},next=Next,bs=Bs0,vn=Vn1},
 	    Cps = St#est.cps,
 	    prove_body(Next, St#est{cps=[Cp|Cps],bs=Bs1,vn=Vn1});
 	fail -> unify_clauses(Ch, Cb, Cs, Next, St)

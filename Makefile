@@ -34,6 +34,8 @@ EBINS = $(ESRCS:.erl=.beam) $(XSRCS:.xrl=.beam)
 $(EBINDIR)/%.beam: $(SRCDIR)/%.erl
 	$(ERLC) -I $(INCDIR) -o $(EBINDIR) $(ERLCFLAGS) $<
 
+.SECONDARY: $(XSRCS:.xrl=.erl)
+
 %.erl: %.xrl
 	$(ERLC) -o $(SRCDIR) $<
 
@@ -54,7 +56,7 @@ REBAR=$(shell which rebar)
 .PHONY: all compile doc clean test dialyzer typer shell distclean pdf \
   update-deps clean-common-test-data rebuild
 
-all: deps compile test
+all: deps compile
 
 # =============================================================================
 # Rules to build the system
@@ -83,11 +85,11 @@ qc: compile
 compile:
 	if [ -n "$(REBAR)" ] ; \
 	then $(REBAR) compile; \
-	else $(MAKE) $(MFLAGS) erlc_compile; \
+	else $(MAKE) $(MFLAGS) erlc-compile; \
 	fi
 
 ## Compile using erlc
-erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS))
+erlc-compile: $(addprefix $(EBINDIR)/, $(EBINS))
 
 doc:
 	if [ -n "$(REBAR)" ] ; then \
