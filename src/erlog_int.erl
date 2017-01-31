@@ -699,10 +699,14 @@ prove_findall(T, G, L0, Next, #est{cps=Cps,bs=Bs,vn=Vn,db=Db0}=St) ->
 	prove_body(Body, St#est{cps=[Cp|Cps],vn=Vn+1,db=Db1})
     catch
 	throw:{erlog_error,E,#est{db=Dba}=Sta} ->
-	    [_|Locsa] = Dba#db.loc,		%Pop the local list
-	    Dbb = Dba#db{loc=Locsa},
-	    %% Dbb = Dba#db{loc=tl(Db#db.loc)},
-	    erlog_error(E, Sta#est{db=Dbb})
+	    case Dba#db.loc of %Pop the local list
+            [_|Locsa] ->
+                Dbb = Dba#db{loc=Locsa},
+                %% Dbb = Dba#db{loc=tl(Db#db.loc)},
+                erlog_error(E, Sta#est{db=Dbb});
+            _ ->
+                erlog_error(E, Sta)
+        end
     end.
 
 fail_findall(#cp{next=Next,data=List,bs=Bs,vn=Vn0}, Cps, #est{db=Db0}=St) ->
