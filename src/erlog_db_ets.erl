@@ -1,4 +1,4 @@
-%% Copyright (c) 2014 Robert Virding
+%% Copyright (c) 2014-2018 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@
 new(Name) ->
     ets:new(Name, [named_table,set,protected,{keypos,1}]).
 
-%% add_built_in(Functor, Database) -> NewDatabase.
+%% add_built_in(Db, Functor) -> NewDb.
 %%  Add Functor as a built-in in the database.
 
 add_built_in(Db, Functor) ->
@@ -88,26 +88,26 @@ assertz_clause(Db, Functor, Head, Body) ->
 %%  Retract (remove) the clause with tag ClauseTag from the list of
 %%  clauses of Functor.
 
-retract_clause(F, Ct, Db) ->
-    case ets:lookup(Db, F) of
-	[{_,built_in}] -> error;
-	[{_,code,_}] -> error;
+retract_clause(Db, Functor, Tag) ->
+    case ets:lookup(Db, Functor) of
+	[{_,built_in}] -> error;		%Can't retract here
+	[{_,code,_}] -> error;			%Can't retract here
 	[{_,clauses,Nt,Cs}] ->
-	    ets:insert(Db, {F,clauses,Nt,lists:keydelete(Ct, 1, Cs)}),
+	    ets:insert(Db, {Functor,clauses,Nt,lists:keydelete(Tag, 1, Cs)}),
 	    {ok,Db};
 	[] -> {ok,Db}				%Do nothing
     end.
 
-%% abolish_clauses(Database, Functor) -> NewDatabase.
+%% abolish_clauses(Db, Functor) -> NewDatabase.
 
-abolish_clauses(Db, Func) ->
-    case ets:lookup(Db, Func) of
-	[{_,built_in}] -> error;
+abolish_clauses(Db, Functor) ->
+    case ets:lookup(Db, Functor) of
+	[{_,built_in}] -> error;		%Can't abolish here
 	[{_,code,_}] ->
-	    ets:delete(Db, Func),
+	    ets:delete(Db, Functor),
 	    {ok,Db};
 	[{_,clauses,_,_}] ->
-	    ets:delete(Db, Func),
+	    ets:delete(Db, Functor),
 	    {ok,Db};
 	[] -> {ok,Db}				%Do nothing
     end.
@@ -136,7 +136,7 @@ get_procedure_type(Db, Functor) ->
 	[] -> undefined				%Undefined
     end.
 
-%% get_interp_functors(Database) -> [Functor].
+%% get_interp_functors(Db) -> [Functor].
 
 get_interpreted_functors(Db) ->
     ets:foldl(fun ({Func,clauses,_,_}, Fs) -> [Func|Fs];
