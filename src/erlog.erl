@@ -107,7 +107,8 @@ prove_goal(Goal0, #erlog{est=St}=Erl) ->
     %% Must use 'catch' here as 'try' does not do last-call
     %% optimisation.
     %% This generates a completely new #est{}.
-    prove_result(catch erlog_int:prove_goal(Goal1, St), Vs, Erl).
+    Result = (catch erlog_int:prove_goal(Goal1, St)),
+    prove_result(Result, Vs, Erl).
 
 unlistify([G]) -> G;
 unlistify([G|Gs]) -> {',',G,unlistify(Gs)};

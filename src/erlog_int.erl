@@ -151,7 +151,7 @@
 	 permission_error/3,permission_error/4,
 	 existence_error/3,domain_error/3]).
 
--compile(export_all).
+%%-compile(export_all).
 
 -import(lists, [map/2,foldl/3,foldr/3,mapfoldr/3]).
 
@@ -700,13 +700,13 @@ prove_findall(T, G, L0, Next, #est{cps=Cps,bs=Bs,vn=Vn,db=Db0}=St) ->
     catch
 	throw:{erlog_error,E,#est{db=Dba}=Sta} ->
 	    case Dba#db.loc of %Pop the local list
-            [_|Locsa] ->
-                Dbb = Dba#db{loc=Locsa},
-                %% Dbb = Dba#db{loc=tl(Db#db.loc)},
-                erlog_error(E, Sta#est{db=Dbb});
-            _ ->
-                erlog_error(E, Sta)
-        end
+		[_|Locsa] ->
+		    Dbb = Dba#db{loc=Locsa},
+		    %% Dbb = Dba#db{loc=tl(Db#db.loc)},
+		    erlog_error(E, Sta#est{db=Dbb});
+		_ ->
+		    erlog_error(E, Sta)
+	    end
     end.
 
 fail_findall(#cp{next=Next,data=List,bs=Bs,vn=Vn0}, Cps, #est{db=Db0}=St) ->
@@ -1214,23 +1214,39 @@ pred_ind({N,A}) -> {'/',N,A}.
 pred_ind(N, A) -> {'/',N,A}.
 
 %% Bindings
-%% Bindings are kept in a dict where the key is the variable name.
+%% Bindings are kept in a map/dict where the key is the variable name.
+
+-ifdef(HAS_MAPS).
+
+-define(NEW_BINDINGS(), maps:new()).
+-define(ADD_BINDING(V, Val, Bs), maps:put(V, Val, Bs)).
+%%-define(ADD_BINDING(V, Val, Bs),
+%%	begin is_integer(V) orelse io:write(V), maps:put(V, Val, Bs) end).
+-define(GET_BINDING(V, BS), maps:find(V, Bs)).
+
+-else.
+
 %%-define(BIND, orddict).
 -define(BIND, dict).
+-define(NEW_BINDINGS(), ?BIND:new()).
+-define(ADD_BINDING(V, Val, Bs), ?BIND:store(V, Val, Bs)).
+-define(GET_BINDING(V, BS), ?BIND:find(V, Bs)).
 
-new_bindings() -> ?BIND:new().
+-endif.
 
-add_binding({V}, Val, Bs0) ->
-    ?BIND:store(V, Val, Bs0).
+new_bindings() -> ?NEW_BINDINGS().
+
+add_binding({V}, Val, Bs) ->
+    ?ADD_BINDING(V, Val, Bs).
 
 get_binding({V}, Bs) ->
-    ?BIND:find(V, Bs).
+    ?GET_BINDING(V, Bs).
 
 %% deref(Term, Bindings) -> Term.
 %% Dereference a variable, else just return the term.
 
 deref({V}=T0, Bs) ->
-    case ?BIND:find(V, Bs) of
+    case ?GET_BINDING(V, Bs) of
 	{ok,T1} -> deref(T1, Bs);
 	error -> T0
     end;
@@ -1242,7 +1258,7 @@ deref(T, _) -> T.				%Not a variable, return it.
 deref_list([], _) -> [];			%It already is a list
 deref_list([_|_]=L, _) -> L;
 deref_list({V}, Bs) ->
-    case ?BIND:find(V, Bs) of
+    case ?GET_BINDING(V, Bs) of
 	{ok,L} -> deref_list(L, Bs);
 	error -> instantiation_error()
     end;
@@ -1257,7 +1273,7 @@ dderef([], _) -> [];
 dderef([H0|T0], Bs) ->
     [dderef(H0, Bs)|dderef(T0, Bs)];
 dderef({V}=Var, Bs) ->
-    case ?BIND:find(V, Bs) of
+    case ?GET_BINDING(V, Bs) of
 	{ok,T} -> dderef(T, Bs);
 	error -> Var
     end;
@@ -1274,7 +1290,7 @@ dderef_list([], _Bs) -> [];
 dderef_list([H|T], Bs) ->
     [dderef(H, Bs)|dderef_list(T, Bs)];
 dderef_list({V}, Bs) ->
-    case ?BIND:find(V, Bs) of
+    case ?GET_BINDING(V, Bs) of
 	{ok,L} -> dderef_list(L, Bs);
 	error -> instantiation_error()
     end;
@@ -1288,7 +1304,7 @@ partial_list([H|T0], Bs) ->
     T1 = partial_list(T0, Bs),
     [H|T1];
 partial_list({V}=Var, Bs) ->
-    case ?BIND:find(V, Bs) of
+    case ?GET_BINDING(V, Bs) of
 	{ok,T} -> partial_list(T, Bs);
 	error -> Var
     end;
