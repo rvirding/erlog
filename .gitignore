@@ -1,5 +1,9 @@
+*.beam
+*.o
 *~
 .DS_Store
-*.beam
 .rebar
 .rebar3
+_build/
+comp_opts.mk
+erl_crash.dump
