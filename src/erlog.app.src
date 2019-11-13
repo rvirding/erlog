@@ -1,7 +1,7 @@
 % -*- Erlang -*-
 {application, erlog,
  [
-  {description, ""},
+  {description, "Erlog - an implementation of Prolog on Erlang"},
   {vsn, "1"},
   {registered, []},
   {applications, [
