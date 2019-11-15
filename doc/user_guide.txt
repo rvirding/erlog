@@ -230,7 +230,7 @@ for larger evaluations you should adopt a failure driven style.
 There is no smart clause indexing on the first argument in a procedure
 in Erlog.
 
-Yes, there are no I/O predicates provided.
+Yes, there are no file I/O predicates provided.
 
 There is partial support for the equivalence of list notation and
 '.'/2 terms, but it might go away later.
@@ -246,6 +246,6 @@ a little "cryptic".
 
 AUTHOR
 
-Robert Virding - robert.virding@telia.com
+Robert Virding - rvirding@gmail.com
 (with thanks to Richard O'Keefe for explaining some finer points of
 the Prolog standard)

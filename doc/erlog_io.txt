@@ -59,3 +59,9 @@ erlog_scan:tokens(Continuation, Chars, Line) ->
 
         Re-entrant scanner to scan tokens upto an end token.
         Compatible with io system.
+
+AUTHOR
+
+        Robert Virding - rvirding@gmail.com
+        (with thanks to Richard O'Keefe for explaining some finer
+        points of the Prolog standard)

@@ -102,6 +102,6 @@ DATABASE INTERFACE
 
 AUTHOR
 
-        Robert Virding - robert.virding@telia.com
+        Robert Virding - rvirding@gmail.com
         (with thanks to Richard O'Keefe for explaining some finer
         points of the Prolog standard)
