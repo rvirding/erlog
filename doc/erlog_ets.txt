@@ -1,0 +1,80 @@
+MODULE
+
+        erlog_ets
+
+MODULE SUMMARY
+
+        Provide Erlog predicates for directly interfacing ETS tables
+
+DESCRIPTION
+
+        This module provides a basic interface to ETS tables with some
+        predicates which can access the tables. Currently it cannot
+        manage tables and their contents but only access the objects.
+
+TYPES
+
+erlog_database()
+        Internal Erlog database reference.
+
+EXPORTS
+
+erlog_ets:load(Database) -> Database.
+
+        Types
+            Database = erlog_database()
+
+        Asserts the ETS interface predicates into the Erlog
+        database. This function is automatically called when the
+        module is loaded with 'erlog:load/2' and is seldom explicitly
+        called by code. All the predicates are compiled code so the
+        assertion is done using 'erlog_int:add_compiled_proc/4'
+        function.
+
+ETS INTERFACE
+
+The following predicates are currently provided to inteface ETS tables:
+
+ets_all(Tables)
+
+        Unifies Tables with a list of all the ETS tables currently in
+        the Erlang system.
+
+ets_key(TableName, Key)
+
+        Unifies Key with a key in the ETS table. This will predicate
+        will backtrack over the keys.
+
+ets_match(TableName, Pattern)
+
+        Will unify Pattern with an object in the table Table. It will
+        backtrack over all objects in the table which can unify with
+        Pattern.
+
+EXAMPLE
+
+        Suppose we have the ETS table 'test_tab' which is of type
+        'duplicate_bag' and contains the following objects:
+
+        {bert,15,yesterday}
+        {bert,20,today}
+        {bert,20,today,null}
+        {bert,25,tomorrow}
+
+        then calling ets_match(test_tab, bert(What, When)) will
+        backtrack and succeed with:
+
+        What = 15
+        When = yesterday
+
+        What = 20
+        When = today
+
+        What = 25
+        When = yesterday
+
+AUTHOR
+
+        Robert Virding - rvirding@gmail.com
+        (with thanks to Richard O'Keefe for explaining some finer
+        points of the Prolog standard)
