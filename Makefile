@@ -38,7 +38,7 @@ $(EBINDIR)/%.beam: $(SRCDIR)/%.erl
 %.erl: %.xrl
 	$(ERLC) -o $(SRCDIR) $<
 
-.PHONY: all compile doc clean shell rebuild
+.PHONY: all compile doc clean distclean pdf
 
 all: compile
 
