@@ -110,7 +110,7 @@ person(Name, Phone, Address).
 You can access fields in an Erlang record by position by using the
 standard prolog arg/3 predicate.  If you want to create functors that
 can access fields in an Erlang record by name, you can create functors
-for that Automaticly with the code in the file
+for that Automatically with the code in the file
 https://github.com/zkessin/erlog/blob/master/priv/records.pl. just
 call `erlog:prove(State, {record, person, record_info(fields,
 person)})`. Note that the record fields must be created in Erlang at
