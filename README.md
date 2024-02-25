@@ -22,7 +22,7 @@ return `{ok, State}` Where state is the current state of the Erlog
 system. You should treat it as an opaque data structure. To prove a
 clause or run Prolog code you can then run `erlog:prove({...}, State)`
 This will return a new closure and a return of type
-`erlog_return()`. To consult a file you can run `erlog:consult(FILE,State)`
+`erlog_return()`. To consult a file you can run `erlog:consult(FILE, State)`
 which will return a new closure and 'ok' or an error.
 
 For example take this code:
@@ -133,8 +133,8 @@ standard prolog arg/3 predicate.  If you want to create functors that
 can access fields in an Erlang record by name, you can create functors
 for that Automaticly with the code in the file
 https://github.com/zkessin/erlog/blob/master/priv/records.pl. just
-call `erlog:prove(State, {record, person, record_info(fields,
-person)})`. Note that the record fields must be created in Erlang at
+call `erlog:prove({record, person, record_info(fields, person)}, State)`.
+Note that the record fields must be created in Erlang at
 compile time.
 
 ## Using ETS
@@ -145,7 +145,7 @@ ETS table. It should also be possible to work with mnesia tables, but
 this has not yet been done.
 
 If you want to use Erlog with ETS you need to load the erlog_ets
-module into Erlog. To do that you call `erlog:load(PID,erlog_ets)` or
+module into Erlog. To do that you call `erlog:load(erlog_ets, PID)` or
 `E({load,erlog_ets})`. You can match on an ETS table with
 `ets_match(TableId, Value)`.
 
