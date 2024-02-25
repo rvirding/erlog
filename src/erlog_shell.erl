@@ -44,6 +44,9 @@ server_loop(Erl0) ->
 	{ok,{consult, File}} ->
 	    Erl1 = consult(erlog:consult(File,Erl0), Erl0),
 	    server_loop(Erl1);
+	{ok,{reconsult, File}} ->
+	    Erl1 = consult(erlog:reconsult(File,Erl0), Erl0),
+	    server_loop(Erl1);
 	{ok,Files} when is_list(Files) ->
 	    case reconsult_files(Files, Erl0) of
 		{ok,Erl1} ->
