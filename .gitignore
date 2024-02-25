@@ -7,3 +7,5 @@
 _build/
 comp_opts.mk
 erl_crash.dump
+rebar.lock
+src/erlog_scan.erl

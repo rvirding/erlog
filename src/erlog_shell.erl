@@ -41,6 +41,12 @@ server(M, A) ->
 server_loop(Erl0) ->
     case erlog_io:read('| ?- ') of
 	{ok,halt} -> ok;
+	{ok,{consult, File}} ->
+	    Erl1 = consult(erlog:consult(File,Erl0), Erl0),
+	    server_loop(Erl1);
+	{ok,{reconsult, File}} ->
+	    Erl1 = consult(erlog:reconsult(File,Erl0), Erl0),
+	    server_loop(Erl1);
 	{ok,Files} when is_list(Files) ->
 	    case reconsult_files(Files, Erl0) of
 		{ok,Erl1} ->
@@ -69,6 +75,13 @@ server_loop(Erl0) ->
 	    io:fwrite("Error: ~s\n", [Em:format_error(E)]),
 	    server_loop(Erl0)
     end.
+
+consult({ok, State}, _) ->
+    io:fwrite("Yes\n"),
+    State;
+consult({error, Error}, State) ->
+    io:fwrite("Error: ~s\n", [erlog_io:write1(Error)]),
+    State.
 
 reconsult_files([F|Fs], Erl0) ->
     case erlog:reconsult(F, Erl0) of
