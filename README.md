@@ -20,19 +20,19 @@ This is a low level interface, which is meant to built upon as much as used dire
 To create an Erlog instance in a closure use `erlog:new()` this will
 return `{ok, State}` Where state is the current state of the Erlog
 system. You should treat it as an opaque data structure. To prove a
-clause or run Prolog code you can then run `erlog:prove(State, {...})`
+clause or run Prolog code you can then run `erlog:prove({...}, State)`
 This will return a new closure and a return of type
-`erlog_return()`. To consult a file you can run `erlog:consult(State,
-FILE)` which will return a new closure and 'ok' or an error.
+`erlog_return()`. To consult a file you can run `erlog:consult(FILE,State)`
+which will return a new closure and 'ok' or an error.
 
 For example take this code:
-We start by creating a new instance of the Erlog engine, then we 
+We start by creating a new instance of the Erlog engine, then we
 it starts with an append statement which ask it to append lists `A`
 and `B`. The return value is designated with a 1 tuple with an atom
-value for the return variable, in this case `{'Z'}`. 
+value for the return variable, in this case `{'Z'}`.
 
 If the Prolog code works correctly it will return the tuple `{{succeed,
-[{'Z', Value}]}, NewState}`. 
+[{'Z', Value}]}, NewState}`.
 
 
 
@@ -45,6 +45,27 @@ If the Prolog code works correctly it will return the tuple `{{succeed,
                    false
            end
 ````
+
+### The simple Erlog shell.
+
+This is a simple shell similar to a "normal" Prolog shell.
+An example, using a file from Erlog repository.
+
+````erlang
+	1> erlog_shell:server().
+	Erlog Shell V14.2.1 (abort with ^G)
+	| ?- consult("examples/family.pl").
+	Yes
+	| ?- parent(pam, B).
+	B = bob
+	:
+	Yes
+	| ?- halt
+	     .
+	ok
+	2>
+````
+
 
 The dialyzer types of some of Erlog's functions are as such
 
@@ -66,15 +87,15 @@ If you have questions about Erlog post them tagged with Erlog on Stack Overflow 
 
 If you want to pass data between Erlang and Prolog it is pretty easy
 to do so. Data types map pretty cleanly between the two languages due
-to the fact that Erlang evolved from Prolog. 
+to the fact that Erlang evolved from Prolog.
 
 ### Atoms
 Atoms are the same in Erlang and Prolog, and can be passed back and
 forth without problem.
 
-### Numeric Data 
+### Numeric Data
 Integer and floating point numbers similarly can be passed back and
-forth. 
+forth.
 
 ### Opaque data
 
@@ -87,17 +108,17 @@ comparisons on them.
 It is possible to send structured Erlang data to Prolog, and this is
 often very useful. Lists can be sent directly back and forth. Maps are
 not (Yet) supported, we will be looking into how to support them in
-the future. 
+the future.
 
 Erlog understands Erlang tuples to be facts. So the Erlang tuple
 `{foo, 1, 2, 3}` would show up in Erlog as the fact `foo(1,2,3)`. The
 upshot of this is that all tuples that are passed to Erlog must have
 an atom as the first element and must have more than 1 element. The
-tuple `{atom()}` will be understood to be a Prolog variable. 
+tuple `{atom()}` will be understood to be a Prolog variable.
 
 Records in Erlang are just tuples with an initial atom. So it is
 possible to pass records between Erlog and Erlang. The record
-definition here and the Prolog fact are equivalent. 
+definition here and the Prolog fact are equivalent.
 
 ````erlang
 -record(person, {name, phone, address}).
@@ -151,8 +172,8 @@ If you want to run the tests you will need to install quickcheck mini
 
 to run the tests then run `rebar eunit`
 
-## Licence 
+## Licence
 
 Erlog was created by Robert Virding and can be used under the
-Apache 2.0 Licence. 
+Apache 2.0 Licence.
 
